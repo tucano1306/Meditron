@@ -36,13 +36,13 @@ interface MonthSummaryData {
 }
 
 interface SummaryCardsProps {
-  today: DaySummary
-  currentWeek: WeekData
-  monthSummary: MonthSummaryData
-  hourlyRate: number
+  readonly today: DaySummary
+  readonly currentWeek: WeekData
+  readonly monthSummary: MonthSummaryData
+  readonly hourlyRate: number
 }
 
-export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: SummaryCardsProps) {
+export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: Readonly<SummaryCardsProps>) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Hoy */}

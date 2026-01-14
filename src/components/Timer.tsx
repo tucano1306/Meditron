@@ -8,11 +8,11 @@ import { formatDuration, formatCurrency, HOURLY_RATE } from '@/lib/utils'
 import type { TimerState } from '@/types'
 
 interface TimerProps {
-  onTimerStop?: () => void
-  initialState?: TimerState
+  readonly onTimerStop?: () => void
+  readonly initialState?: TimerState
 }
 
-export function Timer({ onTimerStop, initialState }: TimerProps) {
+export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
   const [isRunning, setIsRunning] = useState(initialState?.isRunning || false)
   const [elapsedSeconds, setElapsedSeconds] = useState(initialState?.elapsedSeconds || 0)
   const [startTime, setStartTime] = useState<Date | null>(
@@ -147,18 +147,7 @@ export function Timer({ onTimerStop, initialState }: TimerProps) {
 
         {/* Buttons */}
         <div className="flex justify-center gap-4">
-          {!isRunning ? (
-            <Button
-              onClick={handleStart}
-              disabled={isLoading}
-              variant="success"
-              size="xl"
-              className="min-w-[200px]"
-            >
-              <Play className="mr-2 h-6 w-6" />
-              {isLoading ? 'Iniciando...' : 'INICIAR'}
-            </Button>
-          ) : (
+          {isRunning ? (
             <Button
               onClick={handleStop}
               disabled={isLoading}
@@ -168,6 +157,17 @@ export function Timer({ onTimerStop, initialState }: TimerProps) {
             >
               <Square className="mr-2 h-6 w-6" />
               {isLoading ? 'Deteniendo...' : 'DETENER'}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleStart}
+              disabled={isLoading}
+              variant="success"
+              size="xl"
+              className="min-w-[200px]"
+            >
+              <Play className="mr-2 h-6 w-6" />
+              {isLoading ? 'Iniciando...' : 'INICIAR'}
             </Button>
           )}
         </div>

@@ -28,10 +28,10 @@ interface WeekData {
 }
 
 interface WeekHistoryProps {
-  onRefresh?: () => void
+  readonly onRefresh?: () => void
 }
 
-export function WeekHistory({ onRefresh }: WeekHistoryProps) {
+export function WeekHistory({ onRefresh }: Readonly<WeekHistoryProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)

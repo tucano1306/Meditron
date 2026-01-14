@@ -65,7 +65,7 @@ export async function GET() {
 
     // Calcular totales de hoy
     const todayTotalSeconds = todayEntries.reduce(
-      (sum, entry) => sum + (entry.duration || 0),
+      (sum: number, entry: { duration: number | null }) => sum + (entry.duration || 0),
       0
     )
     const todayHours = todayTotalSeconds / 3600

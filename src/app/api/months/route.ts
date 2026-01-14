@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
       const summary = await prisma.monthSummary.findUnique({
         where: {
           year_month: {
-            year: parseInt(year),
-            month: parseInt(month)
+            year: Number.parseInt(year, 10),
+            month: Number.parseInt(month, 10)
           }
         }
       })
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
       // También obtener las semanas del mes
       const weeks = await prisma.week.findMany({
         where: {
-          year: parseInt(year),
-          month: parseInt(month)
+          year: Number.parseInt(year, 10),
+          month: Number.parseInt(month, 10)
         },
         include: {
           entries: true

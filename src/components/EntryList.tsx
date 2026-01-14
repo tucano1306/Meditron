@@ -14,13 +14,13 @@ interface Entry {
 }
 
 interface EntryListProps {
-  entries: Entry[]
-  title?: string
-  onDelete?: (id: string) => void
-  showDate?: boolean
+  readonly entries: Entry[]
+  readonly title?: string
+  readonly onDelete?: (id: string) => void
+  readonly showDate?: boolean
 }
 
-export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDate = false }: EntryListProps) {
+export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDate = false }: Readonly<EntryListProps>) {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta entrada?')) return
     
@@ -98,7 +98,11 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDa
                 </div>
               </div>
               <div className="text-right">
-                {entry.duration !== null ? (
+                {entry.duration === null ? (
+                  <div className="text-yellow-600 font-semibold animate-pulse">
+                    En curso...
+                  </div>
+                ) : (
                   <>
                     <div className="font-mono font-semibold">
                       {formatDuration(entry.duration)}
@@ -107,10 +111,6 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDa
                       {formatCurrency((entry.duration / 3600) * HOURLY_RATE)}
                     </div>
                   </>
-                ) : (
-                  <div className="text-yellow-600 font-semibold animate-pulse">
-                    En curso...
-                  </div>
                 )}
               </div>
               {entry.endTime && (

@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {}
 
     if (year) {
-      where.year = parseInt(year)
+      where.year = Number.parseInt(year, 10)
     }
 
     if (month) {
-      where.month = parseInt(month)
+      where.month = Number.parseInt(month, 10)
     }
 
     const weeks = await prisma.week.findMany({

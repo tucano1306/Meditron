@@ -123,7 +123,7 @@ export async function GET() {
 
     if (activeEntry) {
       const elapsedSeconds = Math.floor(
-        (new Date().getTime() - new Date(activeEntry.startTime).getTime()) / 1000
+        (Date.now() - new Date(activeEntry.startTime).getTime()) / 1000
       )
 
       return NextResponse.json({

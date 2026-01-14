@@ -41,7 +41,7 @@ export async function updateWeekTotals(weekId: string) {
     }
   })
 
-  const totalSeconds = entries.reduce((sum, entry) => sum + (entry.duration || 0), 0)
+  const totalSeconds = entries.reduce((sum: number, entry: { duration: number | null }) => sum + (entry.duration || 0), 0)
   const totalHours = totalSeconds / 3600
   const earnings = totalHours * HOURLY_RATE
 
@@ -61,7 +61,7 @@ export async function updateMonthSummary(year: number, month: number) {
     where: { year, month }
   })
 
-  const totalHours = weeks.reduce((sum, week) => sum + week.totalHours, 0)
+  const totalHours = weeks.reduce((sum: number, week: { totalHours: number }) => sum + week.totalHours, 0)
   const earnings = totalHours * HOURLY_RATE
 
   await prisma.monthSummary.upsert({
