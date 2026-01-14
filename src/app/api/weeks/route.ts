@@ -1,0 +1,47 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+// GET - Obtener semanas
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const year = searchParams.get('year')
+    const month = searchParams.get('month')
+
+    const where: Record<string, unknown> = {}
+
+    if (year) {
+      where.year = parseInt(year)
+    }
+
+    if (month) {
+      where.month = parseInt(month)
+    }
+
+    const weeks = await prisma.week.findMany({
+      where,
+      include: {
+        entries: {
+          orderBy: {
+            startTime: 'desc'
+          }
+        }
+      },
+      orderBy: [
+        { year: 'desc' },
+        { weekNumber: 'desc' }
+      ]
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: weeks
+    })
+  } catch (error) {
+    console.error('Error getting weeks:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al obtener semanas' },
+      { status: 500 }
+    )
+  }
+}

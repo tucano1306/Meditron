@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TimeEntry {
+  id        String   @id @default(cuid())
+  startTime DateTime
+  endTime   DateTime?
+  duration  Int?
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  weekId    String
+  week      Week     @relation(fields: [weekId], references: [id])
+
+  @@index([date])
+  @@index([weekId])
+}
+
+model Week {
+  id          String      @id @default(cuid())
+  weekNumber  Int
+  startDate   DateTime    @db.Date
+  endDate     DateTime    @db.Date
+  year        Int
+  month       Int
+  totalHours  Float       @default(0)
+  earnings    Float       @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  entries     TimeEntry[]
+
+  @@unique([weekNumber, year])
+  @@index([year, month])
+}
+
+model MonthSummary {
+  id          String   @id @default(cuid())
+  year        Int
+  month       Int
+  totalHours  Float    @default(0)
+  earnings    Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([year, month])
+}
