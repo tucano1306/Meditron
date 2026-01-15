@@ -20,30 +20,17 @@ export default function LoginPage() {
     setIsLoading(true)
     setError('')
 
-    try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false
-      })
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false
+    })
 
-      console.log('SignIn result:', JSON.stringify(result))
-
-      if (result?.error) {
-        setError('Email o contraseña incorrectos')
-        setIsLoading(false)
-      } else if (result?.ok) {
-        // Forzar navegación con location.replace
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-        window.location.replace(baseUrl + '/mode-select')
-      } else {
-        setError('Error desconocido')
-        setIsLoading(false)
-      }
-    } catch (err) {
-      console.error('Login error:', err)
-      setError('Error de conexión')
+    if (result?.error) {
+      setError('Email o contraseña incorrectos')
       setIsLoading(false)
+    } else {
+      globalThis.location.href = '/mode-select'
     }
   }
 

@@ -3,9 +3,6 @@ import Credentials from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
 import { prisma } from "./prisma"
 
-const useSecureCookies = process.env.NODE_ENV === 'production'
-const cookiePrefix = useSecureCookies ? '__Secure-' : ''
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -60,25 +57,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session
     }
   },
-  cookies: {
-    sessionToken: {
-      name: `${cookiePrefix}next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: useSecureCookies
-      }
-    }
-  },
   pages: {
     signIn: "/login"
   },
   session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60 // 30 días
+    strategy: "jwt"
   },
   trustHost: true,
-  debug: process.env.NODE_ENV === 'development',
   secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET
 })
