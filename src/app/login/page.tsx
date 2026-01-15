@@ -19,15 +19,18 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Login attempt:', { email })
     setIsLoading(true)
     setError('')
 
     try {
+      console.log('Calling signIn...')
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false
       })
+      console.log('SignIn result:', result)
 
       if (result?.error) {
         setError('Email o contraseña incorrectos')
@@ -35,7 +38,8 @@ export default function LoginPage() {
         router.push('/mode-select')
         router.refresh()
       }
-    } catch {
+    } catch (err) {
+      console.error('Login error:', err)
       setError('Error de conexión')
     } finally {
       setIsLoading(false)
