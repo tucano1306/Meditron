@@ -17,26 +17,17 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Login attempt:', { email })
     setIsLoading(true)
     setError('')
 
     try {
-      console.log('Calling signIn...')
-      const result = await signIn('credentials', {
+      // Usar redirect nativo de NextAuth
+      await signIn('credentials', {
         email,
         password,
-        redirect: false
+        callbackUrl: '/mode-select',
+        redirect: true
       })
-      console.log('SignIn result:', result)
-
-      if (result?.error) {
-        setError('Email o contraseña incorrectos')
-        setIsLoading(false)
-      } else if (result?.ok) {
-        // Usar globalThis.location para forzar redirección completa
-        globalThis.location.href = '/mode-select'
-      }
     } catch (err) {
       console.error('Login error:', err)
       setError('Error de conexión')
