@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 
 // GET - Obtener semanas
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
     const { searchParams } = new URL(request.url)
     const year = searchParams.get('year')
     const month = searchParams.get('month')
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = { userId }
 
     if (year) {
       where.year = Number.parseInt(year, 10)

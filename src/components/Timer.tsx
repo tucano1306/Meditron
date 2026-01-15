@@ -134,14 +134,14 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
   const currentEarnings = (elapsedSeconds / 3600) * HOURLY_RATE
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto border-0 shadow-xl shadow-emerald-100">
       <CardHeader className="text-center pb-2 sm:pb-4">
         <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
-          <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
+          <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" />
           Control de Horas
         </CardTitle>
         {isRunning && wakeLockActive && (
-          <div className="flex items-center justify-center gap-1 text-xs text-green-600">
+          <div className="flex items-center justify-center gap-1 text-xs text-emerald-600">
             <Smartphone className="h-3 w-3" />
             <span>Modo background activo</span>
           </div>
@@ -150,10 +150,12 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
       <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
         {/* Timer Display */}
         <div className="text-center">
-          <div className={`text-4xl sm:text-6xl font-mono font-bold ${isRunning ? 'text-green-600' : 'text-gray-600'}`}>
+          <div className={`text-4xl sm:text-6xl font-mono font-bold transition-colors ${
+            isRunning ? 'text-emerald-600' : 'text-gray-600'
+          }`}>
             {formatDuration(elapsedSeconds)}
           </div>
-          <div className="text-lg sm:text-xl text-gray-500 mt-2">
+          <div className="text-lg sm:text-xl text-emerald-600 mt-2 font-medium">
             {formatCurrency(currentEarnings)}
           </div>
           {isRunning && startTime && (
@@ -165,7 +167,7 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
 
         {/* Error Message */}
         {error && (
-          <div className="text-center text-red-500 text-sm">
+          <div className="text-center text-red-500 text-sm bg-red-50 py-2 px-4 rounded-xl">
             {error}
           </div>
         )}
@@ -176,9 +178,7 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
             <Button
               onClick={handleStop}
               disabled={isLoading}
-              variant="destructive"
-              size="xl"
-              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg"
+              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl shadow-lg shadow-red-200"
             >
               <Square className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
               {isLoading ? 'Deteniendo...' : 'DETENER'}
@@ -187,9 +187,7 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
             <Button
               onClick={handleStart}
               disabled={isLoading}
-              variant="success"
-              size="xl"
-              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg"
+              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-200"
             >
               <Play className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
               {isLoading ? 'Iniciando...' : 'INICIAR'}

@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
 
 // GET - Obtener entradas de tiempo
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
     const { searchParams } = new URL(request.url)
     const weekId = searchParams.get('weekId')
     const date = searchParams.get('date')
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = { userId }
 
     if (weekId) {
       where.weekId = weekId
@@ -45,6 +55,15 @@ export async function GET(request: NextRequest) {
 // DELETE - Eliminar entrada
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -52,6 +71,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'ID requerido' },
         { status: 400 }
+      )
+    }
+
+    // Verificar que la entrada pertenece al usuario
+    const entry = await prisma.timeEntry.findFirst({
+      where: { id, userId }
+    })
+
+    if (!entry) {
+      return NextResponse.json(
+        { success: false, error: 'Entrada no encontrada' },
+        { status: 404 }
       )
     }
 
@@ -75,6 +106,15 @@ export async function DELETE(request: NextRequest) {
 // POST - Crear entrada manual (desde calculadora)
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
     const body = await request.json()
     const { hours, minutes, payment, hourlyRate, date } = body
 
@@ -104,7 +144,7 @@ export async function POST(request: NextRequest) {
     const startTime = new Date(endTime.getTime() - totalSeconds * 1000)
 
     // Obtener o crear semana
-    const week = await getOrCreateWeek(targetDate)
+    const week = await getOrCreateWeek(targetDate, userId)
 
     // Crear la entrada
     const entry = await prisma.timeEntry.create({
@@ -113,13 +153,14 @@ export async function POST(request: NextRequest) {
         endTime,
         duration: totalSeconds,
         date: targetDate,
-        weekId: week.id
+        weekId: week.id,
+        userId
       }
     })
 
     // Actualizar totales
-    await updateWeekTotals(week.id)
-    await updateMonthSummary(targetDate.getFullYear(), targetDate.getMonth() + 1)
+    await updateWeekTotals(week.id, userId)
+    await updateMonthSummary(targetDate.getFullYear(), targetDate.getMonth() + 1, userId)
 
     return NextResponse.json({
       success: true,

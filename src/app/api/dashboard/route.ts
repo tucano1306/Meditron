@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import { HOURLY_RATE, getWeekStartEnd, getWeekNumber } from '@/lib/utils'
 
 // GET - Dashboard con datos actuales
 export async function GET() {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth() + 1
@@ -14,16 +24,18 @@ export async function GET() {
     // Timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
       where: {
-        endTime: null
+        endTime: null,
+        userId
       }
     })
 
     // Semana actual
     const currentWeek = await prisma.week.findUnique({
       where: {
-        weekNumber_year: {
+        weekNumber_year_userId: {
           weekNumber,
-          year
+          year,
+          userId
         }
       },
       include: {
@@ -38,9 +50,10 @@ export async function GET() {
     // Resumen del mes actual
     const monthSummary = await prisma.monthSummary.findUnique({
       where: {
-        year_month: {
+        year_month_userId: {
           year,
-          month
+          month,
+          userId
         }
       }
     })
@@ -56,7 +69,8 @@ export async function GET() {
         date: {
           gte: todayStart,
           lte: todayEnd
-        }
+        },
+        userId
       },
       orderBy: {
         startTime: 'desc'

@@ -1,10 +1,25 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  timeEntries   TimeEntry[]
+  weeks         Week[]
+  monthSummaries MonthSummary[]
+  paymentEntries PaymentEntry[]
 }
 
 model TimeEntry {
@@ -16,11 +31,14 @@ model TimeEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   weekId    String
   week      Week     @relation(fields: [weekId], references: [id])
 
   @@index([date])
   @@index([weekId])
+  @@index([userId])
 }
 
 model Week {
@@ -35,10 +53,13 @@ model Week {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries     TimeEntry[]
 
-  @@unique([weekNumber, year])
+  @@unique([weekNumber, year, userId])
   @@index([year, month])
+  @@index([userId])
 }
 
 model MonthSummary {
@@ -50,5 +71,28 @@ model MonthSummary {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([year, month])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([year, month, userId])
+  @@index([userId])
+}
+
+model PaymentEntry {
+  id          String   @id @default(cuid())
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?
+  amount      Float?
+  hourlyRate  Float?
+  date        DateTime @db.Date
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([userId])
 }

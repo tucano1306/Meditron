@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
 
-// POST - Iniciar timer
+// POST - Iniciar trabajo por pago
 export async function POST() {
   try {
     const session = await auth()
@@ -16,31 +15,27 @@ export async function POST() {
 
     const userId = session.user.id
     const now = new Date()
-    
-    // Verificar si hay un timer activo para este usuario
-    const activeEntry = await prisma.timeEntry.findFirst({
+
+    // Verificar si hay un trabajo activo
+    const activeEntry = await prisma.paymentEntry.findFirst({
       where: {
-        endTime: null,
+        completed: false,
         userId
       }
     })
 
     if (activeEntry) {
       return NextResponse.json(
-        { success: false, error: 'Ya hay un timer activo' },
+        { success: false, error: 'Ya hay un trabajo en progreso' },
         { status: 400 }
       )
     }
 
-    // Obtener o crear la semana actual
-    const week = await getOrCreateWeek(now, userId)
-
-    // Crear nueva entrada de tiempo
-    const entry = await prisma.timeEntry.create({
+    // Crear nueva entrada de pago
+    const entry = await prisma.paymentEntry.create({
       data: {
         startTime: now,
         date: new Date(now.toISOString().split('T')[0]),
-        weekId: week.id,
         userId
       }
     })
@@ -49,20 +44,20 @@ export async function POST() {
       success: true,
       data: {
         entry,
-        message: 'Timer iniciado'
+        message: 'Trabajo iniciado'
       }
     })
   } catch (error) {
-    console.error('Error starting timer:', error)
+    console.error('Error starting payment entry:', error)
     return NextResponse.json(
-      { success: false, error: 'Error al iniciar el timer' },
+      { success: false, error: 'Error al iniciar el trabajo' },
       { status: 500 }
     )
   }
 }
 
-// PUT - Detener timer
-export async function PUT() {
+// PUT - Detener trabajo y registrar pago
+export async function PUT(request: Request) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -74,68 +69,67 @@ export async function PUT() {
 
     const userId = session.user.id
     const now = new Date()
+    const { amount } = await request.json()
 
-    // Buscar timer activo del usuario
-    const activeEntry = await prisma.timeEntry.findFirst({
+    if (typeof amount !== 'number' || amount <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Monto inválido' },
+        { status: 400 }
+      )
+    }
+
+    // Buscar trabajo activo
+    const activeEntry = await prisma.paymentEntry.findFirst({
       where: {
-        endTime: null,
+        completed: false,
         userId
-      },
-      include: {
-        week: true
       }
     })
 
     if (!activeEntry) {
       return NextResponse.json(
-        { success: false, error: 'No hay timer activo' },
+        { success: false, error: 'No hay trabajo en progreso' },
         { status: 400 }
       )
     }
 
-    // Calcular duración en segundos
+    // Calcular duración y tarifa por hora
     const duration = Math.floor(
       (now.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
     )
+    const hours = duration / 3600
+    const hourlyRate = hours > 0 ? amount / hours : 0
 
     // Actualizar entrada
-    const updatedEntry = await prisma.timeEntry.update({
+    const updatedEntry = await prisma.paymentEntry.update({
       where: { id: activeEntry.id },
       data: {
         endTime: now,
-        duration
+        duration,
+        amount,
+        hourlyRate,
+        completed: true
       }
     })
-
-    // Actualizar totales de la semana
-    const weekTotals = await updateWeekTotals(activeEntry.weekId, userId)
-
-    // Actualizar resumen mensual
-    const monthTotals = await updateMonthSummary(
-      activeEntry.week.year,
-      activeEntry.week.month,
-      userId
-    )
 
     return NextResponse.json({
       success: true,
       data: {
         entry: updatedEntry,
-        weekTotals,
-        monthTotals,
-        message: 'Timer detenido'
+        calculatedHourlyRate: hourlyRate,
+        message: 'Trabajo completado'
       }
     })
   } catch (error) {
-    console.error('Error stopping timer:', error)
+    console.error('Error stopping payment entry:', error)
     return NextResponse.json(
-      { success: false, error: 'Error al detener el timer' },
+      { success: false, error: 'Error al completar el trabajo' },
       { status: 500 }
     )
   }
 }
 
-// GET - Obtener estado actual del timer
+// GET - Estado actual del trabajo
 export async function GET() {
   try {
     const session = await auth()
@@ -148,9 +142,9 @@ export async function GET() {
 
     const userId = session.user.id
 
-    const activeEntry = await prisma.timeEntry.findFirst({
+    const activeEntry = await prisma.paymentEntry.findFirst({
       where: {
-        endTime: null,
+        completed: false,
         userId
       }
     })
@@ -181,9 +175,9 @@ export async function GET() {
       }
     })
   } catch (error) {
-    console.error('Error getting timer status:', error)
+    console.error('Error getting payment status:', error)
     return NextResponse.json(
-      { success: false, error: 'Error al obtener estado del timer' },
+      { success: false, error: 'Error al obtener estado' },
       { status: 500 }
     )
   }

@@ -1,7 +1,7 @@
 import { prisma } from './prisma'
 import { getWeekNumber, getWeekStartEnd, HOURLY_RATE } from './utils'
 
-export async function getOrCreateWeek(date: Date) {
+export async function getOrCreateWeek(date: Date, userId: string) {
   const { start, end } = getWeekStartEnd(date)
   const weekNumber = getWeekNumber(date)
   const year = date.getFullYear()
@@ -9,9 +9,10 @@ export async function getOrCreateWeek(date: Date) {
 
   const week = await prisma.week.findUnique({
     where: {
-      weekNumber_year: {
+      weekNumber_year_userId: {
         weekNumber,
-        year
+        year,
+        userId
       }
     }
   }) ?? await prisma.week.create({
@@ -22,17 +23,19 @@ export async function getOrCreateWeek(date: Date) {
       startDate: start,
       endDate: end,
       totalHours: 0,
-      earnings: 0
+      earnings: 0,
+      userId
     }
   })
 
   return week
 }
 
-export async function updateWeekTotals(weekId: string) {
+export async function updateWeekTotals(weekId: string, userId: string) {
   const entries = await prisma.timeEntry.findMany({
     where: {
       weekId,
+      userId,
       duration: { not: null }
     }
   })
@@ -52,9 +55,9 @@ export async function updateWeekTotals(weekId: string) {
   return { totalHours, earnings }
 }
 
-export async function updateMonthSummary(year: number, month: number) {
+export async function updateMonthSummary(year: number, month: number, userId: string) {
   const weeks = await prisma.week.findMany({
-    where: { year, month }
+    where: { year, month, userId }
   })
 
   const totalHours = weeks.reduce((sum: number, week: { totalHours: number }) => sum + week.totalHours, 0)
@@ -62,7 +65,7 @@ export async function updateMonthSummary(year: number, month: number) {
 
   await prisma.monthSummary.upsert({
     where: {
-      year_month: { year, month }
+      year_month_userId: { year, month, userId }
     },
     update: {
       totalHours,
@@ -72,7 +75,8 @@ export async function updateMonthSummary(year: number, month: number) {
       year,
       month,
       totalHours,
-      earnings
+      earnings,
+      userId
     }
   })
 

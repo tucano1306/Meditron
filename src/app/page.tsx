@@ -1,5 +1,12 @@
-import { Dashboard } from '@/components/Dashboard'
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
 
-export default function Home() {
-  return <Dashboard />
+export default async function Home() {
+  const session = await auth()
+  
+  if (!session) {
+    redirect('/login')
+  }
+  
+  redirect('/mode-select')
 }
