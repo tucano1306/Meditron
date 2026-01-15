@@ -10,7 +10,7 @@ import { MonthSummary } from '@/components/MonthSummary'
 import { RateCalculator } from '@/components/RateCalculator'
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, BarChart3, Calculator } from 'lucide-react'
+import { Calendar, BarChart3, Calculator, Clock } from 'lucide-react'
 
 interface DashboardData {
   timerState: {
