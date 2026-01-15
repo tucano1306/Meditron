@@ -101,7 +101,7 @@ export async function GET() {
           totalHours: todayHours,
           earnings: todayEarnings
         },
-        currentWeek: currentWeek || {
+        currentWeek: currentWeek ?? {
           weekNumber,
           year,
           month,
@@ -111,7 +111,7 @@ export async function GET() {
           earnings: 0,
           entries: []
         },
-        monthSummary: monthSummary || {
+        monthSummary: monthSummary ?? {
           year,
           month,
           totalHours: 0,

@@ -6,8 +6,9 @@ import { SummaryCards } from '@/components/SummaryCards'
 import { EntryList } from '@/components/EntryList'
 import { WeekHistory } from '@/components/WeekHistory'
 import { MonthSummary } from '@/components/MonthSummary'
+import { RateCalculator } from '@/components/RateCalculator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Clock, Calendar, BarChart3 } from 'lucide-react'
+import { Clock, Calendar, BarChart3, Calculator } from 'lucide-react'
 
 interface DashboardData {
   timerState: {
@@ -127,20 +128,20 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
         {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
-            <Clock className="h-8 w-8 text-blue-600" />
-            Meditron - Control de Horas
+        <header className="text-center mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
+            <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            Meditron
           </h1>
-          <p className="text-gray-500 mt-2">
-            Registra y calcula tus horas de trabajo
+          <p className="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">
+            Control de Horas
           </p>
         </header>
 
         {/* Timer */}
-        <section className="mb-8">
+        <section className="mb-6 sm:mb-8">
           <Timer
             onTimerStop={handleTimerStop}
             initialState={data.timerState}
@@ -148,7 +149,7 @@ export function Dashboard() {
         </section>
 
         {/* Summary Cards */}
-        <section className="mb-8">
+        <section className="mb-6 sm:mb-8">
           <SummaryCards
             today={data.today}
             currentWeek={data.currentWeek}
@@ -159,18 +160,22 @@ export function Dashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="today" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="today" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-4 mb-4 h-auto">
+            <TabsTrigger value="today" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <Clock className="h-4 w-4" />
-              Hoy
+              <span className="hidden sm:inline">Hoy</span>
             </TabsTrigger>
-            <TabsTrigger value="weeks" className="flex items-center gap-2">
+            <TabsTrigger value="weeks" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <Calendar className="h-4 w-4" />
-              Semanas
+              <span className="hidden sm:inline">Semanas</span>
             </TabsTrigger>
-            <TabsTrigger value="months" className="flex items-center gap-2">
+            <TabsTrigger value="months" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <BarChart3 className="h-4 w-4" />
-              Meses
+              <span className="hidden sm:inline">Meses</span>
+            </TabsTrigger>
+            <TabsTrigger value="calculator" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <Calculator className="h-4 w-4" />
+              <span className="hidden sm:inline">Calc</span>
             </TabsTrigger>
           </TabsList>
 
@@ -189,12 +194,15 @@ export function Dashboard() {
           <TabsContent value="months">
             <MonthSummary />
           </TabsContent>
+
+          <TabsContent value="calculator">
+            <RateCalculator onSave={fetchDashboard} />
+          </TabsContent>
         </Tabs>
 
         {/* Footer */}
-        <footer className="text-center mt-8 text-sm text-gray-400">
+        <footer className="text-center mt-6 sm:mt-8 text-xs sm:text-sm text-gray-400">
           <p>Las semanas van de Lunes a Domingo</p>
-          <p>Tarifa: $25 USD por hora</p>
         </footer>
       </div>
     </div>

@@ -116,23 +116,23 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
 
   return (
     <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="text-center">
-        <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-          <Clock className="h-6 w-6" />
+      <CardHeader className="text-center pb-2 sm:pb-4">
+        <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
+          <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
           Control de Horas
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
         {/* Timer Display */}
         <div className="text-center">
-          <div className={`text-6xl font-mono font-bold ${isRunning ? 'text-green-600' : 'text-gray-600'}`}>
+          <div className={`text-4xl sm:text-6xl font-mono font-bold ${isRunning ? 'text-green-600' : 'text-gray-600'}`}>
             {formatDuration(elapsedSeconds)}
           </div>
-          <div className="text-xl text-gray-500 mt-2">
+          <div className="text-lg sm:text-xl text-gray-500 mt-2">
             {formatCurrency(currentEarnings)}
           </div>
           {isRunning && startTime && (
-            <div className="text-sm text-gray-400 mt-1">
+            <div className="text-xs sm:text-sm text-gray-400 mt-1">
               Iniciado: {startTime.toLocaleTimeString('es-ES')}
             </div>
           )}
@@ -153,9 +153,9 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
               disabled={isLoading}
               variant="destructive"
               size="xl"
-              className="min-w-[200px]"
+              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg"
             >
-              <Square className="mr-2 h-6 w-6" />
+              <Square className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
               {isLoading ? 'Deteniendo...' : 'DETENER'}
             </Button>
           ) : (
@@ -164,16 +164,16 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
               disabled={isLoading}
               variant="success"
               size="xl"
-              className="min-w-[200px]"
+              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg"
             >
-              <Play className="mr-2 h-6 w-6" />
+              <Play className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
               {isLoading ? 'Iniciando...' : 'INICIAR'}
             </Button>
           )}
         </div>
 
         {/* Rate Info */}
-        <div className="text-center text-sm text-gray-400">
+        <div className="text-center text-xs sm:text-sm text-gray-400">
           Tarifa: ${HOURLY_RATE}/hora
         </div>
       </CardContent>

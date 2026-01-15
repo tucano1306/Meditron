@@ -7,28 +7,24 @@ export async function getOrCreateWeek(date: Date) {
   const year = date.getFullYear()
   const month = date.getMonth() + 1
 
-  let week = await prisma.week.findUnique({
+  const week = await prisma.week.findUnique({
     where: {
       weekNumber_year: {
         weekNumber,
         year
       }
     }
+  }) ?? await prisma.week.create({
+    data: {
+      weekNumber,
+      year,
+      month,
+      startDate: start,
+      endDate: end,
+      totalHours: 0,
+      earnings: 0
+    }
   })
-
-  if (!week) {
-    week = await prisma.week.create({
-      data: {
-        weekNumber,
-        year,
-        month,
-        startDate: start,
-        endDate: end,
-        totalHours: 0,
-        earnings: 0
-      }
-    })
-  }
 
   return week
 }

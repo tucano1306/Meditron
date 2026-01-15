@@ -44,23 +44,23 @@ interface SummaryCardsProps {
 
 export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: Readonly<SummaryCardsProps>) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
       {/* Hoy */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-            <Clock className="h-4 w-4" />
+        <CardHeader className="pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+          <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
             Hoy
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
+        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+          <div className="text-lg sm:text-2xl font-bold">
             {formatDuration(today.totalSeconds)}
           </div>
-          <div className="text-lg text-green-600 font-semibold">
+          <div className="text-sm sm:text-lg text-green-600 font-semibold">
             {formatCurrency(today.earnings)}
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">
             {new Date(today.date).toLocaleDateString('es-ES', {
               weekday: 'long',
               day: 'numeric',
@@ -72,20 +72,20 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: R
 
       {/* Semana Actual */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Semana {currentWeek.weekNumber}
+        <CardHeader className="pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+          <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Semana</span> {currentWeek.weekNumber}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
+        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+          <div className="text-lg sm:text-2xl font-bold">
             {currentWeek.totalHours.toFixed(2)}h
           </div>
-          <div className="text-lg text-green-600 font-semibold">
+          <div className="text-sm sm:text-lg text-green-600 font-semibold">
             {formatCurrency(currentWeek.earnings)}
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">
             {new Date(currentWeek.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} - {new Date(currentWeek.endDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
           </div>
         </CardContent>
@@ -93,20 +93,20 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: R
 
       {/* Mes Actual */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            {getMonthName(monthSummary.month)} {monthSummary.year}
+        <CardHeader className="pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+          <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="truncate">{getMonthName(monthSummary.month)}</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
+        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+          <div className="text-lg sm:text-2xl font-bold">
             {monthSummary.totalHours.toFixed(2)}h
           </div>
-          <div className="text-lg text-green-600 font-semibold">
+          <div className="text-sm sm:text-lg text-green-600 font-semibold">
             {formatCurrency(monthSummary.earnings)}
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">
             Total del mes
           </div>
         </CardContent>
@@ -114,18 +114,18 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: R
 
       {/* Tarifa */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Tarifa por Hora
+        <CardHeader className="pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+          <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Tarifa</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-600">
+        <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+          <div className="text-lg sm:text-2xl font-bold text-blue-600">
             ${hourlyRate}
           </div>
-          <div className="text-sm text-gray-500 mt-1">
-            USD/hora
+          <div className="text-[10px] sm:text-sm text-gray-500 mt-1">
+            USD/hr
           </div>
         </CardContent>
       </Card>
