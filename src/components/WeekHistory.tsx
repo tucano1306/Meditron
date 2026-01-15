@@ -123,8 +123,17 @@ export function WeekHistory({ onRefresh }: Readonly<WeekHistoryProps>) {
                     <div className="font-semibold">
                       Semana {week.weekNumber} - {getMonthName(week.month)} {week.year}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(week.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} - {new Date(week.endDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                      <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium">
+                        {new Date(week.startDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(week.startDate).getDate()}
+                      </span>
+                      <span>→</span>
+                      <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-medium">
+                        {new Date(week.endDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(week.endDate).getDate()}
+                      </span>
+                      <span className="text-gray-400 ml-1">
+                        {getMonthName(new Date(week.startDate).getMonth() + 1)}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -86,7 +86,10 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: R
             {formatCurrency(currentWeek.earnings)}
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">
-            {new Date(currentWeek.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} - {new Date(currentWeek.endDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+            <span className="text-blue-600 font-medium">{new Date(currentWeek.startDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(currentWeek.startDate).getDate()}</span>
+            {' → '}
+            <span className="text-green-600 font-medium">{new Date(currentWeek.endDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(currentWeek.endDate).getDate()}</span>
+            {' '}{getMonthName(new Date(currentWeek.startDate).getMonth() + 1)}
           </div>
         </CardContent>
       </Card>
