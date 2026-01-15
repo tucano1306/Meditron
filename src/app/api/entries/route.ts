@@ -180,3 +180,86 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// PATCH - Actualizar entrada existente
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'ID requerido' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que la entrada pertenece al usuario
+    const entry = await prisma.timeEntry.findFirst({
+      where: { id, userId }
+    })
+
+    if (!entry) {
+      return NextResponse.json(
+        { success: false, error: 'Entrada no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    const body = await request.json()
+    const { startTime, endTime } = body
+
+    if (!startTime || !endTime) {
+      return NextResponse.json(
+        { success: false, error: 'startTime y endTime son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    const newStart = new Date(startTime)
+    const newEnd = new Date(endTime)
+    const duration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000)
+
+    if (duration <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'El tiempo de fin debe ser posterior al inicio' },
+        { status: 400 }
+      )
+    }
+
+    const updatedEntry = await prisma.timeEntry.update({
+      where: { id },
+      data: {
+        startTime: newStart,
+        endTime: newEnd,
+        duration
+      }
+    })
+
+    // Actualizar totales de semana y mes
+    if (entry.weekId) {
+      await updateWeekTotals(entry.weekId, userId)
+    }
+    await updateMonthSummary(newStart.getFullYear(), newStart.getMonth() + 1, userId)
+
+    return NextResponse.json({
+      success: true,
+      data: updatedEntry
+    })
+  } catch (error) {
+    console.error('Error updating entry:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al actualizar entrada' },
+      { status: 500 }
+    )
+  }
+}

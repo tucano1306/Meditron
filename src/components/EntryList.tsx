@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE } from '@/lib/utils'
-import { Clock, Trash2 } from 'lucide-react'
+import { Clock, Trash2, Pencil, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Entry {
@@ -17,10 +18,16 @@ interface EntryListProps {
   readonly entries: Entry[]
   readonly title?: string
   readonly onDelete?: (id: string) => void
+  readonly onUpdate?: () => void
   readonly showDate?: boolean
 }
 
-export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDate = false }: Readonly<EntryListProps>) {
+export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpdate, showDate = false }: Readonly<EntryListProps>) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editStartTime, setEditStartTime] = useState('')
+  const [editEndTime, setEditEndTime] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta entrada?')) return
     
@@ -35,6 +42,66 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDa
       }
     } catch (error) {
       console.error('Error deleting entry:', error)
+    }
+  }
+
+  const startEditing = (entry: Entry) => {
+    const start = new Date(entry.startTime)
+    const end = entry.endTime ? new Date(entry.endTime) : null
+    
+    setEditStartTime(start.toTimeString().slice(0, 5))
+    setEditEndTime(end ? end.toTimeString().slice(0, 5) : '')
+    setEditingId(entry.id)
+  }
+
+  const cancelEditing = () => {
+    setEditingId(null)
+    setEditStartTime('')
+    setEditEndTime('')
+  }
+
+  const handleSaveEdit = async (entry: Entry) => {
+    if (!editStartTime || !editEndTime) return
+    
+    setIsSaving(true)
+    try {
+      const entryDate = new Date(entry.date)
+      const [startH, startM] = editStartTime.split(':').map(Number)
+      const [endH, endM] = editEndTime.split(':').map(Number)
+      
+      const newStart = new Date(entryDate)
+      newStart.setHours(startH, startM, 0, 0)
+      
+      const newEnd = new Date(entryDate)
+      newEnd.setHours(endH, endM, 0, 0)
+      
+      // Si el fin es antes que el inicio, asumir día siguiente
+      if (newEnd <= newStart) {
+        newEnd.setDate(newEnd.getDate() + 1)
+      }
+      
+      const res = await fetch(`/api/entries?id=${entry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startTime: newStart.toISOString(),
+          endTime: newEnd.toISOString()
+        })
+      })
+      
+      const data = await res.json()
+      
+      if (data.success) {
+        cancelEditing()
+        onUpdate?.()
+      } else {
+        alert(data.error || 'Error al guardar')
+      }
+    } catch (error) {
+      console.error('Error updating entry:', error)
+      alert('Error al actualizar la entrada')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -81,21 +148,39 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDa
                     })}
                   </div>
                 )}
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-600">
-                    {new Date(entry.startTime).toLocaleTimeString('es-ES', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                    {' - '}
-                    {entry.endTime
-                      ? new Date(entry.endTime).toLocaleTimeString('es-ES', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
-                      : 'En progreso...'}
-                  </span>
-                </div>
+                {editingId === entry.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={editStartTime}
+                      onChange={(e) => setEditStartTime(e.target.value)}
+                      className="px-2 py-1 text-sm border rounded w-24"
+                    />
+                    <span className="text-gray-400">-</span>
+                    <input
+                      type="time"
+                      value={editEndTime}
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                      className="px-2 py-1 text-sm border rounded w-24"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-600">
+                      {new Date(entry.startTime).toLocaleTimeString('es-ES', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                      {' - '}
+                      {entry.endTime
+                        ? new Date(entry.endTime).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'En progreso...'}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="text-right">
                 {entry.duration === null ? (
@@ -114,14 +199,49 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, showDa
                 )}
               </div>
               {entry.endTime && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(entry.id)}
-                  className="ml-2 text-gray-400 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center ml-2">
+                  {editingId === entry.id ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleSaveEdit(entry)}
+                        disabled={isSaving}
+                        className="text-green-600 hover:text-green-700"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={cancelEditing}
+                        disabled={isSaving}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => startEditing(entry)}
+                        className="text-gray-400 hover:text-blue-600"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(entry.id)}
+                        className="text-gray-400 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           ))}

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 
@@ -178,6 +178,139 @@ export async function GET() {
     console.error('Error getting payment status:', error)
     return NextResponse.json(
       { success: false, error: 'Error al obtener estado' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Eliminar entrada de pago
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'ID requerido' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que la entrada pertenece al usuario
+    const entry = await prisma.paymentEntry.findFirst({
+      where: { id, userId }
+    })
+
+    if (!entry) {
+      return NextResponse.json(
+        { success: false, error: 'Entrada no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    await prisma.paymentEntry.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: { message: 'Entrada eliminada' }
+    })
+  } catch (error) {
+    console.error('Error deleting payment entry:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al eliminar entrada' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Actualizar entrada de pago existente
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const userId = session.user.id
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'ID requerido' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que la entrada pertenece al usuario
+    const entry = await prisma.paymentEntry.findFirst({
+      where: { id, userId }
+    })
+
+    if (!entry) {
+      return NextResponse.json(
+        { success: false, error: 'Entrada no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    const body = await request.json()
+    const { startTime, endTime, amount } = body
+
+    if (!startTime || !endTime || amount === undefined) {
+      return NextResponse.json(
+        { success: false, error: 'startTime, endTime y amount son requeridos' },
+        { status: 400 }
+      )
+    }
+
+    const newStart = new Date(startTime)
+    const newEnd = new Date(endTime)
+    const duration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000)
+
+    if (duration <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'El tiempo de fin debe ser posterior al inicio' },
+        { status: 400 }
+      )
+    }
+
+    const hours = duration / 3600
+    const hourlyRate = hours > 0 ? Number(amount) / hours : 0
+
+    const updatedEntry = await prisma.paymentEntry.update({
+      where: { id },
+      data: {
+        startTime: newStart,
+        endTime: newEnd,
+        duration,
+        amount: Number(amount),
+        hourlyRate
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: updatedEntry
+    })
+  } catch (error) {
+    console.error('Error updating payment entry:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al actualizar entrada' },
       { status: 500 }
     )
   }

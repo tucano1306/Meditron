@@ -236,6 +236,7 @@ export default function HourlyDashboardPage() {
               entries={data.today.entries}
               title="Entradas de Hoy"
               onDelete={handleEntryDelete}
+              onUpdate={fetchDashboard}
             />
           </TabsContent>
 

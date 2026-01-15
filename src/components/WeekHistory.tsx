@@ -143,6 +143,7 @@ export function WeekHistory({ onRefresh }: Readonly<WeekHistoryProps>) {
                     title={`Entradas de la Semana ${week.weekNumber}`}
                     showDate
                     onDelete={handleEntryDelete}
+                    onUpdate={() => { fetchWeeks(); onRefresh?.(); }}
                   />
                 </div>
               )}
