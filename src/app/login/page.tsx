@@ -2,14 +2,12 @@
 
 import { useState, useRef } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -34,14 +32,14 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError('Email o contraseña incorrectos')
-      } else {
-        router.push('/mode-select')
-        router.refresh()
+        setIsLoading(false)
+      } else if (result?.ok) {
+        // Usar globalThis.location para forzar redirección completa
+        globalThis.location.href = '/mode-select'
       }
     } catch (err) {
       console.error('Login error:', err)
       setError('Error de conexión')
-    } finally {
       setIsLoading(false)
     }
   }
