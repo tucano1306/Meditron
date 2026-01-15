@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Timer } from '@/components/Timer'
 import { SummaryCards } from '@/components/SummaryCards'
 import { EntryList } from '@/components/EntryList'
 import { WeekHistory } from '@/components/WeekHistory'
 import { MonthSummary } from '@/components/MonthSummary'
 import { RateCalculator } from '@/components/RateCalculator'
+import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Clock, Calendar, BarChart3, Calculator } from 'lucide-react'
+import { Calendar, BarChart3, Calculator } from 'lucide-react'
 
 interface DashboardData {
   timerState: {
@@ -131,11 +133,19 @@ export function Dashboard() {
       <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
         {/* Header */}
         <header className="text-center mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
-            <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-            Meditron
-          </h1>
-          <p className="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <Image 
+              src="/logo.png" 
+              alt="Meditron Logo" 
+              width={48} 
+              height={48}
+              className="rounded-xl"
+            />
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">
+              Meditron
+            </h1>
+          </div>
+          <p className="text-sm sm:text-base text-gray-500">
             Control de Horas
           </p>
         </header>
@@ -201,10 +211,13 @@ export function Dashboard() {
         </Tabs>
 
         {/* Footer */}
-        <footer className="text-center mt-6 sm:mt-8 text-xs sm:text-sm text-gray-400">
+        <footer className="text-center mt-6 sm:mt-8 text-xs sm:text-sm text-gray-400 pb-20">
           <p>Las semanas van de Lunes a Domingo</p>
         </footer>
       </div>
+      
+      {/* Install PWA Banner */}
+      <InstallPWA />
     </div>
   )
 }

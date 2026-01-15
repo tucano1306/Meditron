@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock } from 'lucide-react'
+import { Play, Square, Clock, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE } from '@/lib/utils'
+import { useServiceWorker } from '@/hooks/useServiceWorker'
+import { useWakeLock } from '@/hooks/useWakeLock'
 import type { TimerState } from '@/types'
 
 interface TimerProps {
@@ -20,6 +22,10 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
   )
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // PWA and background support
+  const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
+  const { requestWakeLock, releaseWakeLock, isActive: wakeLockActive } = useWakeLock()
 
   // Cargar estado inicial
   useEffect(() => {
@@ -65,6 +71,9 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
     setError(null)
 
     try {
+      // Request wake lock to keep screen on
+      await requestWakeLock()
+      
       const res = await fetch('/api/timer', {
         method: 'POST'
       })
@@ -72,10 +81,15 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
 
       if (data.success) {
         setIsRunning(true)
-        setStartTime(new Date(data.data.entry.startTime))
+        const newStartTime = new Date(data.data.entry.startTime)
+        setStartTime(newStartTime)
         setElapsedSeconds(0)
+        
+        // Start background timer
+        startBackgroundTimer(newStartTime.toISOString())
       } else {
         setError(data.error || 'Error al iniciar')
+        await releaseWakeLock()
       }
     } catch (err) {
       setError('Error de conexión')
@@ -83,7 +97,7 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [requestWakeLock, releaseWakeLock, startBackgroundTimer])
 
   const handleStop = useCallback(async () => {
     setIsLoading(true)
@@ -98,6 +112,11 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
       if (data.success) {
         setIsRunning(false)
         setStartTime(null)
+        
+        // Stop background timer and release wake lock
+        stopBackgroundTimer()
+        await releaseWakeLock()
+        
         if (onTimerStop) {
           onTimerStop()
         }
@@ -110,7 +129,7 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
     } finally {
       setIsLoading(false)
     }
-  }, [onTimerStop])
+  }, [onTimerStop, stopBackgroundTimer, releaseWakeLock])
 
   const currentEarnings = (elapsedSeconds / 3600) * HOURLY_RATE
 
@@ -121,6 +140,12 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
           <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
           Control de Horas
         </CardTitle>
+        {isRunning && wakeLockActive && (
+          <div className="flex items-center justify-center gap-1 text-xs text-green-600">
+            <Smartphone className="h-3 w-3" />
+            <span>Modo background activo</span>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
         {/* Timer Display */}

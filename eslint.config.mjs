@@ -10,6 +10,10 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Ignore service worker file
+  {
+    ignores: ["public/sw.js"]
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
