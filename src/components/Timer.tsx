@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, Smartphone } from 'lucide-react'
+import { Play, Square, Clock, Smartphone, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE } from '@/lib/utils'
@@ -12,9 +12,11 @@ import type { TimerState } from '@/types'
 interface TimerProps {
   readonly onTimerStop?: () => void
   readonly initialState?: TimerState
+  readonly hourlyRate?: number
+  readonly onRateChange?: (newRate: number) => void
 }
 
-export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
+export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onRateChange }: Readonly<TimerProps>) {
   const [isRunning, setIsRunning] = useState(initialState?.isRunning || false)
   const [elapsedSeconds, setElapsedSeconds] = useState(initialState?.elapsedSeconds || 0)
   const [startTime, setStartTime] = useState<Date | null>(
@@ -22,6 +24,8 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
   )
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isEditingRate, setIsEditingRate] = useState(false)
+  const [tempRate, setTempRate] = useState(hourlyRate.toString())
   
   // PWA and background support
   const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
@@ -131,7 +135,34 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
     }
   }, [onTimerStop, stopBackgroundTimer, releaseWakeLock])
 
-  const currentEarnings = (elapsedSeconds / 3600) * HOURLY_RATE
+  const currentEarnings = (elapsedSeconds / 3600) * hourlyRate
+
+  const handleSaveRate = async () => {
+    const newRate = Number.parseFloat(tempRate)
+    if (Number.isNaN(newRate) || newRate <= 0) {
+      setError('Tarifa inválida')
+      return
+    }
+    
+    try {
+      const res = await fetch('/api/dashboard', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hourlyRate: newRate })
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        setIsEditingRate(false)
+        onRateChange?.(newRate)
+      } else {
+        setError(data.error || 'Error al guardar tarifa')
+      }
+    } catch (err) {
+      setError('Error de conexión')
+      console.error(err)
+    }
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto border-0 shadow-xl shadow-emerald-100">
@@ -195,9 +226,52 @@ export function Timer({ onTimerStop, initialState }: Readonly<TimerProps>) {
           )}
         </div>
 
-        {/* Rate Info */}
-        <div className="text-center text-xs sm:text-sm text-gray-400">
-          Tarifa: ${HOURLY_RATE}/hora
+        {/* Rate Info - Editable */}
+        <div className="text-center">
+          {isEditingRate ? (
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-gray-500">$</span>
+              <input
+                type="number"
+                value={tempRate}
+                onChange={(e) => setTempRate(e.target.value)}
+                className="w-20 px-2 py-1 text-center border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                step="0.01"
+                min="0"
+              />
+              <span className="text-gray-500">/hora</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleSaveRate}
+                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              >
+                ✓
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setIsEditingRate(false)
+                  setTempRate(hourlyRate.toString())
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setTempRate(hourlyRate.toString())
+                setIsEditingRate(true)
+              }}
+              className="text-xs sm:text-sm text-gray-400 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1 mx-auto"
+            >
+              <Settings className="h-3 w-3" />
+              Tarifa: ${hourlyRate}/hora
+            </button>
+          )}
         </div>
       </CardContent>
     </Card>

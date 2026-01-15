@@ -185,6 +185,11 @@ export default function HourlyDashboardPage() {
           <Timer
             onTimerStop={handleTimerStop}
             initialState={data.timerState}
+            hourlyRate={data.hourlyRate}
+            onRateChange={(newRate) => {
+              setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
+              fetchDashboard()
+            }}
           />
         </section>
 

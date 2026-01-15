@@ -15,6 +15,14 @@ export async function GET() {
     }
 
     const userId = session.user.id
+    
+    // Obtener el usuario para su hourlyRate
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { hourlyRate: true }
+    })
+    const userHourlyRate = user?.hourlyRate ?? HOURLY_RATE
+    
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth() + 1
@@ -83,7 +91,7 @@ export async function GET() {
       0
     )
     const todayHours = todayTotalSeconds / 3600
-    const todayEarnings = todayHours * HOURLY_RATE
+    const todayEarnings = todayHours * userHourlyRate
 
     // Estado del timer
     let timerState = {
@@ -131,7 +139,7 @@ export async function GET() {
           totalHours: 0,
           earnings: 0
         },
-        hourlyRate: HOURLY_RATE
+        hourlyRate: userHourlyRate
       }
     })
   } catch (error) {
@@ -139,6 +147,47 @@ export async function GET() {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
       { success: false, error: 'Error al obtener dashboard', details: errorMessage },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Actualizar hourlyRate del usuario
+export async function PATCH(request: Request) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+    const { hourlyRate } = body
+
+    if (typeof hourlyRate !== 'number' || hourlyRate <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Tarifa inválida' },
+        { status: 400 }
+      )
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: session.user.id },
+      data: { hourlyRate },
+      select: { hourlyRate: true }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: { hourlyRate: updatedUser.hourlyRate }
+    })
+  } catch (error) {
+    console.error('Error updating hourly rate:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json(
+      { success: false, error: 'Error al actualizar tarifa', details: errorMessage },
       { status: 500 }
     )
   }
