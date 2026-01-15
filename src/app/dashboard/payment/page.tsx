@@ -352,8 +352,8 @@ export default function PaymentDashboardPage() {
                       ) : (
                         <ChevronRight className="h-5 w-5 text-gray-500" />
                       )}
-                    </span>
-                    Trabajos de Hoy
+                    </span>{' '}
+                    Trabajos de Hoy{' '}
                     <span className="text-sm font-normal text-gray-500">
                       ({data.today.entries.length})
                     </span>
