@@ -1,11 +1,9 @@
-const CACHE_NAME = 'meditron-v1';
+const CACHE_NAME = 'meditron-v2';
 const urlsToCache = [
-  '/',
-  '/logo.png',
   '/manifest.json'
 ];
 
-// Install event - cache assets
+// Install event - cache minimal assets
 globalThis.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -14,7 +12,7 @@ globalThis.addEventListener('install', (event) => {
   globalThis.skipWaiting();
 });
 
-// Activate event - clean old caches
+// Activate event - clean ALL old caches immediately
 globalThis.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -30,15 +28,23 @@ globalThis.addEventListener('activate', (event) => {
   globalThis.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NETWORK FIRST strategy (always try network first)
 globalThis.addEventListener('fetch', (event) => {
+  // Skip caching for API calls and Next.js assets
+  if (event.request.url.includes('/api/') || 
+      event.request.url.includes('/_next/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Network first for everything else
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request);
       })
   );
 });
