@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { formatDuration, formatCurrency, getMonthName } from '@/lib/utils'
-import { Calendar, Clock, DollarSign, TrendingUp } from 'lucide-react'
+import { Calendar, Clock, DollarSign, TrendingUp, Pencil, Check, X } from 'lucide-react'
 
 interface DaySummary {
   date: string
@@ -40,9 +42,40 @@ interface SummaryCardsProps {
   readonly currentWeek: WeekData
   readonly monthSummary: MonthSummaryData
   readonly hourlyRate: number
+  readonly onRateChange?: (newRate: number) => void
 }
 
-export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: Readonly<SummaryCardsProps>) {
+export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onRateChange }: Readonly<SummaryCardsProps>) {
+  const [isEditingRate, setIsEditingRate] = useState(false)
+  const [tempRate, setTempRate] = useState(hourlyRate.toString())
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSaveRate = async () => {
+    const newRate = Number.parseFloat(tempRate)
+    if (Number.isNaN(newRate) || newRate <= 0) {
+      return
+    }
+    
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/dashboard', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hourlyRate: newRate })
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        setIsEditingRate(false)
+        onRateChange?.(newRate)
+      }
+    } catch (err) {
+      console.error('Error saving rate:', err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {/* Hoy */}
@@ -115,21 +148,72 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate }: R
         </CardContent>
       </Card>
 
-      {/* Tarifa */}
+      {/* Tarifa - Editable */}
       <Card className="border-0 shadow-lg shadow-orange-50 bg-gradient-to-br from-white to-orange-50/30">
         <CardHeader className="pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
           <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
             <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
             <span className="hidden sm:inline">Tarifa</span>
+            {!isEditingRate && (
+              <button
+                onClick={() => {
+                  setTempRate(hourlyRate.toString())
+                  setIsEditingRate(true)
+                }}
+                className="ml-auto text-gray-400 hover:text-orange-500 transition-colors"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-          <div className="text-lg sm:text-2xl font-bold text-orange-600">
-            ${hourlyRate}
-          </div>
-          <div className="text-[10px] sm:text-sm text-gray-500 mt-1">
-            USD/hr
-          </div>
+          {isEditingRate ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1">
+                <span className="text-orange-600 font-bold">$</span>
+                <input
+                  type="number"
+                  value={tempRate}
+                  onChange={(e) => setTempRate(e.target.value)}
+                  className="w-16 sm:w-20 px-2 py-1 text-lg font-bold text-orange-600 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                  step="0.01"
+                  min="0"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  onClick={handleSaveRate}
+                  disabled={isSaving}
+                  className="flex-1 h-7 text-xs bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsEditingRate(false)
+                    setTempRate(hourlyRate.toString())
+                  }}
+                  className="flex-1 h-7 text-xs text-gray-500 hover:bg-gray-100"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="text-lg sm:text-2xl font-bold text-orange-600">
+                ${hourlyRate}
+              </div>
+              <div className="text-[10px] sm:text-sm text-gray-500 mt-1">
+                USD/hr
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

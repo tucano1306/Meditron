@@ -200,6 +200,10 @@ export default function HourlyDashboardPage() {
             currentWeek={data.currentWeek}
             monthSummary={data.monthSummary}
             hourlyRate={data.hourlyRate}
+            onRateChange={(newRate) => {
+              setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
+              fetchDashboard()
+            }}
           />
         </section>
 
