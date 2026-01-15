@@ -122,8 +122,9 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error getting dashboard:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: 'Error al obtener dashboard' },
+      { success: false, error: 'Error al obtener dashboard', details: errorMessage },
       { status: 500 }
     )
   }
