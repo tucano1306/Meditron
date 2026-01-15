@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE } from '@/lib/utils'
-import { Clock, Trash2, Pencil, X, Check } from 'lucide-react'
+import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Entry {
@@ -27,6 +27,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [editStartTime, setEditStartTime] = useState('')
   const [editEndTime, setEditEndTime] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta entrada?')) return
@@ -123,15 +124,56 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     )
   }
 
+  const totalDuration = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          {title}
-        </CardTitle>
+      <CardHeader 
+        className="cursor-pointer sm:cursor-default select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            {/* Icono de expandir solo en móvil */}
+            <span className="sm:hidden">
+              {isExpanded ? (
+                <ChevronDown className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-gray-500" />
+              )}
+            </span>
+            <Clock className="h-5 w-5" />
+            {title}
+            <span className="text-sm font-normal text-gray-500">
+              ({entries.length})
+            </span>
+          </CardTitle>
+          
+          {/* Botón Ver solo en laptop/desktop */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsExpanded(!isExpanded)
+            }}
+            className="hidden sm:flex items-center gap-1"
+          >
+            <Eye className="h-4 w-4" />
+            {isExpanded ? 'Ocultar' : 'Ver'}
+          </Button>
+        </div>
+        
+        {/* Resumen cuando está colapsado */}
+        {!isExpanded && (
+          <div className="text-sm text-gray-500 mt-1">
+            {formatDuration(totalDuration)} total • {formatCurrency((totalDuration / 3600) * HOURLY_RATE)}
+          </div>
+        )}
       </CardHeader>
-      <CardContent>
+      
+      {isExpanded && (
+        <CardContent>
         <div className="space-y-3">
           {entries.map((entry) => (
             <div
@@ -246,7 +288,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             </div>
           ))}
         </div>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   )
 }
