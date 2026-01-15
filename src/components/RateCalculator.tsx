@@ -3,16 +3,25 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Calculator, DollarSign, Clock, ArrowDown, Save, Check } from 'lucide-react'
+import { Calculator, DollarSign, Clock, ArrowDown, Save, Check, CalendarDays } from 'lucide-react'
 
 interface RateCalculatorProps {
   readonly onSave?: () => void
+}
+
+// Función para obtener fecha en formato YYYY-MM-DD
+const getLocalDateString = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export function RateCalculator({ onSave }: RateCalculatorProps) {
   const [hours, setHours] = useState('')
   const [minutes, setMinutes] = useState('')
   const [payment, setPayment] = useState('')
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString(new Date()))
   const [result, setResult] = useState<{
     hourlyRate: number
     totalHours: number
@@ -48,7 +57,8 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
           hours: Number.parseFloat(hours || '0'),
           minutes: Number.parseFloat(minutes || '0'),
           payment: result.paymentAmount,
-          hourlyRate: result.hourlyRate
+          hourlyRate: result.hourlyRate,
+          date: selectedDate
         })
       })
 
@@ -70,6 +80,7 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
     setHours('')
     setMinutes('')
     setPayment('')
+    setSelectedDate(getLocalDateString(new Date()))
     setResult(null)
     setSaved(false)
   }
@@ -146,6 +157,25 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
             </div>
           </fieldset>
 
+          {/* Selector de fecha */}
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-2">
+              Fecha del trabajo
+            </legend>
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <input
+                id="date-input"
+                type="date"
+                value={selectedDate}
+                max={getLocalDateString(new Date())}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full pl-9 pr-3 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Puedes seleccionar días pasados</p>
+          </fieldset>
+
           {/* Botones */}
           <div className="flex gap-2">
             <Button
@@ -201,19 +231,29 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
               {/* Botón Guardar */}
               <div className="pt-2 border-t border-gray-100">
                 {saved ? (
-                  <div className="flex items-center justify-center gap-2 text-green-600 py-2">
-                    <Check className="h-5 w-5" />
-                    <span className="font-medium">¡Guardado en registros de hoy!</span>
+                  <div className="flex flex-col items-center justify-center gap-1 text-green-600 py-2">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-5 w-5" />
+                      <span className="font-medium">¡Guardado exitosamente!</span>
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      Registrado para: {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
                   </div>
                 ) : (
-                  <Button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="w-full bg-green-600 hover:bg-green-700 py-3"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {isSaving ? 'Guardando...' : 'Guardar en Registros de Hoy'}
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="w-full bg-green-600 hover:bg-green-700 py-3"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {isSaving ? 'Guardando...' : 'Guardar en Registros'}
+                    </Button>
+                    <p className="text-xs text-center text-gray-500">
+                      Se guardará para: {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>

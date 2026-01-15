@@ -76,7 +76,7 @@ export async function DELETE(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { hours, minutes, payment, hourlyRate } = body
+    const { hours, minutes, payment, hourlyRate, date } = body
 
     if (hours === undefined || minutes === undefined || payment === undefined) {
       return NextResponse.json(
@@ -86,29 +86,40 @@ export async function POST(request: NextRequest) {
     }
 
     const totalSeconds = (Number(hours) * 3600) + (Number(minutes) * 60)
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     
-    // Calcular hora de inicio basada en la duración (como si hubiera terminado ahora)
-    const startTime = new Date(now.getTime() - totalSeconds * 1000)
+    // Si se proporciona una fecha, usarla; si no, usar hoy
+    let targetDate: Date
+    if (date) {
+      // Parsear la fecha en formato YYYY-MM-DD
+      const [year, month, day] = date.split('-').map(Number)
+      targetDate = new Date(year, month - 1, day)
+    } else {
+      const now = new Date()
+      targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    }
+    
+    // Crear tiempos de inicio y fin para la fecha seleccionada
+    // Ponemos el fin a las 18:00 de ese día y el inicio según la duración
+    const endTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 18, 0, 0)
+    const startTime = new Date(endTime.getTime() - totalSeconds * 1000)
 
     // Obtener o crear semana
-    const week = await getOrCreateWeek(today)
+    const week = await getOrCreateWeek(targetDate)
 
     // Crear la entrada
     const entry = await prisma.timeEntry.create({
       data: {
         startTime,
-        endTime: now,
+        endTime,
         duration: totalSeconds,
-        date: today,
+        date: targetDate,
         weekId: week.id
       }
     })
 
     // Actualizar totales
     await updateWeekTotals(week.id)
-    await updateMonthSummary(today.getFullYear(), today.getMonth() + 1)
+    await updateMonthSummary(targetDate.getFullYear(), targetDate.getMonth() + 1)
 
     return NextResponse.json({
       success: true,
@@ -116,7 +127,8 @@ export async function POST(request: NextRequest) {
         entry,
         totalHours: totalSeconds / 3600,
         payment: Number(payment),
-        hourlyRate: Number(hourlyRate)
+        hourlyRate: Number(hourlyRate),
+        date: targetDate.toISOString()
       }
     })
   } catch (error) {
