@@ -18,7 +18,10 @@ import {
   Trash2,
   Pencil,
   X,
-  Check
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Eye
 } from 'lucide-react'
 import { formatDuration, formatCurrency } from '@/lib/utils'
 
@@ -71,6 +74,7 @@ export default function PaymentDashboardPage() {
   const [editEndTime, setEditEndTime] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isEntriesExpanded, setIsEntriesExpanded] = useState(false)
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -335,9 +339,50 @@ export default function PaymentDashboardPage() {
         {data && data.today.entries.length > 0 && (
           <section>
             <Card className="border-0 shadow-xl shadow-gray-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Trabajos de Hoy</CardTitle>
+              <CardHeader 
+                className="pb-2 cursor-pointer sm:cursor-default select-none"
+                onClick={() => setIsEntriesExpanded(!isEntriesExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {/* Icono de expandir solo en móvil */}
+                    <span className="sm:hidden">
+                      {isEntriesExpanded ? (
+                        <ChevronDown className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 text-gray-500" />
+                      )}
+                    </span>
+                    Trabajos de Hoy
+                    <span className="text-sm font-normal text-gray-500">
+                      ({data.today.entries.length})
+                    </span>
+                  </CardTitle>
+                  
+                  {/* Botón Ver solo en laptop/desktop */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsEntriesExpanded(!isEntriesExpanded)
+                    }}
+                    className="hidden sm:flex items-center gap-1"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {isEntriesExpanded ? 'Ocultar' : 'Ver'}
+                  </Button>
+                </div>
+                
+                {/* Resumen cuando está colapsado */}
+                {!isEntriesExpanded && (
+                  <div className="text-sm text-gray-500 mt-1">
+                    {formatDuration(data.today.totalSeconds)} total • {formatCurrency(data.today.totalAmount)}
+                  </div>
+                )}
               </CardHeader>
+              
+              {isEntriesExpanded && (
               <CardContent>
                 <div className="space-y-3">
                   {data.today.entries.map((entry) => (
@@ -462,6 +507,7 @@ export default function PaymentDashboardPage() {
                   ))}
                 </div>
               </CardContent>
+              )}
             </Card>
           </section>
         )}
