@@ -35,18 +35,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Si está logueado y trata de ir a login/register, redirigir a mode-select
-  if (isLoggedIn && isAuthPage) {
+  // Si está logueado y trata de ir a login/register o raíz, redirigir a mode-select
+  if (isLoggedIn && (isAuthPage || pathname === '/')) {
     return NextResponse.redirect(new URL('/mode-select', request.url))
   }
 
-  // Si no está logueado y trata de ir a rutas protegidas
-  if (!isLoggedIn && !isAuthPage && pathname !== '/') {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-  
-  // Si no está logueado y está en la raíz, redirigir a login
-  if (!isLoggedIn && pathname === '/') {
+  // Si no está logueado y trata de ir a rutas protegidas (incluyendo raíz)
+  if (!isLoggedIn && !isAuthPage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
