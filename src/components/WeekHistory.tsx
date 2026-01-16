@@ -29,9 +29,10 @@ interface WeekData {
 
 interface WeekHistoryProps {
   readonly onRefresh?: () => void
+  readonly refreshTrigger?: number
 }
 
-export function WeekHistory({ onRefresh }: Readonly<WeekHistoryProps>) {
+export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHistoryProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -53,7 +54,7 @@ export function WeekHistory({ onRefresh }: Readonly<WeekHistoryProps>) {
 
   useEffect(() => {
     fetchWeeks()
-  }, [])
+  }, [refreshTrigger])
 
   const handleEntryDelete = () => {
     fetchWeeks()

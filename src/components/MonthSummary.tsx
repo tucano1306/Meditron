@@ -14,7 +14,11 @@ interface MonthData {
   earnings: number
 }
 
-export function MonthSummary() {
+interface MonthSummaryProps {
+  readonly refreshTrigger?: number
+}
+
+export function MonthSummary({ refreshTrigger = 0 }: Readonly<MonthSummaryProps>) {
   const [months, setMonths] = useState<MonthData[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -35,7 +39,7 @@ export function MonthSummary() {
     }
     
     fetchMonths()
-  }, [])
+  }, [refreshTrigger])
 
   if (isLoading) {
     return (

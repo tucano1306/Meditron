@@ -252,11 +252,11 @@ export default function HourlyDashboardPage() {
           </TabsContent>
 
           <TabsContent value="weeks">
-            <WeekHistory key={refreshKey} onRefresh={fetchDashboard} />
+            <WeekHistory refreshTrigger={refreshKey} onRefresh={fetchDashboard} />
           </TabsContent>
 
           <TabsContent value="months">
-            <MonthSummary key={refreshKey} />
+            <MonthSummary refreshTrigger={refreshKey} />
           </TabsContent>
 
           <TabsContent value="calculator">
