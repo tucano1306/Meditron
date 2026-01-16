@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button'
 import { 
   DollarSign, 
   Clock, 
-  TrendingUp, 
   ArrowLeft, 
   LogOut, 
   User,
@@ -203,17 +202,6 @@ export default function PaymentDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg shadow-orange-50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-orange-500 mb-1">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-xs font-medium">$/Hora Prom.</span>
-                </div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(data.today.avgHourlyRate)}
-                </div>
-              </CardContent>
-            </Card>
           </section>
         )}
 
