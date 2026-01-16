@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Calculator, Clock, DollarSign, TrendingUp, RotateCcw } from 'lucide-react'
+import { Calculator, Clock, DollarSign, TrendingUp, RotateCcw, Save, Check } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 interface PaymentCalculatorProps {
@@ -14,6 +14,8 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
   const [hours, setHours] = useState('')
   const [minutes, setMinutes] = useState('')
   const [amount, setAmount] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   const result = useMemo(() => {
     const h = Number.parseFloat(hours) || 0
@@ -44,6 +46,42 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
     setHours('')
     setMinutes('')
     setAmount('')
+    setSaved(false)
+  }
+
+  const handleSave = async () => {
+    if (!result.isValid) return
+    
+    setIsSaving(true)
+    try {
+      const now = new Date()
+      const totalSeconds = result.totalHours * 3600
+      const startTime = new Date(now.getTime() - totalSeconds * 1000)
+      
+      const res = await fetch('/api/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startTime: startTime.toISOString(),
+          endTime: now.toISOString(),
+          amount: result.payment
+        })
+      })
+      
+      const data = await res.json()
+      
+      if (data.success) {
+        setSaved(true)
+        onSave?.()
+        setTimeout(() => {
+          handleReset()
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Error saving:', error)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -154,10 +192,26 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
 
         {/* Actions */}
         <div className="flex gap-3">
+          {result.isValid && !saved && (
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? 'Guardando...' : 'Guardar Registro'}
+            </Button>
+          )}
+          {saved && (
+            <div className="flex-1 flex items-center justify-center gap-2 py-2 text-green-600 bg-green-50 rounded-lg">
+              <Check className="h-5 w-5" />
+              <span className="font-medium">¡Guardado!</span>
+            </div>
+          )}
           <Button
             variant="outline"
             onClick={handleReset}
-            className="flex-1"
+            className={result.isValid && !saved ? '' : 'flex-1'}
             disabled={!hours && !minutes && !amount}
           >
             <RotateCcw className="h-4 w-4 mr-2" />

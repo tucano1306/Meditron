@@ -17,7 +17,7 @@ interface Entry {
 interface EntryListProps {
   readonly entries: Entry[]
   readonly title?: string
-  readonly onDelete?: (id: string) => void
+  readonly onDelete?: () => void
   readonly onUpdate?: () => void
   readonly showDate?: boolean
 }
@@ -39,7 +39,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       const data = await res.json()
       
       if (data.success && onDelete) {
-        onDelete(id)
+        onDelete()
       }
     } catch (error) {
       console.error('Error deleting entry:', error)
