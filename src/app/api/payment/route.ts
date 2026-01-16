@@ -52,8 +52,9 @@ export async function POST() {
     })
   } catch (error) {
     console.error('Error starting payment entry:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: 'Error al iniciar el trabajo' },
+      { success: false, error: 'Error al iniciar el trabajo', details: errorMessage },
       { status: 500 }
     )
   }
