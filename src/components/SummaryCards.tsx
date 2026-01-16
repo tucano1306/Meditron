@@ -119,9 +119,9 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
             {formatCurrency(currentWeek.earnings)}
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">
-            <span className="text-blue-600 font-medium">{new Date(currentWeek.startDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(currentWeek.startDate).getDate()}</span>
-            {' → '}
-            <span className="text-green-600 font-medium">{new Date(currentWeek.endDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(currentWeek.endDate).getDate()}</span>
+            <span className="text-blue-600 font-medium">lun {new Date(currentWeek.startDate).getDate()}</span>
+            {' - '}
+            <span className="text-green-600 font-medium">dom {new Date(currentWeek.endDate).getDate()}</span>
             {' '}{getMonthName(new Date(currentWeek.startDate).getMonth() + 1)}
           </div>
         </CardContent>

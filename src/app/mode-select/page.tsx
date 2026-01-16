@@ -87,25 +87,9 @@ export default function ModeSelectPage() {
                 <Clock className="w-10 h-10 text-white" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">Por Hora</h3>
-              <p className="text-gray-500 mb-6">
+              <p className="text-gray-500">
                 Registra tu tiempo de trabajo y calcula automáticamente tus ganancias basado en tu tarifa por hora.
               </p>
-              <div className="bg-emerald-50 rounded-xl p-4">
-                <ul className="text-sm text-gray-600 space-y-2 text-left">
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                    Cronómetro en tiempo real
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                    Cálculo automático de ganancias
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                    Reportes semanales y mensuales
-                  </li>
-                </ul>
-              </div>
             </CardContent>
           </Card>
 
@@ -119,25 +103,9 @@ export default function ModeSelectPage() {
                 <DollarSign className="w-10 h-10 text-white" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">Por Pago</h3>
-              <p className="text-gray-500 mb-6">
+              <p className="text-gray-500">
                 Registra el tiempo de trabajo y al finalizar ingresa el monto del pago para calcular tu tarifa por hora.
               </p>
-              <div className="bg-blue-50 rounded-xl p-4">
-                <ul className="text-sm text-gray-600 space-y-2 text-left">
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                    Cronómetro de trabajo
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                    Ingreso de monto al finalizar
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                    Cálculo de tarifa por hora real
-                  </li>
-                </ul>
-              </div>
             </CardContent>
           </Card>
         </div>
