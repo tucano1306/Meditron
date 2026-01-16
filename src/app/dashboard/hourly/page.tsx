@@ -65,6 +65,7 @@ export default function HourlyDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -99,6 +100,7 @@ export default function HourlyDashboardPage() {
 
   const handleEntryDelete = () => {
     fetchDashboard()
+    setRefreshKey(prev => prev + 1) // Forzar refresh de componentes de semanas/meses
   }
 
   const handleLogout = async () => {
@@ -250,11 +252,11 @@ export default function HourlyDashboardPage() {
           </TabsContent>
 
           <TabsContent value="weeks">
-            <WeekHistory onRefresh={fetchDashboard} />
+            <WeekHistory key={refreshKey} onRefresh={fetchDashboard} />
           </TabsContent>
 
           <TabsContent value="months">
-            <MonthSummary />
+            <MonthSummary key={refreshKey} />
           </TabsContent>
 
           <TabsContent value="calculator">

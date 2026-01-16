@@ -70,6 +70,7 @@ export default function PaymentDashboardPage() {
   const { data: session, status } = useSession()
   const [data, setData] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -96,6 +97,12 @@ export default function PaymentDashboardPage() {
 
   const handleComplete = () => {
     fetchDashboard()
+    setRefreshKey(prev => prev + 1)
+  }
+
+  const handleRefresh = () => {
+    fetchDashboard()
+    setRefreshKey(prev => prev + 1)
   }
 
   const handleLogout = async () => {
@@ -247,17 +254,17 @@ export default function PaymentDashboardPage() {
             <PaymentEntryList
               entries={data?.today.entries || []}
               title="Trabajos de Hoy"
-              onDelete={fetchDashboard}
-              onUpdate={fetchDashboard}
+              onDelete={handleRefresh}
+              onUpdate={handleRefresh}
             />
           </TabsContent>
 
           <TabsContent value="weeks">
-            <PaymentWeekHistory onRefresh={fetchDashboard} />
+            <PaymentWeekHistory key={refreshKey} onRefresh={handleRefresh} />
           </TabsContent>
 
           <TabsContent value="months">
-            <PaymentMonthSummary onRefresh={fetchDashboard} />
+            <PaymentMonthSummary key={refreshKey} onRefresh={handleRefresh} />
           </TabsContent>
 
           <TabsContent value="calculator">
