@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { HOURLY_RATE } from '@/lib/utils'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 // GET - Obtener resúmenes mensuales
 export async function GET(request: NextRequest) {
   try {

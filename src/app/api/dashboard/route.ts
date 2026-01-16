@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { HOURLY_RATE, getWeekStartEnd, getWeekNumber } from '@/lib/utils'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 // GET - Dashboard con datos actuales
 export async function GET() {
   try {

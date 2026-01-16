@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 // GET - Dashboard de pagos
 export async function GET() {
   try {
