@@ -83,9 +83,19 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Guardar weekId y fecha antes de borrar
+    const weekId = entry.weekId
+    const entryDate = new Date(entry.date)
+
     await prisma.timeEntry.delete({
       where: { id }
     })
+
+    // Actualizar totales de semana y mes después de borrar
+    if (weekId) {
+      await updateWeekTotals(weekId, userId)
+    }
+    await updateMonthSummary(entryDate.getFullYear(), entryDate.getMonth() + 1, userId)
 
     return NextResponse.json({
       success: true,
