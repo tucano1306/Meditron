@@ -122,6 +122,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
       if (data.success) {
         setIsRunning(false)
         setStartTime(null)
+        setElapsedSeconds(0) // Reset counter to zero
         stopBackgroundTimer()
         await releaseWakeLock()
         

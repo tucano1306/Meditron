@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Calculator, DollarSign, Clock, ArrowDown, Save, Check, CalendarDays } from 'lucide-react'
+import { Calculator, DollarSign, Clock, ArrowRight, Save, Check, CalendarDays } from 'lucide-react'
+import { HOURLY_RATE } from '@/lib/utils'
 
 interface RateCalculatorProps {
   readonly onSave?: () => void
+  readonly hourlyRate?: number
 }
 
 // Función para obtener fecha en formato YYYY-MM-DD
@@ -17,33 +19,32 @@ const getLocalDateString = (date: Date) => {
   return `${year}-${month}-${day}`
 }
 
-export function RateCalculator({ onSave }: RateCalculatorProps) {
+export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalculatorProps) {
   const [hours, setHours] = useState('')
   const [minutes, setMinutes] = useState('')
-  const [payment, setPayment] = useState('')
   const [selectedDate, setSelectedDate] = useState(getLocalDateString(new Date()))
   const [result, setResult] = useState<{
-    hourlyRate: number
     totalHours: number
     paymentAmount: number
   } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  const calculateRate = () => {
+  // Calcular automáticamente cuando cambian las horas o minutos
+  useEffect(() => {
     const totalHours = Number.parseFloat(hours || '0') + Number.parseFloat(minutes || '0') / 60
-    const paymentAmount = Number.parseFloat(payment || '0')
-
-    if (totalHours > 0 && paymentAmount > 0) {
-      const hourlyRate = paymentAmount / totalHours
+    
+    if (totalHours > 0) {
+      const paymentAmount = totalHours * hourlyRate
       setResult({
-        hourlyRate,
         totalHours,
         paymentAmount
       })
       setSaved(false)
+    } else {
+      setResult(null)
     }
-  }
+  }, [hours, minutes, hourlyRate])
 
   const handleSave = async () => {
     if (!result) return
@@ -57,7 +58,7 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
           hours: Number.parseFloat(hours || '0'),
           minutes: Number.parseFloat(minutes || '0'),
           payment: result.paymentAmount,
-          hourlyRate: result.hourlyRate,
+          hourlyRate: hourlyRate,
           date: selectedDate
         })
       })
@@ -79,7 +80,6 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
   const reset = () => {
     setHours('')
     setMinutes('')
-    setPayment('')
     setSelectedDate(getLocalDateString(new Date()))
     setResult(null)
     setSaved(false)
@@ -90,8 +90,11 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-purple-700 text-lg sm:text-xl">
           <Calculator className="h-5 w-5" />
-          Calculadora de Tarifa por Hora
+          Registrar Horas Trabajadas
         </CardTitle>
+        <p className="text-sm text-purple-600 mt-1">
+          Tarifa actual: <span className="font-bold">${hourlyRate}/hora</span>
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -137,26 +140,6 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
             </div>
           </fieldset>
 
-          {/* Input de pago */}
-          <fieldset>
-            <legend className="block text-sm font-medium text-gray-700 mb-2">
-              Pago recibido (USD)
-            </legend>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-              <input
-                id="payment-input"
-                type="number"
-                min="0"
-                step="0.01"
-                value={payment}
-                onChange={(e) => setPayment(e.target.value)}
-                placeholder="0.00"
-                className="w-full pl-9 pr-3 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
-              />
-            </div>
-          </fieldset>
-
           {/* Selector de fecha */}
           <fieldset>
             <legend className="block text-sm font-medium text-gray-700 mb-2">
@@ -173,19 +156,44 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
                 className="w-full pl-9 pr-3 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">Puedes seleccionar días pasados</p>
           </fieldset>
+
+          {/* Resultado automático */}
+          {result && (
+            <div className="p-4 bg-white rounded-lg border border-purple-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-purple-500" />
+                  <span className="text-gray-600">{result.totalHours.toFixed(2)} hrs</span>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-400" />
+                <div className="flex items-center gap-2 bg-gradient-to-br from-green-50 to-emerald-50 px-4 py-2 rounded-lg border border-green-200">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                  <span className="text-xl font-bold text-green-700">
+                    ${result.paymentAmount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Botones */}
           <div className="flex gap-2">
-            <Button
-              onClick={calculateRate}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 py-3 sm:py-2"
-              disabled={(!hours && !minutes) || !payment}
-            >
-              <Calculator className="h-4 w-4 mr-2" />
-              Calcular
-            </Button>
+            {result && !saved ? (
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex-1 bg-green-600 hover:bg-green-700 py-3 sm:py-2"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? 'Guardando...' : 'Guardar Registro'}
+              </Button>
+            ) : saved ? (
+              <div className="flex-1 flex items-center justify-center gap-2 py-3 text-green-600 bg-green-50 rounded-lg">
+                <Check className="h-5 w-5" />
+                <span className="font-medium">¡Guardado!</span>
+              </div>
+            ) : null}
             <Button
               onClick={reset}
               variant="outline"
@@ -194,70 +202,6 @@ export function RateCalculator({ onSave }: RateCalculatorProps) {
               Limpiar
             </Button>
           </div>
-
-          {/* Resultado */}
-          {result && (
-            <div className="mt-4 p-4 bg-white rounded-lg border border-purple-200 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 text-center">
-                <div className="flex flex-row sm:flex-col items-center gap-2 sm:gap-0">
-                  <Clock className="h-5 w-5 text-purple-500 sm:mb-1" />
-                  <span className="text-sm text-gray-500">Tiempo:</span>
-                  <span className="text-lg font-semibold text-gray-900">
-                    {result.totalHours.toFixed(2)} hrs
-                  </span>
-                </div>
-                
-                <ArrowDown className="h-5 w-5 text-gray-400 hidden sm:block rotate-0 sm:-rotate-90" />
-                
-                <div className="flex flex-row sm:flex-col items-center gap-2 sm:gap-0">
-                  <DollarSign className="h-5 w-5 text-green-500 sm:mb-1" />
-                  <span className="text-sm text-gray-500">Pago:</span>
-                  <span className="text-lg font-semibold text-gray-900">
-                    ${result.paymentAmount.toFixed(2)}
-                  </span>
-                </div>
-                
-                <ArrowDown className="h-5 w-5 text-gray-400 rotate-0 sm:-rotate-90" />
-                
-                <div className="flex flex-col items-center bg-gradient-to-br from-green-50 to-emerald-50 px-4 py-3 rounded-lg border border-green-200 w-full sm:w-auto">
-                  <span className="text-sm text-green-600 font-medium">Tarifa/Hora</span>
-                  <span className="text-2xl sm:text-3xl font-bold text-green-700">
-                    ${result.hourlyRate.toFixed(2)}
-                  </span>
-                  <span className="text-xs text-green-500">USD/hr</span>
-                </div>
-              </div>
-
-              {/* Botón Guardar */}
-              <div className="pt-2 border-t border-gray-100">
-                {saved ? (
-                  <div className="flex flex-col items-center justify-center gap-1 text-green-600 py-2">
-                    <div className="flex items-center gap-2">
-                      <Check className="h-5 w-5" />
-                      <span className="font-medium">¡Guardado exitosamente!</span>
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      Registrado para: {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="w-full bg-green-600 hover:bg-green-700 py-3"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {isSaving ? 'Guardando...' : 'Guardar en Registros'}
-                    </Button>
-                    <p className="text-xs text-center text-gray-500">
-                      Se guardará para: {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

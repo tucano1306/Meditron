@@ -258,7 +258,7 @@ export default function HourlyDashboardPage() {
           </TabsContent>
 
           <TabsContent value="calculator">
-            <RateCalculator onSave={fetchDashboard} />
+            <RateCalculator onSave={fetchDashboard} hourlyRate={data.hourlyRate} />
           </TabsContent>
         </Tabs>
 

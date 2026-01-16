@@ -116,6 +116,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       if (data.success) {
         setIsRunning(false)
         setStartTime(null)
+        setElapsedSeconds(0) // Reset counter to zero
         
         // Stop background timer and release wake lock
         stopBackgroundTimer()
