@@ -179,7 +179,7 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
 
           {/* Botones */}
           <div className="flex gap-2">
-            {result && !saved ? (
+            {result && !saved && (
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
@@ -188,12 +188,13 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? 'Guardando...' : 'Guardar Registro'}
               </Button>
-            ) : saved ? (
+            )}
+            {saved && (
               <div className="flex-1 flex items-center justify-center gap-2 py-3 text-green-600 bg-green-50 rounded-lg">
                 <Check className="h-5 w-5" />
                 <span className="font-medium">¡Guardado!</span>
               </div>
-            ) : null}
+            )}
             <Button
               onClick={reset}
               variant="outline"
