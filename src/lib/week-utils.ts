@@ -7,7 +7,18 @@ export async function getOrCreateWeek(date: Date, userId: string) {
   const year = date.getFullYear()
   const month = date.getMonth() + 1
 
-  const week = await prisma.week.findUnique({
+  // First, verify the user exists
+  const userExists = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true }
+  })
+
+  if (!userExists) {
+    throw new Error(`User not found: ${userId}`)
+  }
+
+  // Try to find existing week first
+  const existingWeek = await prisma.week.findUnique({
     where: {
       weekNumber_year_userId: {
         weekNumber,
@@ -15,7 +26,14 @@ export async function getOrCreateWeek(date: Date, userId: string) {
         userId
       }
     }
-  }) ?? await prisma.week.create({
+  })
+
+  if (existingWeek) {
+    return existingWeek
+  }
+
+  // Create new week
+  const week = await prisma.week.create({
     data: {
       weekNumber,
       year,

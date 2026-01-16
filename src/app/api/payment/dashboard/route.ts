@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { validateSession } from '@/lib/auth-utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,15 +8,12 @@ export const dynamic = 'force-dynamic'
 // GET - Dashboard de pagos
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const now = new Date()
 
     // Trabajo activo

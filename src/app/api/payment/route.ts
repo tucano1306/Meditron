@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { validateSession } from '@/lib/auth-utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,15 +8,12 @@ export const dynamic = 'force-dynamic'
 // POST - Iniciar trabajo por pago
 export async function POST() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const now = new Date()
 
     // Verificar si hay un trabajo activo
@@ -63,15 +60,12 @@ export async function POST() {
 // PUT - Detener trabajo y registrar pago
 export async function PUT(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const now = new Date()
     const { amount } = await request.json()
 
@@ -136,15 +130,12 @@ export async function PUT(request: Request) {
 // GET - Estado actual del trabajo
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
 
     const activeEntry = await prisma.paymentEntry.findFirst({
       where: {
@@ -190,15 +181,12 @@ export async function GET() {
 // DELETE - Eliminar entrada de pago
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -241,15 +229,12 @@ export async function DELETE(request: NextRequest) {
 // PATCH - Actualizar entrada de pago existente
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 

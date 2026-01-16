@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
 
 export const runtime = 'nodejs'
@@ -9,15 +9,12 @@ export const dynamic = 'force-dynamic'
 // POST - Iniciar timer
 export async function POST() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const now = new Date()
     
     // Verificar si hay un timer activo para este usuario
@@ -68,15 +65,12 @@ export async function POST() {
 // PUT - Detener timer
 export async function PUT() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const now = new Date()
 
     // Buscar timer activo del usuario
@@ -142,15 +136,12 @@ export async function PUT() {
 // GET - Obtener estado actual del timer
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
 
     const activeEntry = await prisma.timeEntry.findFirst({
       where: {

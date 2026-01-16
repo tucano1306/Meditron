@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { validateSession } from '@/lib/auth-utils'
 import { HOURLY_RATE, getWeekStartEnd, getWeekNumber } from '@/lib/utils'
 
 export const runtime = 'nodejs'
@@ -9,22 +9,13 @@ export const dynamic = 'force-dynamic'
 // GET - Dashboard con datos actuales
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
-    
-    // Obtener el usuario para su hourlyRate
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { hourlyRate: true }
-    })
-    const userHourlyRate = user?.hourlyRate ?? HOURLY_RATE
+    const userId = authResult.user.id
+    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
     
     const now = new Date()
     const year = now.getFullYear()
@@ -158,12 +149,9 @@ export async function GET() {
 // PATCH - Actualizar hourlyRate del usuario
 export async function PATCH(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
     const body = await request.json()
@@ -177,7 +165,7 @@ export async function PATCH(request: Request) {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: authResult.user.id },
       data: { hourlyRate },
       select: { hourlyRate: true }
     })

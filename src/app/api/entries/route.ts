@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
 
 export const runtime = 'nodejs'
@@ -9,15 +9,12 @@ export const dynamic = 'force-dynamic'
 // GET - Obtener entradas de tiempo
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const { searchParams } = new URL(request.url)
     const weekId = searchParams.get('weekId')
     const date = searchParams.get('date')
@@ -58,15 +55,12 @@ export async function GET(request: NextRequest) {
 // DELETE - Eliminar entrada
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -109,15 +103,12 @@ export async function DELETE(request: NextRequest) {
 // POST - Crear entrada manual (desde calculadora)
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const body = await request.json()
     const { hours, minutes, payment, hourlyRate, date } = body
 
@@ -187,15 +178,12 @@ export async function POST(request: NextRequest) {
 // PATCH - Actualizar entrada existente
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      )
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
     }
 
-    const userId = session.user.id
+    const userId = authResult.user.id
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
