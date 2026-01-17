@@ -60,17 +60,15 @@ export async function GET() {
       }
     })
 
-    // Entradas de hoy
-    const todayStart = new Date(now)
-    todayStart.setHours(0, 0, 0, 0)
-    const todayEnd = new Date(now)
-    todayEnd.setHours(23, 59, 59, 999)
+    // Entradas de hoy - usar fecha local sin conversión UTC
+    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const tomorrowLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
 
     const todayEntries = await prisma.timeEntry.findMany({
       where: {
         date: {
-          gte: todayStart,
-          lte: todayEnd
+          gte: todayLocal,
+          lt: tomorrowLocal
         },
         userId
       },

@@ -26,6 +26,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editStartTime, setEditStartTime] = useState('')
   const [editEndTime, setEditEndTime] = useState('')
+  const [editDate, setEditDate] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -50,8 +51,12 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     const start = new Date(entry.startTime)
     const end = entry.endTime ? new Date(entry.endTime) : null
     
+    // Obtener fecha en formato YYYY-MM-DD
+    const dateStr = typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]
+    
     setEditStartTime(start.toTimeString().slice(0, 5))
     setEditEndTime(end ? end.toTimeString().slice(0, 5) : '')
+    setEditDate(dateStr)
     setEditingId(entry.id)
   }
 
@@ -59,14 +64,18 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setEditingId(null)
     setEditStartTime('')
     setEditEndTime('')
+    setEditDate('')
   }
 
   const handleSaveEdit = async (entry: Entry) => {
-    if (!editStartTime || !editEndTime) return
+    if (!editStartTime || !editEndTime || !editDate) return
     
     setIsSaving(true)
     try {
-      const entryDate = new Date(entry.date)
+      // Usar la fecha editada por el usuario
+      const [year, month, day] = editDate.split('-').map(Number)
+      const entryDate = new Date(year, month - 1, day)
+      
       const [startH, startM] = editStartTime.split(':').map(Number)
       const [endH, endM] = editEndTime.split(':').map(Number)
       
@@ -183,28 +192,42 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               <div className="flex-1">
                 {showDate && (
                   <div className="text-xs text-gray-500 mb-1">
-                    {new Date(entry.date).toLocaleDateString('es-ES', {
-                      weekday: 'short',
-                      day: 'numeric',
-                      month: 'short'
-                    })}
+                    {(() => {
+                      // Parsear la fecha evitando problemas de zona horaria
+                      const dateStr = typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]
+                      const [year, month, day] = dateStr.split('-').map(Number)
+                      const localDate = new Date(year, month - 1, day)
+                      return localDate.toLocaleDateString('es-ES', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short'
+                      })
+                    })()}
                   </div>
                 )}
                 {editingId === entry.id ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-2">
                     <input
-                      type="time"
-                      value={editStartTime}
-                      onChange={(e) => setEditStartTime(e.target.value)}
-                      className="px-2 py-1 text-sm border rounded w-24"
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="px-2 py-1 text-sm border rounded w-36"
                     />
-                    <span className="text-gray-400">-</span>
-                    <input
-                      type="time"
-                      value={editEndTime}
-                      onChange={(e) => setEditEndTime(e.target.value)}
-                      className="px-2 py-1 text-sm border rounded w-24"
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={editStartTime}
+                        onChange={(e) => setEditStartTime(e.target.value)}
+                        className="px-2 py-1 text-sm border rounded w-24"
+                      />
+                      <span className="text-gray-400">-</span>
+                      <input
+                        type="time"
+                        value={editEndTime}
+                        onChange={(e) => setEditEndTime(e.target.value)}
+                        className="px-2 py-1 text-sm border rounded w-24"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-4">

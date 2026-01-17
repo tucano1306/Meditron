@@ -35,11 +35,14 @@ export async function POST() {
     // Obtener o crear la semana actual
     const week = await getOrCreateWeek(now, userId)
 
+    // Crear fecha local (sin conversión a UTC)
+    const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
     // Crear nueva entrada de tiempo
     const entry = await prisma.timeEntry.create({
       data: {
         startTime: now,
-        date: new Date(now.toISOString().split('T')[0]),
+        date: localDate,
         weekId: week.id,
         userId
       }

@@ -237,12 +237,16 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    // Usar la fecha del startTime para la fecha de la entrada (fecha local)
+    const entryDate = new Date(newStart.getFullYear(), newStart.getMonth(), newStart.getDate())
+
     const updatedEntry = await prisma.timeEntry.update({
       where: { id },
       data: {
         startTime: newStart,
         endTime: newEnd,
-        duration
+        duration,
+        date: entryDate
       }
     })
 
