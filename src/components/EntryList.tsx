@@ -182,14 +182,14 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       </CardHeader>
       
       {isExpanded && (
-        <CardContent>
+        <CardContent className="px-2 sm:px-6">
         <div className="space-y-3">
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg gap-2"
             >
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 {showDate && (
                   <div className="text-xs text-gray-500 mb-1">
                     {(() => {
@@ -211,27 +211,27 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       type="date"
                       value={editDate}
                       onChange={(e) => setEditDate(e.target.value)}
-                      className="px-2 py-1 text-sm border rounded w-36"
+                      className="px-2 py-1 text-sm border rounded w-full sm:w-36"
                     />
                     <div className="flex items-center gap-2">
                       <input
                         type="time"
                         value={editStartTime}
                         onChange={(e) => setEditStartTime(e.target.value)}
-                        className="px-2 py-1 text-sm border rounded w-24"
+                        className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
                       />
                       <span className="text-gray-400">-</span>
                       <input
                         type="time"
                         value={editEndTime}
                         onChange={(e) => setEditEndTime(e.target.value)}
-                        className="px-2 py-1 text-sm border rounded w-24"
+                        className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
                       />
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-600">
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    <span className="text-xs sm:text-sm text-gray-600">
                       {new Date(entry.startTime).toLocaleTimeString('es-ES', {
                         hour: '2-digit',
                         minute: '2-digit'
@@ -247,68 +247,69 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                 )}
               </div>
-              <div className="text-right">
-                {entry.duration === null ? (
-                  <div className="text-yellow-600 font-semibold animate-pulse">
-                    En curso...
-                  </div>
-                ) : (
-                  <>
-                    <div className="font-mono font-semibold">
-                      {formatDuration(entry.duration)}
+              <div className="flex items-center justify-between sm:justify-end gap-2">
+                <div className="text-right">
+                  {entry.duration === null ? (
+                    <div className="text-yellow-600 font-semibold animate-pulse text-sm">
+                      En curso...
                     </div>
-                    <div className="text-sm text-green-600">
-                      {formatCurrency((entry.duration / 3600) * HOURLY_RATE)}
-                    </div>
-                  </>
-                )}
-              </div>
-              {entry.endTime && (
-                <div className="flex items-center ml-2">
-                  {editingId === entry.id ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleSaveEdit(entry)}
-                        disabled={isSaving}
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={cancelEditing}
-                        disabled={isSaving}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </>
                   ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => startEditing(entry)}
-                        className="text-gray-400 hover:text-blue-600"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(entry.id)}
-                        className="text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
+                    <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:gap-0">
+                      <div className="font-mono font-semibold text-sm sm:text-base">
+                        {formatDuration(entry.duration)}
+                      </div>
+                      <div className="text-xs sm:text-sm text-green-600 font-semibold">
+                        {formatCurrency((entry.duration / 3600) * HOURLY_RATE)}
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+                {entry.endTime && (
+                  <div className="flex items-center">
+                    {editingId === entry.id ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleSaveEdit(entry)}
+                          disabled={isSaving}
+                          className="text-green-600 hover:text-green-700 h-8 w-8"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={cancelEditing}
+                          disabled={isSaving}
+                          className="text-gray-400 hover:text-gray-600 h-8 w-8"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startEditing(entry)}
+                          className="text-gray-400 hover:text-blue-600 h-8 w-8"
+                        >
+                          <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(entry.id)}
+                          className="text-gray-400 hover:text-red-600 h-8 w-8"
+                        >
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
           ))}
         </div>
         </CardContent>
