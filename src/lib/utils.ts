@@ -27,9 +27,13 @@ export function formatCurrency(amount: number): string {
 }
 
 export function getWeekNumber(date: Date): number {
-  const startOfYear = new Date(date.getFullYear(), 0, 1)
-  const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
-  return Math.ceil((days + startOfYear.getDay() + 1) / 7)
+  // Cálculo ISO 8601: semana comienza en lunes
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  // Ajustar al jueves más cercano (ISO semanas se definen por el jueves)
+  const dayNum = d.getUTCDay() || 7 // Domingo = 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
 export function getWeekStartEnd(date: Date): { start: Date; end: Date } {
