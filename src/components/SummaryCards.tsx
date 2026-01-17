@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatDuration, formatCurrency, getMonthName } from '@/lib/utils'
+import { formatDuration, formatCurrency, getMonthName, parseLocalDate } from '@/lib/utils'
 import { Calendar, Clock, DollarSign, TrendingUp, Pencil, Check, X } from 'lucide-react'
 
 interface DaySummary {
