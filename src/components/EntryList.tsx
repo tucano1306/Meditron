@@ -310,6 +310,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                 )}
               </div>
+            </div>
           ))}
         </div>
         </CardContent>
