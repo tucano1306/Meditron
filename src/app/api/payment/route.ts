@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // POST - Iniciar trabajo por pago
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const authResult = await validateSession()
     if (!authResult.success) {
@@ -14,7 +14,15 @@ export async function POST() {
     }
 
     const userId = authResult.user.id
-    const now = new Date()
+    
+    // Obtener la hora del cliente si se envía
+    let now: Date
+    try {
+      const body = await request.json()
+      now = body.clientTime ? new Date(body.clientTime) : new Date()
+    } catch {
+      now = new Date()
+    }
 
     // Verificar si hay un trabajo activo
     const activeEntry = await prisma.paymentEntry.findFirst({
@@ -31,11 +39,14 @@ export async function POST() {
       )
     }
 
+    // Crear fecha local basada en la hora del cliente
+    const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
     // Crear nueva entrada de pago
     const entry = await prisma.paymentEntry.create({
       data: {
         startTime: now,
-        date: new Date(now.toISOString().split('T')[0]),
+        date: localDate,
         userId
       }
     })
@@ -66,8 +77,11 @@ export async function PUT(request: Request) {
     }
 
     const userId = authResult.user.id
-    const now = new Date()
-    const { amount } = await request.json()
+    const body = await request.json()
+    const { amount, clientTime } = body
+    
+    // Usar la hora del cliente si se envía
+    const now = clientTime ? new Date(clientTime) : new Date()
 
     if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(

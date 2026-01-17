@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDuration, getMonthName } from '@/lib/utils'
-import { BarChart3, ChevronDown, ChevronRight, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
+import { BarChart3, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+const ITEMS_PER_PAGE = 5
 
 interface PaymentEntry {
   id: string
@@ -40,6 +42,7 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
   const [editEndTime, setEditEndTime] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const fetchData = async () => {
     try {
@@ -176,16 +179,21 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
     }
   }
 
+  // Paginación
+  const totalPages = Math.ceil(months.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const paginatedMonths = months.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5" />
             Resumen por Meses
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <div className="text-center text-gray-500 py-8">Cargando...</div>
         </CardContent>
       </Card>
@@ -195,13 +203,13 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
   if (months.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5" />
             Resumen por Meses
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <div className="text-center text-gray-500 py-8">No hay trabajos registrados</div>
         </CardContent>
       </Card>
@@ -210,57 +218,58 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
+      <CardHeader className="px-3 sm:px-6">
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5" />
           Resumen por Meses
+          <span className="text-xs font-normal text-gray-500">({months.length})</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         <div className="space-y-2">
-          {months.map((monthData) => {
+          {paginatedMonths.map((monthData) => {
             const monthKey = `${monthData.year}-${monthData.month}`
             return (
               <div key={monthKey} className="border rounded-lg overflow-hidden">
                 <Button
                   variant="ghost"
-                  className="w-full justify-between p-4 h-auto"
+                  className="w-full justify-between p-3 sm:p-4 h-auto"
                   onClick={() => setExpandedMonth(expandedMonth === monthKey ? null : monthKey)}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     {expandedMonth === monthKey ? (
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4 flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 flex-shrink-0" />
                     )}
-                    <div className="text-left">
-                      <div className="font-semibold">
+                    <div className="text-left min-w-0">
+                      <div className="font-semibold text-sm sm:text-base truncate">
                         {getMonthName(monthData.month)} {monthData.year}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-[10px] sm:text-xs text-gray-500">
                         {monthData.jobCount} trabajos • {(monthData.totalDuration / 3600).toFixed(1)}h
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-green-600">
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-semibold text-green-600 text-sm sm:text-base">
                       {formatCurrency(monthData.totalAmount)}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {formatCurrency(monthData.avgHourlyRate)}/h prom.
+                    <div className="text-[10px] sm:text-xs text-gray-500">
+                      {formatCurrency(monthData.avgHourlyRate)}/h
                     </div>
                   </div>
                 </Button>
                 
                 {expandedMonth === monthKey && monthData.entries.length > 0 && (
-                  <div className="p-4 pt-0 border-t bg-gray-50 space-y-2">
+                  <div className="p-3 sm:p-4 pt-0 border-t bg-gray-50 space-y-2">
                     {monthData.entries.map((entry) => (
-                      <div key={entry.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <DollarSign className="w-4 h-4 text-blue-600" />
+                      <div key={entry.id} className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
                           </div>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             {editingId === entry.id ? (
                               <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-2">
@@ -365,6 +374,35 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
             )
           })}
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Anterior</span>
+            </Button>
+            <span className="text-sm text-gray-500">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1"
+            >
+              <span className="hidden sm:inline">Siguiente</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

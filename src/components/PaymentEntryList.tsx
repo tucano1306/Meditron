@@ -113,14 +113,14 @@ export function PaymentEntryList({
   if (entries.length === 0) {
     return (
       <Card className="border-0 shadow-xl shadow-gray-100">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-500" />
+        <CardHeader className="pb-2 px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
             {title}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-gray-500">
+        <CardContent className="px-3 sm:px-6">
+          <div className="text-center py-8 text-gray-500 text-sm sm:text-base">
             No hay trabajos registrados hoy
           </div>
         </CardContent>
@@ -133,32 +133,32 @@ export function PaymentEntryList({
 
   return (
     <Card className="border-0 shadow-xl shadow-gray-100">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-500" />
+      <CardHeader className="pb-2 px-3 sm:px-6">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
             {title}
-            <span className="text-sm font-normal text-gray-500">
+            <span className="text-xs sm:text-sm font-normal text-gray-500">
               ({entries.length})
             </span>
           </CardTitle>
-          <div className="text-sm text-gray-500">
+          <div className="text-xs sm:text-sm text-gray-500 flex-shrink-0">
             {formatDuration(totalDuration)} • {formatCurrency(totalAmount)}
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+      <CardContent className="px-3 sm:px-6">
+        <div className="space-y-2 sm:space-y-3">
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
+              className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-xl"
             >
-              <div className="flex items-center gap-3 flex-1">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
+              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   {editingId === entry.id ? (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
@@ -166,14 +166,14 @@ export function PaymentEntryList({
                           type="time"
                           value={editStartTime}
                           onChange={(e) => setEditStartTime(e.target.value)}
-                          className="px-2 py-1 text-sm border rounded w-24"
+                          className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
                         />
                         <span className="text-gray-400">→</span>
                         <input
                           type="time"
                           value={editEndTime}
                           onChange={(e) => setEditEndTime(e.target.value)}
-                          className="px-2 py-1 text-sm border rounded w-24"
+                          className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export function PaymentEntryList({
                           type="number"
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
-                          className="px-2 py-1 text-sm border rounded w-24"
+                          className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
                           step="0.01"
                           min="0"
                         />
@@ -190,7 +190,7 @@ export function PaymentEntryList({
                     </div>
                   ) : (
                     <>
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-gray-900 text-sm sm:text-base truncate">
                         {new Date(entry.startTime).toLocaleTimeString('es-ES', { 
                           hour: '2-digit', 
                           minute: '2-digit' 
@@ -205,7 +205,7 @@ export function PaymentEntryList({
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-xs sm:text-sm text-gray-500">
                         {entry.duration && formatDuration(entry.duration)}
                       </div>
                     </>
@@ -213,11 +213,11 @@ export function PaymentEntryList({
                 </div>
               </div>
               {editingId !== entry.id && (
-                <div className="text-right mr-2">
-                  <div className="font-bold text-green-600">
+                <div className="text-right mr-1 sm:mr-2 flex-shrink-0">
+                  <div className="font-bold text-green-600 text-sm sm:text-base">
                     {entry.amount && formatCurrency(entry.amount)}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-xs sm:text-sm text-gray-500">
                     {entry.hourlyRate && `${formatCurrency(entry.hourlyRate)}/h`}
                   </div>
                 </div>

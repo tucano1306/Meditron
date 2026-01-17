@@ -74,8 +74,13 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
     try {
       await requestWakeLock()
       
+      // Enviar la hora del cliente (laptop) al servidor
+      const clientTime = new Date().toISOString()
+      
       const res = await fetch('/api/payment', {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientTime })
       })
       const data = await res.json()
 
@@ -112,10 +117,13 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
     setError(null)
 
     try {
+      // Enviar la hora del cliente (laptop) al servidor
+      const clientTime = new Date().toISOString()
+      
       const res = await fetch('/api/payment', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: numAmount })
+        body: JSON.stringify({ amount: numAmount, clientTime })
       })
       const data = await res.json()
 

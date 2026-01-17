@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDuration, getMonthName } from '@/lib/utils'
-import { Calendar, ChevronDown, ChevronRight, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+const ITEMS_PER_PAGE = 5
 
 interface PaymentEntry {
   id: string
@@ -40,6 +42,7 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
   const [editEndTime, setEditEndTime] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const fetchData = async () => {
     try {
@@ -183,16 +186,21 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
     }
   }
 
+  // Paginación
+  const totalPages = Math.ceil(weeks.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const paginatedWeeks = weeks.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
             Historial por Semanas
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <div className="text-center text-gray-500 py-8">Cargando...</div>
         </CardContent>
       </Card>
@@ -202,13 +210,13 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
   if (weeks.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
             Historial por Semanas
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <div className="text-center text-gray-500 py-8">No hay trabajos registrados</div>
         </CardContent>
       </Card>
@@ -217,50 +225,51 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
+      <CardHeader className="px-3 sm:px-6">
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+          <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
           Historial por Semanas
+          <span className="text-xs font-normal text-gray-500">({weeks.length})</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         <div className="space-y-2">
-          {weeks.map((week) => {
+          {paginatedWeeks.map((week) => {
             const weekKey = `${week.year}-${week.weekNumber}`
             return (
               <div key={weekKey} className="border rounded-lg overflow-hidden">
                 <Button
                   variant="ghost"
-                  className="w-full justify-between p-4 h-auto"
+                  className="w-full justify-between p-3 sm:p-4 h-auto"
                   onClick={() => setExpandedWeek(expandedWeek === weekKey ? null : weekKey)}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     {expandedWeek === weekKey ? (
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4 flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 flex-shrink-0" />
                     )}
-                    <div className="text-left">
-                      <div className="font-semibold">
-                        Semana {week.weekNumber} - {getMonthName(week.month)} {week.year}
+                    <div className="text-left min-w-0">
+                      <div className="font-semibold text-sm sm:text-base truncate">
+                        Sem {week.weekNumber} - {getMonthName(week.month)}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-[10px] sm:text-xs text-gray-500">
                         {week.entries.length} trabajos • {formatDuration(week.totalDuration)}
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-green-600">
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-semibold text-green-600 text-sm sm:text-base">
                       {formatCurrency(week.totalAmount)}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-[10px] sm:text-xs text-gray-500">
                       {formatCurrency(week.avgHourlyRate)}/h
                     </div>
                   </div>
                 </Button>
                 
                 {expandedWeek === weekKey && week.entries.length > 0 && (
-                  <div className="p-4 pt-0 border-t bg-gray-50 space-y-2">
+                  <div className="p-3 sm:p-4 pt-0 border-t bg-gray-50 space-y-2">
                     {week.entries.map((entry) => (
                       <div key={entry.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
                         <div className="flex items-center gap-3 flex-1">
@@ -372,6 +381,35 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
             )
           })}
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Anterior</span>
+            </Button>
+            <span className="text-sm text-gray-500">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1"
+            >
+              <span className="hidden sm:inline">Siguiente</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, getMonthName } from '@/lib/utils'
-import { Calendar, ChevronDown, ChevronRight } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
+
+const ITEMS_PER_PAGE = 5
 
 interface Entry {
   id: string
@@ -36,6 +38,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const fetchWeeks = async () => {
     try {
@@ -60,6 +63,11 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
     fetchWeeks()
     if (onRefresh) onRefresh()
   }
+
+  // Paginación
+  const totalPages = Math.ceil(weeks.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const paginatedWeeks = weeks.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
   if (isLoading) {
     return (
@@ -99,55 +107,53 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
+      <CardHeader className="px-3 sm:px-6">
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+          <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
           Historial de Semanas
+          <span className="text-xs font-normal text-gray-500">({weeks.length})</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         <div className="space-y-2">
-          {weeks.map((week) => (
+          {paginatedWeeks.map((week) => (
             <div key={week.id} className="border rounded-lg overflow-hidden">
               <Button
                 variant="ghost"
-                className="w-full justify-between p-4 h-auto"
+                className="w-full justify-between p-3 sm:p-4 h-auto"
                 onClick={() => setExpandedWeek(expandedWeek === week.id ? null : week.id)}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   {expandedWeek === week.id ? (
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
                   ) : (
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
                   )}
-                  <div className="text-left">
-                    <div className="font-semibold">
-                      Semana {week.weekNumber} - {getMonthName(week.month)} {week.year}
+                  <div className="text-left min-w-0">
+                    <div className="font-semibold text-sm sm:text-base truncate">
+                      Sem {week.weekNumber} - {getMonthName(week.month)}
                     </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                      <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium">
-                        {new Date(week.startDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(week.startDate).getDate()}
+                    <div className="text-[10px] sm:text-xs text-gray-500 flex flex-wrap items-center gap-1">
+                      <span className="bg-blue-100 text-blue-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
+                        {new Date(week.startDate).getDate()}
                       </span>
                       <span>→</span>
-                      <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-medium">
-                        {new Date(week.endDate).toLocaleDateString('es-ES', { weekday: 'short' })} {new Date(week.endDate).getDate()}
-                      </span>
-                      <span className="text-gray-400 ml-1">
-                        {getMonthName(new Date(week.startDate).getMonth() + 1)}
+                      <span className="bg-green-100 text-green-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
+                        {new Date(week.endDate).getDate()}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-semibold">{week.totalHours.toFixed(2)}h</div>
-                  <div className="text-green-600 font-semibold">
+                <div className="text-right flex-shrink-0">
+                  <div className="font-semibold text-sm sm:text-base">{week.totalHours.toFixed(1)}h</div>
+                  <div className="text-green-600 font-semibold text-sm sm:text-base">
                     {formatCurrency(week.earnings)}
                   </div>
                 </div>
               </Button>
               
               {expandedWeek === week.id && week.entries.length > 0 && (
-                <div className="p-4 pt-0 border-t bg-gray-50">
+                <div className="p-3 sm:p-4 pt-0 border-t bg-gray-50">
                   <EntryList
                     entries={week.entries}
                     title={`Entradas de la Semana ${week.weekNumber}`}
@@ -160,6 +166,35 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
             </div>
           ))}
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Anterior</span>
+            </Button>
+            <span className="text-sm text-gray-500">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1"
+            >
+              <span className="hidden sm:inline">Siguiente</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

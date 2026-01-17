@@ -78,8 +78,13 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       // Request wake lock to keep screen on
       await requestWakeLock()
       
+      // Enviar la hora del cliente (laptop) al servidor
+      const clientTime = new Date().toISOString()
+      
       const res = await fetch('/api/timer', {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientTime })
       })
       const data = await res.json()
 
@@ -108,8 +113,13 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setError(null)
 
     try {
+      // Enviar la hora del cliente (laptop) al servidor
+      const clientTime = new Date().toISOString()
+      
       const res = await fetch('/api/timer', {
-        method: 'PUT'
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientTime })
       })
       const data = await res.json()
 

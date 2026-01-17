@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // POST - Iniciar timer
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const authResult = await validateSession()
     if (!authResult.success) {
@@ -15,7 +15,15 @@ export async function POST() {
     }
 
     const userId = authResult.user.id
-    const now = new Date()
+    
+    // Obtener la hora del cliente si se envía
+    let now: Date
+    try {
+      const body = await request.json()
+      now = body.clientTime ? new Date(body.clientTime) : new Date()
+    } catch {
+      now = new Date()
+    }
     
     // Verificar si hay un timer activo para este usuario
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -35,7 +43,7 @@ export async function POST() {
     // Obtener o crear la semana actual
     const week = await getOrCreateWeek(now, userId)
 
-    // Crear fecha local (sin conversión a UTC)
+    // Crear fecha local basada en la hora del cliente
     const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
     // Crear nueva entrada de tiempo
@@ -66,7 +74,7 @@ export async function POST() {
 }
 
 // PUT - Detener timer
-export async function PUT() {
+export async function PUT(request: NextRequest) {
   try {
     const authResult = await validateSession()
     if (!authResult.success) {
@@ -74,7 +82,15 @@ export async function PUT() {
     }
 
     const userId = authResult.user.id
-    const now = new Date()
+    
+    // Obtener la hora del cliente si se envía
+    let now: Date
+    try {
+      const body = await request.json()
+      now = body.clientTime ? new Date(body.clientTime) : new Date()
+    } catch {
+      now = new Date()
+    }
 
     // Buscar timer activo del usuario
     const activeEntry = await prisma.timeEntry.findFirst({

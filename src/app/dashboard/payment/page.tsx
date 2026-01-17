@@ -119,7 +119,7 @@ export default function PaymentDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-4xl">
         {/* Header */}
         <header className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -167,41 +167,52 @@ export default function PaymentDashboardPage() {
 
         {/* Stats Cards */}
         {data && (
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <Card className="border-0 shadow-lg shadow-blue-50">
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center gap-2 text-blue-500 mb-1">
-                  <Briefcase className="w-4 h-4" />
-                  <span className="text-xs font-medium">Trabajos Hoy</span>
+                  <Briefcase className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-xs font-medium">Trabajos Hoy</span>
                 </div>
-                <div className="text-2xl font-bold text-gray-900">{data.today.jobCount}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">{data.today.jobCount}</div>
               </CardContent>
             </Card>
 
             <Card className="border-0 shadow-lg shadow-green-50">
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center gap-2 text-green-500 mb-1">
-                  <DollarSign className="w-4 h-4" />
-                  <span className="text-xs font-medium">Ganado Hoy</span>
+                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-xs font-medium">Ganado Hoy</span>
                 </div>
-                <div className="text-2xl font-bold text-gray-900">
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
                   {formatCurrency(data.today.totalAmount)}
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border-0 shadow-lg shadow-purple-50">
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center gap-2 text-purple-500 mb-1">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-xs font-medium">Horas Hoy</span>
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-xs font-medium">Horas Hoy</span>
                 </div>
-                <div className="text-2xl font-bold text-gray-900">
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
                   {data.today.totalHours.toFixed(1)}h
                 </div>
               </CardContent>
             </Card>
 
+            <Card className="border-0 shadow-lg shadow-orange-50">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 text-orange-500 mb-1">
+                  <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-xs font-medium">Tarifa Prom.</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {formatCurrency(data.today.avgHourlyRate)}/h
+                </div>
+              </CardContent>
+            </Card>
           </section>
         )}
 
