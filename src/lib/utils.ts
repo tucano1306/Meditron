@@ -58,3 +58,11 @@ export function getMonthName(month: number): string {
   ]
   return months[month - 1] || ''
 }
+
+// Parsea una fecha ISO como fecha local (evita problemas de timezone)
+export function parseLocalDate(dateString: string): Date {
+  if (!dateString) return new Date()
+  const str = dateString.split('T')[0]
+  const [year, month, day] = str.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}

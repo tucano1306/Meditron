@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, getMonthName } from '@/lib/utils'
+import { formatCurrency, getMonthName, parseLocalDate } from '@/lib/utils'
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
@@ -135,11 +135,11 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                     </div>
                     <div className="text-[10px] sm:text-xs text-gray-500 flex flex-wrap items-center gap-1">
                       <span className="bg-blue-100 text-blue-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
-                        {new Date(week.startDate).getDate()}
+                        {parseLocalDate(week.startDate).getDate()}
                       </span>
                       <span>→</span>
                       <span className="bg-green-100 text-green-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
-                        {new Date(week.endDate).getDate()}
+                        {parseLocalDate(week.endDate).getDate()}
                       </span>
                     </div>
                   </div>

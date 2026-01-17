@@ -239,6 +239,10 @@ export async function PATCH(request: NextRequest) {
 
     // Usar la fecha del startTime para la fecha de la entrada (fecha local)
     const entryDate = new Date(newStart.getFullYear(), newStart.getMonth(), newStart.getDate())
+    
+    // Obtener la semana correcta para la nueva fecha (por si cambió)
+    const newWeek = await getOrCreateWeek(entryDate, userId)
+    const oldWeekId = entry.weekId
 
     const updatedEntry = await prisma.timeEntry.update({
       where: { id },
@@ -246,14 +250,18 @@ export async function PATCH(request: NextRequest) {
         startTime: newStart,
         endTime: newEnd,
         duration,
-        date: entryDate
+        date: entryDate,
+        weekId: newWeek.id
       }
     })
 
-    // Actualizar totales de semana y mes
-    if (entry.weekId) {
-      await updateWeekTotals(entry.weekId, userId)
+    // Actualizar totales de la semana anterior si cambió
+    if (oldWeekId && oldWeekId !== newWeek.id) {
+      await updateWeekTotals(oldWeekId, userId)
     }
+    
+    // Actualizar totales de semana y mes actuales
+    await updateWeekTotals(newWeek.id, userId)
     await updateMonthSummary(newStart.getFullYear(), newStart.getMonth() + 1, userId)
 
     return NextResponse.json({
