@@ -213,19 +213,33 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       onChange={(e) => setEditDate(e.target.value)}
                       className="px-2 py-1 text-sm border rounded w-full sm:w-36"
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <input
-                        type="time"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]{2}:[0-9]{2}"
+                        placeholder="HH:MM"
                         value={editStartTime}
-                        onChange={(e) => setEditStartTime(e.target.value)}
-                        className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
+                        onChange={(e) => {
+                          let val = e.target.value.replaceAll(/[^0-9:]/g, '')
+                          if (val.length === 2 && !val.includes(':')) val += ':'
+                          if (val.length <= 5) setEditStartTime(val)
+                        }}
+                        className="px-1 sm:px-2 py-1 text-xs sm:text-sm border rounded w-14 sm:w-20 text-center"
                       />
-                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-400 text-xs">-</span>
                       <input
-                        type="time"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]{2}:[0-9]{2}"
+                        placeholder="HH:MM"
                         value={editEndTime}
-                        onChange={(e) => setEditEndTime(e.target.value)}
-                        className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
+                        onChange={(e) => {
+                          let val = e.target.value.replaceAll(/[^0-9:]/g, '')
+                          if (val.length === 2 && !val.includes(':')) val += ':'
+                          if (val.length <= 5) setEditEndTime(val)
+                        }}
+                        className="px-1 sm:px-2 py-1 text-xs sm:text-sm border rounded w-14 sm:w-20 text-center"
                       />
                     </div>
                   </div>
