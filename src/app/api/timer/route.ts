@@ -83,11 +83,13 @@ export async function PUT(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente si se envía
+    // Obtener la hora del cliente y jobNumber si se envía
     let now: Date
+    let jobNumber: string | undefined
     try {
       const body = await request.json()
       now = body.clientTime ? new Date(body.clientTime) : new Date()
+      jobNumber = body.jobNumber
     } catch {
       now = new Date()
     }
