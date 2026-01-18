@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, DollarSign, Check } from 'lucide-react'
+import { Play, Square, Clock, DollarSign, Check, Hash, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency } from '@/lib/utils'
@@ -25,6 +25,9 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
   const [showAmountModal, setShowAmountModal] = useState(false)
   const [amount, setAmount] = useState('')
   const [result, setResult] = useState<{ amount: number; hourlyRate: number } | null>(null)
+  const [jobNumber, setJobNumber] = useState('')
+  const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
+  const [jobNumberInput, setJobNumberInput] = useState('')
   
   const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
   const { requestWakeLock, releaseWakeLock, isActive: wakeLockActive } = useWakeLock()
@@ -40,6 +43,9 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
           setElapsedSeconds(data.data.elapsedSeconds)
           if (data.data.startTime) {
             setStartTime(new Date(data.data.startTime))
+          }
+          if (data.data.jobNumber) {
+            setJobNumber(data.data.jobNumber)
           }
         }
       } catch (err) {
@@ -89,6 +95,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         const newStartTime = new Date(data.data.entry.startTime)
         setStartTime(newStartTime)
         setElapsedSeconds(0)
+        setJobNumber('')
         startBackgroundTimer(newStartTime.toISOString())
       } else {
         setError(data.error || 'Error al iniciar')
@@ -123,7 +130,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
       const res = await fetch('/api/payment', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: numAmount, clientTime })
+        body: JSON.stringify({ amount: numAmount, clientTime, jobNumber })
       })
       const data = await res.json()
 
@@ -131,6 +138,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         setIsRunning(false)
         setStartTime(null)
         setElapsedSeconds(0) // Reset counter to zero
+        setJobNumber('')
         stopBackgroundTimer()
         await releaseWakeLock()
         
@@ -162,6 +170,37 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
     setError(null)
   }
 
+  const handleSaveJobNumber = useCallback(async () => {
+    try {
+      const res = await fetch('/api/payment', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobNumber: jobNumberInput })
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setJobNumber(jobNumberInput)
+        setIsEditingJobNumber(false)
+      } else {
+        setError(data.error || 'Error al guardar')
+      }
+    } catch (err) {
+      console.error('Error saving job number:', err)
+      setError('Error de conexión')
+    }
+  }, [jobNumberInput])
+
+  const handleEditJobNumber = () => {
+    setJobNumberInput(jobNumber)
+    setIsEditingJobNumber(true)
+  }
+
+  const handleCancelEditJobNumber = () => {
+    setIsEditingJobNumber(false)
+    setJobNumberInput('')
+  }
+
   return (
     <>
       <Card className="w-full max-w-md mx-auto border-0 shadow-xl shadow-blue-100">
@@ -191,6 +230,57 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
               </div>
             )}
           </div>
+
+          {/* Job Number - Solo visible cuando está corriendo */}
+          {isRunning && (
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Hash className="h-4 w-4" />
+                  <span className="text-sm font-medium">Trabajo #</span>
+                </div>
+                {isEditingJobNumber ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={jobNumberInput}
+                      onChange={(e) => setJobNumberInput(e.target.value)}
+                      placeholder="Ej: 12345"
+                      className="w-24 px-2 py-1 text-sm rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none font-mono"
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSaveJobNumber}
+                      className="h-7 px-2 text-xs bg-blue-500 hover:bg-blue-600"
+                    >
+                      OK
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleCancelEditJobNumber}
+                      className="h-7 px-2 text-xs"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleEditJobNumber}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    {jobNumber ? (
+                      <span className="font-mono font-medium">{jobNumber}</span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Sin asignar</span>
+                    )}
+                    <Pencil className="h-3 w-3 ml-1" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Result Display */}
           {result && (

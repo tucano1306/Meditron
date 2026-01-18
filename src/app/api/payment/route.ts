@@ -42,11 +42,21 @@ export async function POST(request: NextRequest) {
     // Crear fecha local basada en la hora del cliente
     const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
+    // Obtener jobNumber si se envía
+    let jobNumber: string | undefined
+    try {
+      const body = await request.clone().json()
+      jobNumber = body.jobNumber
+    } catch {
+      // No body or no jobNumber
+    }
+
     // Crear nueva entrada de pago
     const entry = await prisma.paymentEntry.create({
       data: {
         startTime: now,
         date: localDate,
+        jobNumber: jobNumber || null,
         userId
       }
     })
@@ -78,7 +88,7 @@ export async function PUT(request: Request) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { amount, clientTime } = body
+    const { amount, clientTime, jobNumber } = body
     
     // Usar la hora del cliente si se envía
     const now = clientTime ? new Date(clientTime) : new Date()
@@ -120,6 +130,7 @@ export async function PUT(request: Request) {
         duration,
         amount,
         hourlyRate,
+        jobNumber: jobNumber || activeEntry.jobNumber,
         completed: true
       }
     })
@@ -169,6 +180,7 @@ export async function GET() {
           isRunning: true,
           startTime: activeEntry.startTime,
           currentEntryId: activeEntry.id,
+          jobNumber: activeEntry.jobNumber,
           elapsedSeconds
         }
       })
@@ -187,6 +199,114 @@ export async function GET() {
     console.error('Error getting payment status:', error)
     return NextResponse.json(
       { success: false, error: 'Error al obtener estado' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Actualizar jobNumber del trabajo en curso
+export async function PATCH(request: NextRequest) {
+  try {
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
+    }
+
+    const userId = authResult.user.id
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    const body = await request.json()
+
+    // Si hay ID, es una edición completa de entrada existente
+    if (id) {
+      const { startTime, endTime, amount, jobNumber } = body
+
+      // Verificar que la entrada pertenece al usuario
+      const entry = await prisma.paymentEntry.findFirst({
+        where: { id, userId }
+      })
+
+      if (!entry) {
+        return NextResponse.json(
+          { success: false, error: 'Entrada no encontrada' },
+          { status: 404 }
+        )
+      }
+
+      if (!startTime || !endTime || amount === undefined) {
+        return NextResponse.json(
+          { success: false, error: 'startTime, endTime y amount son requeridos' },
+          { status: 400 }
+        )
+      }
+
+      const newStart = new Date(startTime)
+      const newEnd = new Date(endTime)
+      const duration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000)
+
+      if (duration <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'El tiempo de fin debe ser posterior al inicio' },
+          { status: 400 }
+        )
+      }
+
+      const hours = duration / 3600
+      const hourlyRate = hours > 0 ? Number(amount) / hours : 0
+
+      const updatedEntry = await prisma.paymentEntry.update({
+        where: { id },
+        data: {
+          startTime: newStart,
+          endTime: newEnd,
+          duration,
+          amount: Number(amount),
+          hourlyRate,
+          jobNumber: jobNumber === undefined ? entry.jobNumber : jobNumber
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        data: updatedEntry
+      })
+    }
+
+    // Sin ID, actualizar solo jobNumber del trabajo activo
+    const { jobNumber } = body
+
+    // Buscar trabajo activo
+    const activeEntry = await prisma.paymentEntry.findFirst({
+      where: {
+        completed: false,
+        userId
+      }
+    })
+
+    if (!activeEntry) {
+      return NextResponse.json(
+        { success: false, error: 'No hay trabajo en progreso' },
+        { status: 400 }
+      )
+    }
+
+    // Actualizar jobNumber
+    const updatedEntry = await prisma.paymentEntry.update({
+      where: { id: activeEntry.id },
+      data: { jobNumber }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        entry: updatedEntry,
+        message: 'Número de trabajo actualizado'
+      }
+    })
+  } catch (error) {
+    console.error('Error updating payment entry:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al actualizar entrada' },
       { status: 500 }
     )
   }
@@ -235,85 +355,6 @@ export async function DELETE(request: NextRequest) {
     console.error('Error deleting payment entry:', error)
     return NextResponse.json(
       { success: false, error: 'Error al eliminar entrada' },
-      { status: 500 }
-    )
-  }
-}
-
-// PATCH - Actualizar entrada de pago existente
-export async function PATCH(request: NextRequest) {
-  try {
-    const authResult = await validateSession()
-    if (!authResult.success) {
-      return authResult.response
-    }
-
-    const userId = authResult.user.id
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'ID requerido' },
-        { status: 400 }
-      )
-    }
-
-    // Verificar que la entrada pertenece al usuario
-    const entry = await prisma.paymentEntry.findFirst({
-      where: { id, userId }
-    })
-
-    if (!entry) {
-      return NextResponse.json(
-        { success: false, error: 'Entrada no encontrada' },
-        { status: 404 }
-      )
-    }
-
-    const body = await request.json()
-    const { startTime, endTime, amount } = body
-
-    if (!startTime || !endTime || amount === undefined) {
-      return NextResponse.json(
-        { success: false, error: 'startTime, endTime y amount son requeridos' },
-        { status: 400 }
-      )
-    }
-
-    const newStart = new Date(startTime)
-    const newEnd = new Date(endTime)
-    const duration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000)
-
-    if (duration <= 0) {
-      return NextResponse.json(
-        { success: false, error: 'El tiempo de fin debe ser posterior al inicio' },
-        { status: 400 }
-      )
-    }
-
-    const hours = duration / 3600
-    const hourlyRate = hours > 0 ? Number(amount) / hours : 0
-
-    const updatedEntry = await prisma.paymentEntry.update({
-      where: { id },
-      data: {
-        startTime: newStart,
-        endTime: newEnd,
-        duration,
-        amount: Number(amount),
-        hourlyRate
-      }
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: updatedEntry
-    })
-  } catch (error) {
-    console.error('Error updating payment entry:', error)
-    return NextResponse.json(
-      { success: false, error: 'Error al actualizar entrada' },
       { status: 500 }
     )
   }

@@ -88,6 +88,7 @@ model PaymentEntry {
   duration    Int?
   amount      Float?
   hourlyRate  Float?
+  jobNumber   String?
   date        DateTime @db.Date
   completed   Boolean  @default(false)
   createdAt   DateTime @default(now())
