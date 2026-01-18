@@ -217,7 +217,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { startTime, endTime } = body
+    const { startTime, endTime, jobNumber, calculatedAmount, paidAmount } = body
 
     if (!startTime || !endTime) {
       return NextResponse.json(
@@ -244,15 +244,29 @@ export async function PATCH(request: NextRequest) {
     const newWeek = await getOrCreateWeek(entryDate, userId)
     const oldWeekId = entry.weekId
 
+    // Preparar datos de actualización
+    const updateData: Record<string, unknown> = {
+      startTime: newStart,
+      endTime: newEnd,
+      duration,
+      date: entryDate,
+      weekId: newWeek.id
+    }
+
+    // Agregar campos opcionales si están presentes
+    if (jobNumber !== undefined) {
+      updateData.jobNumber = jobNumber || null
+    }
+    if (calculatedAmount !== undefined) {
+      updateData.calculatedAmount = calculatedAmount
+    }
+    if (paidAmount !== undefined) {
+      updateData.paidAmount = paidAmount
+    }
+
     const updatedEntry = await prisma.timeEntry.update({
       where: { id },
-      data: {
-        startTime: newStart,
-        endTime: newEnd,
-        duration,
-        date: entryDate,
-        weekId: newWeek.id
-      }
+      data: updateData
     })
 
     // Actualizar totales de la semana anterior si cambió

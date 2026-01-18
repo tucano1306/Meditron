@@ -195,6 +195,7 @@ export function Dashboard() {
               title="Entradas de Hoy"
               onDelete={handleEntryDelete}
               onUpdate={fetchDashboard}
+              hourlyRate={data.hourlyRate}
             />
           </TabsContent>
 

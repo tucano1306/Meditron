@@ -15,6 +15,9 @@ interface Entry {
   endTime: string | null
   duration: number | null
   date: string
+  jobNumber?: string | null
+  calculatedAmount?: number | null
+  paidAmount?: number | null
 }
 
 interface WeekData {
@@ -39,14 +42,22 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
+  const [hourlyRate, setHourlyRate] = useState<number>(25)
 
   const fetchWeeks = async () => {
     try {
-      const res = await fetch('/api/weeks')
-      const data = await res.json()
+      const [weeksRes, dashboardRes] = await Promise.all([
+        fetch('/api/weeks'),
+        fetch('/api/dashboard')
+      ])
+      const weeksData = await weeksRes.json()
+      const dashboardData = await dashboardRes.json()
       
-      if (data.success) {
-        setWeeks(data.data)
+      if (weeksData.success) {
+        setWeeks(weeksData.data)
+      }
+      if (dashboardData.success) {
+        setHourlyRate(dashboardData.data.hourlyRate || 25)
       }
     } catch (error) {
       console.error('Error fetching weeks:', error)
@@ -160,6 +171,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                     showDate
                     onDelete={handleEntryDelete}
                     onUpdate={() => { fetchWeeks(); onRefresh?.(); }}
+                    hourlyRate={hourlyRate}
                   />
                 </div>
               )}

@@ -5,6 +5,9 @@ export interface TimeEntry {
   duration: number | null
   date: string
   weekId: string
+  jobNumber?: string | null
+  calculatedAmount?: number | null
+  paidAmount?: number | null
   createdAt: string
   updatedAt: string
 }
