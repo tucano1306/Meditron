@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, Smartphone, Settings } from 'lucide-react'
+import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE } from '@/lib/utils'
@@ -26,6 +26,9 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [error, setError] = useState<string | null>(null)
   const [isEditingRate, setIsEditingRate] = useState(false)
   const [tempRate, setTempRate] = useState(hourlyRate.toString())
+  const [jobNumber, setJobNumber] = useState('')
+  const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
+  const [jobNumberInput, setJobNumberInput] = useState('')
   
   // PWA and background support
   const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
@@ -43,6 +46,9 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
           setElapsedSeconds(data.data.elapsedSeconds)
           if (data.data.startTime) {
             setStartTime(new Date(data.data.startTime))
+          }
+          if (data.data.jobNumber) {
+            setJobNumber(data.data.jobNumber)
           }
         }
       } catch (err) {
@@ -93,6 +99,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         const newStartTime = new Date(data.data.entry.startTime)
         setStartTime(newStartTime)
         setElapsedSeconds(0)
+        setJobNumber('')
         
         // Start background timer
         startBackgroundTimer(newStartTime.toISOString())
@@ -119,7 +126,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       const res = await fetch('/api/timer', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime })
+        body: JSON.stringify({ clientTime, jobNumber })
       })
       const data = await res.json()
 
@@ -127,6 +134,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         setIsRunning(false)
         setStartTime(null)
         setElapsedSeconds(0) // Reset counter to zero
+        setJobNumber('')
         
         // Stop background timer and release wake lock
         stopBackgroundTimer()
@@ -147,6 +155,37 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }, [onTimerStop, stopBackgroundTimer, releaseWakeLock])
 
   const currentEarnings = (elapsedSeconds / 3600) * hourlyRate
+
+  const handleSaveJobNumber = useCallback(async () => {
+    try {
+      const res = await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobNumber: jobNumberInput })
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setJobNumber(jobNumberInput)
+        setIsEditingJobNumber(false)
+      } else {
+        setError(data.error || 'Error al guardar')
+      }
+    } catch (err) {
+      console.error('Error saving job number:', err)
+      setError('Error de conexión')
+    }
+  }, [jobNumberInput])
+
+  const handleEditJobNumber = () => {
+    setJobNumberInput(jobNumber)
+    setIsEditingJobNumber(true)
+  }
+
+  const handleCancelEditJobNumber = () => {
+    setIsEditingJobNumber(false)
+    setJobNumberInput('')
+  }
 
   const handleSaveRate = async () => {
     const newRate = Number.parseFloat(tempRate)
@@ -206,6 +245,57 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
             </div>
           )}
         </div>
+
+        {/* Job Number - Solo visible cuando está corriendo */}
+        {isRunning && (
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Hash className="h-4 w-4" />
+                <span className="text-sm font-medium">Trabajo #</span>
+              </div>
+              {isEditingJobNumber ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={jobNumberInput}
+                    onChange={(e) => setJobNumberInput(e.target.value)}
+                    placeholder="Ej: 12345"
+                    className="w-24 px-2 py-1 text-sm rounded border border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 outline-none font-mono"
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveJobNumber}
+                    className="h-7 px-2 text-xs bg-emerald-500 hover:bg-emerald-600"
+                  >
+                    OK
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancelEditJobNumber}
+                    className="h-7 px-2 text-xs"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleEditJobNumber}
+                  className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 transition-colors"
+                >
+                  {jobNumber ? (
+                    <span className="font-mono font-medium">{jobNumber}</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Sin asignar</span>
+                  )}
+                  <Pencil className="h-3 w-3 ml-1" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (

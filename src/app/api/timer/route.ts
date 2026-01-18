@@ -120,7 +120,8 @@ export async function PUT(request: NextRequest) {
       where: { id: activeEntry.id },
       data: {
         endTime: now,
-        duration
+        duration,
+        jobNumber: jobNumber || activeEntry.jobNumber
       }
     })
 
@@ -180,6 +181,7 @@ export async function GET() {
           isRunning: true,
           startTime: activeEntry.startTime,
           currentEntryId: activeEntry.id,
+          jobNumber: activeEntry.jobNumber,
           elapsedSeconds
         }
       })
@@ -198,6 +200,55 @@ export async function GET() {
     console.error('Error getting timer status:', error)
     return NextResponse.json(
       { success: false, error: 'Error al obtener estado del timer' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Actualizar jobNumber del timer en curso
+export async function PATCH(request: NextRequest) {
+  try {
+    const authResult = await validateSession()
+    if (!authResult.success) {
+      return authResult.response
+    }
+
+    const userId = authResult.user.id
+    const body = await request.json()
+    const { jobNumber } = body
+
+    // Buscar timer activo
+    const activeEntry = await prisma.timeEntry.findFirst({
+      where: {
+        endTime: null,
+        userId
+      }
+    })
+
+    if (!activeEntry) {
+      return NextResponse.json(
+        { success: false, error: 'No hay timer activo' },
+        { status: 400 }
+      )
+    }
+
+    // Actualizar jobNumber
+    const updatedEntry = await prisma.timeEntry.update({
+      where: { id: activeEntry.id },
+      data: { jobNumber }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        entry: updatedEntry,
+        message: 'Número de trabajo actualizado'
+      }
+    })
+  } catch (error) {
+    console.error('Error updating job number:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al actualizar número de trabajo' },
       { status: 500 }
     )
   }
