@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
+import { parseClientDateTime } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     let now: Date
     try {
       const body = await request.json()
-      now = body.clientTime ? new Date(body.clientTime) : new Date()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
     } catch {
       now = new Date()
     }
@@ -88,7 +89,7 @@ export async function PUT(request: NextRequest) {
     let jobNumber: string | undefined
     try {
       const body = await request.json()
-      now = body.clientTime ? new Date(body.clientTime) : new Date()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
       jobNumber = body.jobNumber
     } catch {
       now = new Date()

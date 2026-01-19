@@ -84,8 +84,9 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       // Request wake lock to keep screen on
       await requestWakeLock()
       
-      // Enviar la hora del cliente (laptop) al servidor
-      const clientTime = new Date().toISOString()
+      // Enviar la hora local del cliente (sin conversión a UTC)
+      const now = new Date()
+      const clientTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
       
       const res = await fetch('/api/timer', {
         method: 'POST',
@@ -120,8 +121,9 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setError(null)
 
     try {
-      // Enviar la hora del cliente (laptop) al servidor
-      const clientTime = new Date().toISOString()
+      // Enviar la hora local del cliente (sin conversión a UTC)
+      const now = new Date()
+      const clientTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
       
       const res = await fetch('/api/timer', {
         method: 'PUT',

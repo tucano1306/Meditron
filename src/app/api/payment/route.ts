@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
+import { parseClientDateTime } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     let now: Date
     try {
       const body = await request.json()
-      now = body.clientTime ? new Date(body.clientTime) : new Date()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
     } catch {
       now = new Date()
     }
@@ -90,8 +91,8 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { amount, clientTime, jobNumber } = body
     
-    // Usar la hora del cliente si se envía
-    const now = clientTime ? new Date(clientTime) : new Date()
+    // Usar la hora local del cliente si se envía
+    const now = clientTime ? parseClientDateTime(clientTime) : new Date()
 
     if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(

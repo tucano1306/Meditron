@@ -28,11 +28,12 @@ export function formatCurrency(amount: number): string {
 
 export function getWeekNumber(date: Date): number {
   // Cálculo ISO 8601: semana comienza en lunes
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  // Usar fecha LOCAL (no UTC) para respetar la zona horaria del sistema
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   // Ajustar al jueves más cercano (ISO semanas se definen por el jueves)
-  const dayNum = d.getUTCDay() || 7 // Domingo = 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const dayNum = d.getDay() || 7 // Domingo = 7
+  d.setDate(d.getDate() + 4 - dayNum)
+  const yearStart = new Date(d.getFullYear(), 0, 1)
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
@@ -65,4 +66,23 @@ export function parseLocalDate(dateString: string): Date {
   const str = dateString.split('T')[0]
   const [year, month, day] = str.split('-').map(Number)
   return new Date(year, month - 1, day)
+}
+
+// Parsea una fecha ISO completa preservando la hora local del cliente
+// El cliente envía su hora local como ISO string (que incluye el offset o está en UTC)
+// Esta función la convierte a la misma hora en la zona local del servidor
+export function parseClientDateTime(isoString: string): Date {
+  if (!isoString) return new Date()
+  
+  // Si el cliente envía timestamp con formato ISO (ej: 2026-01-19T20:39:13.000Z)
+  // Extraemos los componentes directamente para preservar la hora local del cliente
+  const regex = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/
+  const match = regex.exec(isoString)
+  if (match) {
+    const [, year, month, day, hour, minute, second] = match.map(Number)
+    return new Date(year, month - 1, day, hour, minute, second)
+  }
+  
+  // Fallback: parsear normalmente
+  return new Date(isoString)
 }
