@@ -52,6 +52,27 @@ export function getWeekStartEnd(date: Date): { start: Date; end: Date } {
   return { start, end }
 }
 
+export function getWeekStartEndFromWeekNumber(weekNumber: number, year: number): { start: Date; end: Date } {
+  // ISO 8601: La semana 1 es la primera semana que contiene un jueves del año
+  // o la primera semana que contiene el 4 de enero
+  const jan4 = new Date(year, 0, 4)
+  const dayNum = jan4.getDay() || 7 // Domingo = 7
+  const weekOneMonday = new Date(jan4)
+  weekOneMonday.setDate(jan4.getDate() - dayNum + 1)
+  
+  // Calcular el lunes de la semana solicitada
+  const start = new Date(weekOneMonday)
+  start.setDate(weekOneMonday.getDate() + (weekNumber - 1) * 7)
+  start.setHours(0, 0, 0, 0)
+  
+  // El domingo es 6 días después del lunes
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  end.setHours(23, 59, 59, 999)
+  
+  return { start, end }
+}
+
 export function getMonthName(month: number): string {
   const months = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
