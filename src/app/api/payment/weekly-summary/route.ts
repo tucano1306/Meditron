@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getWeekNumber, getWeekStartEndFromWeekNumber } from '@/lib/utils'
+import { getWeekNumber } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -70,14 +70,27 @@ export async function GET() {
         ? (difference / calculatedAmount) * 100 
         : 0
 
-      // Obtener las fechas de inicio y fin de la semana usando el número de semana
-      const weekDates = getWeekStartEndFromWeekNumber(week.weekNumber, week.year)
+      // Calcular inicio y fin usando las fechas reales de las entradas
+      const dates = week.entries.map(e => new Date(e.date).getTime())
+      const minDate = new Date(Math.min(...dates))
+      
+      // Ajustar al lunes de la semana para minDate
+      const startDay = minDate.getDay()
+      const diffToMonday = startDay === 0 ? -6 : 1 - startDay
+      const start = new Date(minDate)
+      start.setDate(minDate.getDate() + diffToMonday)
+      start.setHours(0, 0, 0, 0)
+      
+      // El fin es el domingo (6 días después del lunes)
+      const end = new Date(start)
+      end.setDate(start.getDate() + 6)
+      end.setHours(23, 59, 59, 999)
 
       return {
         weekNumber: week.weekNumber,
         year: week.year,
-        startDate: weekDates.start.toISOString(),
-        endDate: weekDates.end.toISOString(),
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
         totalJobs,
         totalHours,
         calculatedAmount,
