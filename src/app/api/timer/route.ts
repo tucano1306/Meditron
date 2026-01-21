@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
-import { parseClientDateTime } from '@/lib/utils'
+import { parseClientDateTime, getFloridaDate, HOURLY_RATE } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,13 +17,13 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente si se envía
+    // Obtener la hora del cliente si se envía, sino usar hora de Florida
     let now: Date
     try {
       const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : getFloridaDate()
     } catch {
-      now = new Date()
+      now = getFloridaDate()
     }
     
     // Verificar si hay un timer activo para este usuario
@@ -84,15 +84,15 @@ export async function PUT(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente y jobNumber si se envía
+    // Obtener la hora del cliente y jobNumber si se envía, sino usar hora de Florida
     let now: Date
     let jobNumber: string | undefined
     try {
       const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : getFloridaDate()
       jobNumber = body.jobNumber
     } catch {
-      now = new Date()
+      now = getFloridaDate()
     }
 
     // Buscar timer activo del usuario
@@ -118,12 +118,17 @@ export async function PUT(request: NextRequest) {
       (now.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
     )
 
-    // Actualizar entrada
+    // Calcular monto basado en horas trabajadas
+    const hours = duration / 3600
+    const calculatedAmount = hours * HOURLY_RATE
+
+    // Actualizar entrada con duración y monto calculado
     const updatedEntry = await prisma.timeEntry.update({
       where: { id: activeEntry.id },
       data: {
         endTime: now,
         duration,
+        calculatedAmount,
         jobNumber: jobNumber || activeEntry.jobNumber
       }
     })

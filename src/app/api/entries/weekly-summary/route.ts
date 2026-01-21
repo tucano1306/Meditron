@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getWeekNumber } from '@/lib/utils'
+import { getWeekNumber, getFloridaDate, toFloridaDate, getWeekStartEndFromWeekNumber, HOURLY_RATE } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,8 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
-    const now = new Date()
+    // Usar hora de Florida
+    const now = getFloridaDate()
 
     // Obtener entradas de los últimos 60 días
     const sixtyDaysAgo = new Date(now)
@@ -34,7 +35,7 @@ export async function GET() {
       }
     })
 
-    // Agrupar entradas por semana
+    // Agrupar entradas por semana usando zona horaria de Florida
     const weeklyMap = new Map<string, {
       weekNumber: number
       year: number
@@ -42,9 +43,10 @@ export async function GET() {
     }>()
 
     entries.forEach(entry => {
-      const date = new Date(entry.date)
-      const weekNumber = getWeekNumber(date)
-      const year = date.getFullYear()
+      // Convertir a zona horaria de Florida
+      const floridaDate = toFloridaDate(new Date(entry.date))
+      const weekNumber = getWeekNumber(floridaDate)
+      const year = floridaDate.getFullYear()
       const key = `${year}-${weekNumber}`
 
       if (!weeklyMap.has(key)) {
@@ -63,28 +65,23 @@ export async function GET() {
       const totalJobs = week.entries.length
       const totalDuration = week.entries.reduce((sum, e) => sum + (e.duration || 0), 0)
       const totalHours = totalDuration / 3600
-      const calculatedAmount = week.entries.reduce((sum, e) => sum + (e.calculatedAmount || 0), 0)
+      
+      // Calcular monto basado en horas si calculatedAmount no está definido
+      const calculatedAmount = week.entries.reduce((sum, e) => {
+        if (e.calculatedAmount) return sum + e.calculatedAmount
+        // Fallback: calcular basado en duración
+        const hours = (e.duration || 0) / 3600
+        return sum + (hours * HOURLY_RATE)
+      }, 0)
+      
       const companyPaidAmount = week.entries.reduce((sum, e) => sum + (e.companyPaid || 0), 0)
       const difference = companyPaidAmount - calculatedAmount
       const differencePercentage = calculatedAmount > 0 
         ? (difference / calculatedAmount) * 100 
         : 0
 
-      // Calcular inicio y fin usando las fechas reales de las entradas
-      const dates = week.entries.map(e => new Date(e.date).getTime())
-      const minDate = new Date(Math.min(...dates))
-      
-      // Ajustar al lunes de la semana para minDate
-      const startDay = minDate.getDay()
-      const diffToMonday = startDay === 0 ? -6 : 1 - startDay
-      const start = new Date(minDate)
-      start.setDate(minDate.getDate() + diffToMonday)
-      start.setHours(0, 0, 0, 0)
-      
-      // El fin es el domingo (6 días después del lunes)
-      const end = new Date(start)
-      end.setDate(start.getDate() + 6)
-      end.setHours(23, 59, 59, 999)
+      // Usar getWeekStartEndFromWeekNumber para fechas consistentes
+      const { start, end } = getWeekStartEndFromWeekNumber(week.weekNumber, week.year)
 
       return {
         weekNumber: week.weekNumber,

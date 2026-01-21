@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { parseClientDateTime } from '@/lib/utils'
+import { parseClientDateTime, getFloridaDate } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,13 +16,13 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente si se envía
+    // Obtener la hora del cliente si se envía, sino usar hora de Florida
     let now: Date
     try {
       const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : getFloridaDate()
     } catch {
-      now = new Date()
+      now = getFloridaDate()
     }
 
     // Verificar si hay un trabajo activo
@@ -91,8 +91,8 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { amount, clientTime, jobNumber } = body
     
-    // Usar la hora local del cliente si se envía
-    const now = clientTime ? parseClientDateTime(clientTime) : new Date()
+    // Usar la hora local del cliente si se envía, sino usar hora de Florida
+    const now = clientTime ? parseClientDateTime(clientTime) : getFloridaDate()
 
     if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(

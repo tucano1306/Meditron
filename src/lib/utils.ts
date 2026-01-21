@@ -7,6 +7,58 @@ export function cn(...inputs: ClassValue[]) {
 
 export const HOURLY_RATE = 25
 
+// ========== ZONA HORARIA FLORIDA (America/New_York) ==========
+const FLORIDA_TIMEZONE = 'America/New_York'
+
+/**
+ * Obtiene la fecha/hora actual en Florida
+ */
+export function getFloridaDate(): Date {
+  // Crear fecha en zona horaria de Florida
+  const now = new Date()
+  const floridaString = now.toLocaleString('en-US', { timeZone: FLORIDA_TIMEZONE })
+  return new Date(floridaString)
+}
+
+/**
+ * Convierte una fecha UTC a fecha de Florida
+ */
+export function toFloridaDate(date: Date): Date {
+  const floridaString = date.toLocaleString('en-US', { timeZone: FLORIDA_TIMEZONE })
+  return new Date(floridaString)
+}
+
+/**
+ * Obtiene los componentes de fecha en Florida (año, mes, día)
+ */
+export function getFloridaDateComponents(date: Date): { year: number; month: number; day: number; hour: number; minute: number; dayOfWeek: number } {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: FLORIDA_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    weekday: 'short'
+  })
+  
+  const parts = formatter.formatToParts(date)
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '0'
+  
+  const weekdayMap: Record<string, number> = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 }
+  const weekdayStr = get('weekday')
+  
+  return {
+    year: Number.parseInt(get('year')),
+    month: Number.parseInt(get('month')),
+    day: Number.parseInt(get('day')),
+    hour: Number.parseInt(get('hour')),
+    minute: Number.parseInt(get('minute')),
+    dayOfWeek: weekdayMap[weekdayStr] ?? 0
+  }
+}
+
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
@@ -27,9 +79,14 @@ export function formatCurrency(amount: number): string {
 }
 
 export function getWeekNumber(date: Date): number {
+  // Usar zona horaria de Florida para determinar la semana
+  const florida = getFloridaDateComponents(date)
+  
+  // Crear una fecha "virtual" con los componentes de Florida
+  // Esto nos permite calcular la semana correcta según la hora de Florida
+  const d = new Date(florida.year, florida.month - 1, florida.day)
+  
   // Cálculo ISO 8601: semana comienza en lunes
-  // Usar fecha LOCAL (no UTC) para respetar la zona horaria del sistema
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   // Ajustar al jueves más cercano (ISO semanas se definen por el jueves)
   const dayNum = d.getDay() || 7 // Domingo = 7
   d.setDate(d.getDate() + 4 - dayNum)
@@ -38,13 +95,14 @@ export function getWeekNumber(date: Date): number {
 }
 
 export function getWeekStartEnd(date: Date): { start: Date; end: Date } {
-  const day = date.getDay()
-  const diffToMonday = day === 0 ? -6 : 1 - day
+  // Usar zona horaria de Florida
+  const florida = getFloridaDateComponents(date)
+  const dayOfWeek = florida.dayOfWeek
   
-  const start = new Date(date)
-  start.setDate(date.getDate() + diffToMonday)
-  start.setHours(0, 0, 0, 0)
+  // Calcular el lunes de esta semana
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
   
+  const start = new Date(florida.year, florida.month - 1, florida.day + diffToMonday, 0, 0, 0, 0)
   const end = new Date(start)
   end.setDate(start.getDate() + 6)
   end.setHours(23, 59, 59, 999)

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, formatDuration, getMonthName } from '@/lib/utils'
+import { formatCurrency, formatDuration, getMonthName, getWeekNumber, toFloridaDate } from '@/lib/utils'
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -51,13 +51,14 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
       const data = await res.json()
       
       if (data.success && data.data.recentEntries) {
-        // Group entries by week
+        // Group entries by week usando zona horaria de Florida
         const entriesByWeek = new Map<string, PaymentEntry[]>()
         
         for (const entry of data.data.recentEntries) {
-          const date = new Date(entry.date)
-          const weekNum = getWeekNumber(date)
-          const year = date.getFullYear()
+          // Convertir a zona horaria de Florida para calcular la semana correcta
+          const floridaDate = toFloridaDate(new Date(entry.date))
+          const weekNum = getWeekNumber(floridaDate)
+          const year = floridaDate.getFullYear()
           const key = `${year}-${weekNum}`
           
           if (!entriesByWeek.has(key)) {
@@ -103,12 +104,6 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
   useEffect(() => {
     fetchData()
   }, [])
-
-  const getWeekNumber = (date: Date): number => {
-    const startOfYear = new Date(date.getFullYear(), 0, 1)
-    const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
-    return Math.ceil((days + startOfYear.getDay() + 1) / 7)
-  }
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este trabajo?')) return

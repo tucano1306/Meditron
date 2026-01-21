@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getWeekNumber } from '@/lib/utils'
+import { getWeekNumber, getWeekStartEndFromWeekNumber, getFloridaDate, toFloridaDate } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,8 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
-    const now = new Date()
+    // Usar hora de Florida para el cálculo
+    const now = getFloridaDate()
 
     // Obtener entradas de los últimos 60 días
     const sixtyDaysAgo = new Date(now)
@@ -34,7 +35,7 @@ export async function GET() {
       }
     })
 
-    // Agrupar entradas por semana
+    // Agrupar entradas por semana usando zona horaria de Florida
     const weeklyMap = new Map<string, {
       weekNumber: number
       year: number
@@ -42,9 +43,10 @@ export async function GET() {
     }>()
 
     entries.forEach(entry => {
-      const date = new Date(entry.date)
-      const weekNumber = getWeekNumber(date)
-      const year = date.getFullYear()
+      // Convertir la fecha a zona horaria de Florida para calcular la semana
+      const floridaDate = toFloridaDate(new Date(entry.date))
+      const weekNumber = getWeekNumber(floridaDate)
+      const year = floridaDate.getFullYear()
       const key = `${year}-${weekNumber}`
 
       if (!weeklyMap.has(key)) {
@@ -70,21 +72,8 @@ export async function GET() {
         ? (difference / calculatedAmount) * 100 
         : 0
 
-      // Calcular inicio y fin usando las fechas reales de las entradas
-      const dates = week.entries.map(e => new Date(e.date).getTime())
-      const minDate = new Date(Math.min(...dates))
-      
-      // Ajustar al lunes de la semana para minDate
-      const startDay = minDate.getDay()
-      const diffToMonday = startDay === 0 ? -6 : 1 - startDay
-      const start = new Date(minDate)
-      start.setDate(minDate.getDate() + diffToMonday)
-      start.setHours(0, 0, 0, 0)
-      
-      // El fin es el domingo (6 días después del lunes)
-      const end = new Date(start)
-      end.setDate(start.getDate() + 6)
-      end.setHours(23, 59, 59, 999)
+      // Usar getWeekStartEndFromWeekNumber para obtener fechas consistentes
+      const { start, end } = getWeekStartEndFromWeekNumber(week.weekNumber, week.year)
 
       return {
         weekNumber: week.weekNumber,

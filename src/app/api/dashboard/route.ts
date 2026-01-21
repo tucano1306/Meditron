@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { HOURLY_RATE, getWeekStartEnd, getWeekNumber } from '@/lib/utils'
+import { HOURLY_RATE, getWeekStartEnd, getWeekNumber, getFloridaDate } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,7 +17,8 @@ export async function GET() {
     const userId = authResult.user.id
     const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
     
-    const now = new Date()
+    // Usar hora de Florida
+    const now = getFloridaDate()
     const year = now.getFullYear()
     const month = now.getMonth() + 1
     const { start: weekStart, end: weekEnd } = getWeekStartEnd(now)

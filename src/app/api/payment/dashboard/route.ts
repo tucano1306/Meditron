@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
+import { getFloridaDate } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,7 +15,8 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
-    const now = new Date()
+    // Usar hora de Florida
+    const now = getFloridaDate()
 
     // Trabajo activo
     const activeEntry = await prisma.paymentEntry.findFirst({
@@ -24,11 +26,9 @@ export async function GET() {
       }
     })
 
-    // Entradas de hoy
-    const todayStart = new Date(now)
-    todayStart.setHours(0, 0, 0, 0)
-    const todayEnd = new Date(now)
-    todayEnd.setHours(23, 59, 59, 999)
+    // Entradas de hoy (usando hora de Florida)
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
 
     const todayEntries = await prisma.paymentEntry.findMany({
       where: {
