@@ -208,34 +208,48 @@ export function PaymentEntryList({
                         {entry.endTime && (
                           <span className="text-gray-400 mx-1">→</span>
                         )}
-                        {entry.endTime && (
+                        {entry.endTime ? (
                           <span className="text-gray-700">
                             {new Date(entry.endTime).toLocaleTimeString('es-ES', { 
                               hour: '2-digit', 
                               minute: '2-digit' 
                             })}
                           </span>
+                        ) : (
+                          <span className="text-amber-500 animate-pulse ml-1">En curso...</span>
                         )}
                       </div>
                       <div className="text-sm sm:text-base font-mono font-bold text-gray-700 mt-1">
-                        {entry.duration && formatDuration(entry.duration)}
+                        {entry.duration ? formatDuration(entry.duration) : <span className="text-amber-500 animate-pulse">⏱️</span>}
                       </div>
                     </>
                   )}
                 </div>
               </div>
+              
+              {/* Amount - always show */}
               {editingId !== entry.id && (
                 <div className="text-right mr-1 sm:mr-2 flex-shrink-0">
-                  <div className="font-black text-emerald-600 text-base sm:text-lg">
-                    {entry.amount && formatCurrency(entry.amount)}
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500 font-medium">
-                    {entry.hourlyRate && `${formatCurrency(entry.hourlyRate)}/h`}
-                  </div>
+                  {entry.completed ? (
+                    <>
+                      <div className="font-black text-emerald-600 text-lg sm:text-xl">
+                        {entry.amount ? formatCurrency(entry.amount) : '-'}
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-500 font-medium">
+                        {entry.hourlyRate ? `${formatCurrency(entry.hourlyRate)}/h` : ''}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-sm shadow-md">
+                      ⏱️ En curso
+                    </div>
+                  )}
                 </div>
               )}
+              
+              {/* Action buttons - always show for completed entries */}
               {entry.completed && (
-                <div className="flex items-center">
+                <div className="flex items-center flex-shrink-0">
                   {editingId === entry.id ? (
                     <>
                       <Button
@@ -258,12 +272,12 @@ export function PaymentEntryList({
                       </Button>
                     </>
                   ) : (
-                    <>
+                    <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => startEditing(entry)}
-                        className="text-gray-400 hover:text-blue-600"
+                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-9 w-9"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -271,11 +285,11 @@ export function PaymentEntryList({
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(entry.id)}
-                        className="text-gray-400 hover:text-red-600"
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50 h-9 w-9"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </>
+                    </div>
                   )}
                 </div>
               )}

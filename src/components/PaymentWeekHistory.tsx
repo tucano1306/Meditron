@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDuration, getMonthName, getWeekNumber, toFloridaDate } from '@/lib/utils'
-import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const ITEMS_PER_PAGE = 5
@@ -186,6 +186,113 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const paginatedWeeks = weeks.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
+  const handlePrintPDF = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Historial de Pagos por Semana - Meditron</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; color: #333; }
+          h1 { color: #2563eb; font-size: 24px; margin-bottom: 8px; }
+          .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+          .week { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; page-break-inside: avoid; }
+          .week-header { background: linear-gradient(to right, #eff6ff, #dbeafe); padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+          .week-title { font-weight: 600; font-size: 16px; color: #1e40af; }
+          .week-info { font-size: 12px; color: #6b7280; margin-top: 4px; }
+          .week-summary { display: flex; justify-content: space-between; padding: 12px 16px; background: #f9fafb; }
+          .summary-item { text-align: center; }
+          .summary-label { font-size: 11px; color: #6b7280; }
+          .summary-value { font-size: 18px; font-weight: 700; color: #059669; }
+          .summary-value.blue { color: #2563eb; }
+          .entries { padding: 12px 16px; }
+          .entry { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+          .entry:last-child { border-bottom: none; }
+          .entry-date { font-size: 13px; color: #374151; font-weight: 500; }
+          .entry-time { font-size: 12px; color: #6b7280; }
+          .entry-amount { font-size: 16px; font-weight: 700; color: #059669; }
+          .entry-rate { font-size: 12px; color: #6b7280; }
+          .total-section { margin-top: 24px; padding: 16px; background: linear-gradient(to right, #2563eb, #4f46e5); color: white; border-radius: 8px; }
+          .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+          .total-label { font-size: 14px; opacity: 0.9; }
+          .total-value { font-size: 20px; font-weight: 700; }
+          @media print { body { padding: 0; } .week { break-inside: avoid; } }
+        </style>
+      </head>
+      <body>
+        <h1>💰 Historial de Pagos por Semana</h1>
+        <p class="subtitle">Control de Pagos - Meditron | Generado: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        
+        ${weeks.map(week => `
+          <div class="week">
+            <div class="week-header">
+              <div class="week-title">📅 Semana ${week.weekNumber} - ${getMonthName(week.month)} ${week.year}</div>
+              <div class="week-info">${week.entries.length} trabajos • ${formatDuration(week.totalDuration)}</div>
+            </div>
+            <div class="week-summary">
+              <div class="summary-item">
+                <div class="summary-label">Total</div>
+                <div class="summary-value">${formatCurrency(week.totalAmount)}</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-label">Duración</div>
+                <div class="summary-value blue">${formatDuration(week.totalDuration)}</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-label">Tarifa Prom.</div>
+                <div class="summary-value">${formatCurrency(week.avgHourlyRate)}/h</div>
+              </div>
+            </div>
+            <div class="entries">
+              ${week.entries.map(entry => `
+                <div class="entry">
+                  <div>
+                    <div class="entry-date">
+                      ${new Date(entry.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </div>
+                    <div class="entry-time">
+                      ${new Date(entry.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                      ${entry.endTime ? `→ ${new Date(entry.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                      ${entry.duration ? ` • ${formatDuration(entry.duration)}` : ''}
+                    </div>
+                  </div>
+                  <div style="text-align: right;">
+                    <div class="entry-amount">${entry.amount ? formatCurrency(entry.amount) : '-'}</div>
+                    <div class="entry-rate">${entry.hourlyRate ? `${formatCurrency(entry.hourlyRate)}/h` : ''}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+        
+        <div class="total-section">
+          <div class="total-row">
+            <span class="total-label">Total Ganado:</span>
+            <span class="total-value">${formatCurrency(weeks.reduce((sum, w) => sum + w.totalAmount, 0))}</span>
+          </div>
+          <div class="total-row">
+            <span class="total-label">Total Tiempo:</span>
+            <span class="total-value">${formatDuration(weeks.reduce((sum, w) => sum + w.totalDuration, 0))}</span>
+          </div>
+          <div class="total-row">
+            <span class="total-label">Total Trabajos:</span>
+            <span class="total-value">${weeks.reduce((sum, w) => sum + w.entries.length, 0)}</span>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.documentElement.innerHTML = content
+    setTimeout(() => {
+      printWindow.print()
+    }, 250)
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -221,11 +328,22 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
   return (
     <Card>
       <CardHeader className="px-3 sm:px-6">
-        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-          <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
-          Historial por Semanas
-          <span className="text-xs font-normal text-gray-500">({weeks.length})</span>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
+            Historial por Semanas
+            <span className="text-xs font-normal text-gray-500">({weeks.length})</span>
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrintPDF}
+            className="flex items-center gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+          >
+            <Printer className="h-4 w-4" />
+            <span className="hidden sm:inline">PDF</span>
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
         <div className="space-y-2">
