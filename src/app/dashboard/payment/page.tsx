@@ -8,7 +8,7 @@ import { PaymentEntryList } from '@/components/PaymentEntryList'
 import { PaymentWeekHistory } from '@/components/PaymentWeekHistory'
 import { PaymentMonthSummary } from '@/components/PaymentMonthSummary'
 import { PaymentCalculator } from '@/components/PaymentCalculator'
-import { WeeklySummary } from '@/components/WeeklySummary'
+
 import { InstallPWA } from '@/components/InstallPWA'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -22,8 +22,7 @@ import {
   Calendar,
   Briefcase,
   BarChart3,
-  Calculator,
-  TrendingUp
+  Calculator
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -220,20 +219,13 @@ export default function PaymentDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="today" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-4 h-auto bg-white/50 backdrop-blur-sm rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-4 mb-4 h-auto bg-white/50 backdrop-blur-sm rounded-xl p-1">
             <TabsTrigger 
               value="today" 
               className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <Clock className="h-4 w-4" />
               <span>Hoy</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="summary" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              <TrendingUp className="h-4 w-4" />
-              <span>Resumen</span>
             </TabsTrigger>
             <TabsTrigger 
               value="weeks" 
@@ -265,10 +257,6 @@ export default function PaymentDashboardPage() {
               onDelete={handleRefresh}
               onUpdate={handleRefresh}
             />
-          </TabsContent>
-
-          <TabsContent value="summary">
-            <WeeklySummary key={refreshKey} />
           </TabsContent>
 
           <TabsContent value="weeks">

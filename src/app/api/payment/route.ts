@@ -171,8 +171,11 @@ export async function GET() {
     })
 
     if (activeEntry) {
+      // Usar hora de Florida para calcular elapsed time correctamente
+      const now = getFloridaDate()
+      const startTime = new Date(activeEntry.startTime)
       const elapsedSeconds = Math.floor(
-        (Date.now() - new Date(activeEntry.startTime).getTime()) / 1000
+        (now.getTime() - startTime.getTime()) / 1000
       )
 
       return NextResponse.json({
