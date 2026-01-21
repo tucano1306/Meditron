@@ -329,24 +329,24 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between sm:justify-end gap-2">
-                <div className="text-right">
+              <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
+                <div className="text-right flex-1 min-w-0">
                   {entry.duration === null || entry.endTime === null ? (
-                    <div className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-sm shadow-md">
-                      ⏱️ En curso...
+                    <div className="px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-xs sm:text-sm shadow-md inline-block">
+                      ⏱️ En curso
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:gap-1">
-                      <div className="font-mono font-bold text-lg sm:text-xl text-gray-800 bg-white px-2 py-0.5 rounded-lg shadow-sm">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <div className="font-mono font-bold text-sm sm:text-lg text-gray-800 bg-white px-1.5 sm:px-2 py-0.5 rounded-lg shadow-sm">
                         {formatDuration(entry.duration)}
                       </div>
-                      <div className="text-base sm:text-lg text-emerald-600 font-black">
+                      <div className="text-sm sm:text-base text-emerald-600 font-black">
                         {formatCurrency((entry.duration / 3600) * hourlyRate)}
                       </div>
                       {/* Mostrar info del trabajo si existe */}
                       {entry.jobNumber && (
-                        <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-gray-200">
-                          <span className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-base sm:text-lg font-black rounded-xl shadow-md">
+                        <div className="flex items-center gap-1 mt-1 pt-1 border-t border-gray-200">
+                          <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[80px] sm:max-w-none">
                             #{entry.jobNumber}
                           </span>
                           {entry.paidAmount !== null && entry.paidAmount !== undefined && (
@@ -370,54 +370,54 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                 </div>
                 {/* Action buttons - only show when entry is completed */}
                 {entry.endTime && entry.duration !== null && (
-                  <div className="flex items-center flex-shrink-0">
+                  <div className="flex items-center flex-shrink-0 ml-1">
                     {editingId === entry.id ? (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleSaveEdit(entry)}
                           disabled={isSaving}
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50 h-9 w-9"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-8 sm:w-8"
                         >
-                          <Check className="h-4 w-4" />
+                          <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={cancelEditing}
                           disabled={isSaving}
-                          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-9 w-9"
+                          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-7 w-7 sm:h-8 sm:w-8"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => openJobModal(entry)}
-                          className={`h-9 w-9 ${entry.jobNumber ? 'text-blue-500 hover:text-blue-600 hover:bg-blue-50' : 'text-purple-400 hover:text-purple-600 hover:bg-purple-50'}`}
+                          className={`h-7 w-7 sm:h-8 sm:w-8 ${entry.jobNumber ? 'text-blue-500 hover:text-blue-600 hover:bg-blue-50' : 'text-purple-400 hover:text-purple-600 hover:bg-purple-50'}`}
                           title="Información del trabajo"
                         >
-                          <FileText className="h-4 w-4" />
+                          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => startEditing(entry)}
-                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-9 w-9"
+                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-7 w-7 sm:h-8 sm:w-8"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(entry.id)}
-                          className="text-red-400 hover:text-red-600 hover:bg-red-50 h-9 w-9"
+                          className="text-red-400 hover:text-red-600 hover:bg-red-50 h-7 w-7 sm:h-8 sm:w-8"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
                       </div>
                     )}

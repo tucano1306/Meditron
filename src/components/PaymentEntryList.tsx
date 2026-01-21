@@ -165,8 +165,8 @@ export function PaymentEntryList({
               className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200"
             >
               <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                  <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   {editingId === entry.id ? (
@@ -229,18 +229,18 @@ export function PaymentEntryList({
               
               {/* Amount - always show */}
               {editingId !== entry.id && (
-                <div className="text-right mr-1 sm:mr-2 flex-shrink-0">
+                <div className="text-right mr-0.5 sm:mr-2 flex-shrink-0">
                   {entry.completed ? (
                     <>
-                      <div className="font-black text-emerald-600 text-lg sm:text-xl">
+                      <div className="font-black text-emerald-600 text-sm sm:text-lg">
                         {entry.amount ? formatCurrency(entry.amount) : '-'}
                       </div>
-                      <div className="text-xs sm:text-sm text-gray-500 font-medium">
+                      <div className="text-[10px] sm:text-xs text-gray-500 font-medium">
                         {entry.hourlyRate ? `${formatCurrency(entry.hourlyRate)}/h` : ''}
                       </div>
                     </>
                   ) : (
-                    <div className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-sm shadow-md">
+                    <div className="px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-xs sm:text-sm shadow-md">
                       ⏱️ En curso
                     </div>
                   )}
@@ -251,43 +251,43 @@ export function PaymentEntryList({
               {entry.completed && (
                 <div className="flex items-center flex-shrink-0">
                   {editingId === entry.id ? (
-                    <>
+                    <div className="flex items-center">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleSaveEdit(entry)}
                         disabled={isSaving}
-                        className="text-green-600 hover:text-green-700"
+                        className="text-green-600 hover:text-green-700 h-7 w-7 sm:h-8 sm:w-8"
                       >
-                        <Check className="h-4 w-4" />
+                        <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={cancelEditing}
                         disabled={isSaving}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 h-7 w-7 sm:h-8 sm:w-8"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
-                    </>
+                    </div>
                   ) : (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => startEditing(entry)}
-                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-9 w-9"
+                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-7 w-7 sm:h-8 sm:w-8"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(entry.id)}
-                        className="text-red-400 hover:text-red-600 hover:bg-red-50 h-9 w-9"
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50 h-7 w-7 sm:h-8 sm:w-8"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   )}
