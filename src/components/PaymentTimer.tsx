@@ -40,9 +40,14 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         
         if (data.success && data.data) {
           setIsRunning(data.data.isRunning)
-          setElapsedSeconds(data.data.elapsedSeconds)
-          if (data.data.startTime) {
-            setStartTime(new Date(data.data.startTime))
+          if (data.data.isRunning && data.data.elapsedSeconds !== undefined) {
+            // Reconstruir startTime basado en elapsedSeconds del servidor
+            // Esto evita problemas de timezone
+            const reconstructedStartTime = new Date(Date.now() - (data.data.elapsedSeconds * 1000))
+            setStartTime(reconstructedStartTime)
+            setElapsedSeconds(data.data.elapsedSeconds)
+          } else {
+            setElapsedSeconds(0)
           }
           if (data.data.jobNumber) {
             setJobNumber(data.data.jobNumber)
@@ -61,9 +66,11 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
     if (isRunning && startTime) {
       interval = setInterval(() => {
-        const now = new Date()
-        const elapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000)
-        setElapsedSeconds(elapsed)
+        // Calcular elapsed usando Date.now() para consistencia
+        // startTime ya está en la zona horaria correcta desde el servidor
+        const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000)
+        // Asegurar que nunca sea negativo
+        setElapsedSeconds(Math.max(0, elapsed))
       }, 1000)
     }
 
@@ -93,7 +100,8 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
       if (data.success) {
         setIsRunning(true)
-        const newStartTime = new Date(data.data.entry.startTime)
+        // Usar la hora actual del cliente como startTime para evitar desfases de timezone
+        const newStartTime = new Date()
         setStartTime(newStartTime)
         setElapsedSeconds(0)
         setJobNumber('')
