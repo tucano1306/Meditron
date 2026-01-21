@@ -168,7 +168,7 @@ export default function PaymentDashboardPage() {
 
         {/* Stats Cards */}
         {data && (
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          <section className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
             <Card className="border-0 shadow-lg shadow-blue-50">
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center gap-2 text-blue-500 mb-1">
@@ -199,18 +199,6 @@ export default function PaymentDashboardPage() {
                 </div>
                 <div className="text-xl sm:text-2xl font-bold text-gray-900">
                   {data.today.totalHours.toFixed(1)}h
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg shadow-orange-50">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 text-orange-500 mb-1">
-                  <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="text-[10px] sm:text-xs font-medium">Tarifa Prom.</span>
-                </div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {formatCurrency(data.today.avgHourlyRate)}/h
                 </div>
               </CardContent>
             </Card>
