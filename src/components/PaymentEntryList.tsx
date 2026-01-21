@@ -112,10 +112,12 @@ export function PaymentEntryList({
 
   if (entries.length === 0) {
     return (
-      <Card className="border-0 shadow-xl shadow-gray-100">
-        <CardHeader className="pb-2 px-3 sm:px-6">
+      <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm overflow-hidden">
+        <CardHeader className="pb-2 px-3 sm:px-6 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+              <Clock className="h-4 w-4 text-white" />
+            </div>
             {title}
           </CardTitle>
         </CardHeader>
@@ -132,31 +134,39 @@ export function PaymentEntryList({
   const totalAmount = entries.reduce((sum, e) => sum + (e.amount || 0), 0)
 
   return (
-    <Card className="border-0 shadow-xl shadow-gray-100">
-      <CardHeader className="pb-2 px-3 sm:px-6">
+    <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm overflow-hidden">
+      <CardHeader className="pb-2 px-3 sm:px-6 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
-            {title}
-            <span className="text-xs sm:text-sm font-normal text-gray-500">
-              ({entries.length})
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+              <Clock className="h-4 w-4 text-white" />
+            </div>
+            <span>{title}</span>
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+              {entries.length}
             </span>
           </CardTitle>
-          <div className="text-xs sm:text-sm text-gray-500 flex-shrink-0">
-            {formatDuration(totalDuration)} • {formatCurrency(totalAmount)}
+          <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <span className="px-2 py-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-full">
+              {formatDuration(totalDuration)}
+            </span>
+            <span className="text-gray-400">•</span>
+            <span className="font-bold text-emerald-600">
+              {formatCurrency(totalAmount)}
+            </span>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="px-3 sm:px-6">
+      <CardContent className="px-3 sm:px-6 pt-4">
         <div className="space-y-2 sm:space-y-3">
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-xl"
+              className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200"
             >
               <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                  <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   {editingId === entry.id ? (
@@ -190,14 +200,16 @@ export function PaymentEntryList({
                     </div>
                   ) : (
                     <>
-                      <div className="font-medium text-gray-900 text-sm sm:text-base truncate">
+                      <div className="font-medium text-gray-900 text-sm sm:text-base px-2 py-1 bg-white rounded-lg shadow-sm border border-gray-100 inline-block">
                         {new Date(entry.startTime).toLocaleTimeString('es-ES', { 
                           hour: '2-digit', 
                           minute: '2-digit' 
                         })}
                         {entry.endTime && (
-                          <span className="text-gray-400">
-                            {' → '}
+                          <span className="text-gray-400 mx-1">→</span>
+                        )}
+                        {entry.endTime && (
+                          <span className="text-gray-700">
                             {new Date(entry.endTime).toLocaleTimeString('es-ES', { 
                               hour: '2-digit', 
                               minute: '2-digit' 
@@ -205,7 +217,7 @@ export function PaymentEntryList({
                           </span>
                         )}
                       </div>
-                      <div className="text-xs sm:text-sm text-gray-500">
+                      <div className="text-sm sm:text-base font-mono font-bold text-gray-700 mt-1">
                         {entry.duration && formatDuration(entry.duration)}
                       </div>
                     </>
@@ -214,10 +226,10 @@ export function PaymentEntryList({
               </div>
               {editingId !== entry.id && (
                 <div className="text-right mr-1 sm:mr-2 flex-shrink-0">
-                  <div className="font-bold text-green-600 text-sm sm:text-base">
+                  <div className="font-black text-emerald-600 text-base sm:text-lg">
                     {entry.amount && formatCurrency(entry.amount)}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-500">
+                  <div className="text-xs sm:text-sm text-gray-500 font-medium">
                     {entry.hourlyRate && `${formatCurrency(entry.hourlyRate)}/h`}
                   </div>
                 </div>

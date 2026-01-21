@@ -85,14 +85,16 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
   }
 
   return (
-    <Card className="border-0 shadow-xl shadow-blue-50">
-      <CardHeader>
+    <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
         <CardTitle className="text-lg flex items-center gap-2">
-          <Calculator className="h-5 w-5 text-blue-500" />
-          Calculadora de Tarifa
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+            <Calculator className="h-5 w-5 text-white" />
+          </div>
+          <span>Calculadora de Tarifa</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         {/* Time Input */}
         <div className="space-y-3">
           <label className="text-sm font-medium text-gray-700 flex items-center gap-2">

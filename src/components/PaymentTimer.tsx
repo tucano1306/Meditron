@@ -213,41 +213,50 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
   return (
     <>
-      <Card className="w-full max-w-md mx-auto border-0 shadow-xl shadow-blue-100">
-        <CardHeader className="text-center pb-2 sm:pb-4">
-          <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
-            <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
-            Trabajo por Pago
+      <Card className="w-full max-w-md mx-auto border-0 shadow-2xl bg-gradient-to-br from-white via-white to-blue-50/50 overflow-hidden">
+        <CardHeader className="text-center pb-2 sm:pb-4 relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5" />
+          <CardTitle className="flex items-center justify-center gap-2 text-lg sm:text-xl font-bold relative">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+            </div>
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Trabajo por Pago
+            </span>
           </CardTitle>
           {isRunning && wakeLockActive && (
-            <div className="flex items-center justify-center gap-1 text-xs text-blue-600">
-              <Clock className="h-3 w-3" />
+            <div className="flex items-center justify-center gap-1 text-xs text-blue-600 mt-2">
+              <Clock className="h-3 w-3 animate-pulse" />
               <span>Modo background activo</span>
             </div>
           )}
         </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
-          {/* Timer Display */}
-          <div className="text-center">
-            <div className={`text-4xl sm:text-6xl font-mono font-bold transition-colors ${
-              isRunning ? 'text-blue-600' : 'text-gray-600'
-            }`}>
+        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-6">
+          {/* Timer Display - NÚMEROS MÁS GRANDES */}
+          <div className="text-center py-4 sm:py-6">
+            <div className={`text-5xl sm:text-7xl md:text-8xl font-mono font-black tracking-tight transition-all duration-300 ${
+              isRunning 
+                ? 'text-blue-600 scale-105' 
+                : 'text-gray-400'
+            }`} style={{ textShadow: isRunning ? '0 4px 20px rgba(37, 99, 235, 0.3)' : 'none' }}>
               {formatDuration(elapsedSeconds)}
             </div>
             {isRunning && startTime && (
-              <div className="text-sm text-gray-400 mt-2">
-                Iniciado: {startTime.toLocaleTimeString('es-ES')}
+              <div className="text-xs sm:text-sm text-gray-400 mt-3 font-medium">
+                ⏱️ Iniciado: {startTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
               </div>
             )}
           </div>
 
           {/* Job Number - Solo visible cuando está corriendo */}
           {isRunning && (
-            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-4 border border-blue-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-gray-600">
-                  <Hash className="h-4 w-4" />
-                  <span className="text-sm font-medium">Trabajo #</span>
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <Hash className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-semibold">Trabajo #</span>
                 </div>
                 {isEditingJobNumber ? (
                   <div className="flex items-center gap-2">
@@ -256,13 +265,13 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                       value={jobNumberInput}
                       onChange={(e) => setJobNumberInput(e.target.value)}
                       placeholder="Ej: 12345"
-                      className="w-24 px-2 py-1 text-sm rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none font-mono"
+                      className="w-28 px-3 py-2 text-lg font-mono font-bold rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-center"
                       autoFocus
                     />
                     <Button
                       size="sm"
                       onClick={handleSaveJobNumber}
-                      className="h-7 px-2 text-xs bg-blue-500 hover:bg-blue-600"
+                      className="h-9 px-3 bg-blue-500 hover:bg-blue-600 rounded-xl"
                     >
                       OK
                     </Button>
@@ -270,7 +279,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                       size="sm"
                       variant="ghost"
                       onClick={handleCancelEditJobNumber}
-                      className="h-7 px-2 text-xs"
+                      className="h-9 px-2"
                     >
                       ✕
                     </Button>
@@ -278,14 +287,14 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 ) : (
                   <button
                     onClick={handleEditJobNumber}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all"
                   >
                     {jobNumber ? (
-                      <span className="font-mono font-medium">{jobNumber}</span>
+                      <span className="font-mono text-xl font-black text-blue-700">{jobNumber}</span>
                     ) : (
-                      <span className="text-gray-400 text-sm">Sin asignar</span>
+                      <span className="text-gray-400 text-sm">Toca para asignar</span>
                     )}
-                    <Pencil className="h-3 w-3 ml-1" />
+                    <Pencil className="h-4 w-4 text-blue-500" />
                   </button>
                 )}
               </div>
@@ -320,23 +329,23 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
           )}
 
           {/* Buttons */}
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center">
             {isRunning ? (
               <Button
                 onClick={handleStopClick}
                 disabled={isLoading}
-                className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl shadow-lg shadow-blue-200"
+                className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                <Square className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+                <Square className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
                 FINALIZAR
               </Button>
             ) : (
               <Button
                 onClick={handleStart}
                 disabled={isLoading}
-                className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl shadow-lg shadow-blue-200"
+                className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                <Play className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+                <Play className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
                 {isLoading ? 'Iniciando...' : 'INICIAR'}
               </Button>
             )}
@@ -344,7 +353,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
           {/* Info */}
           <div className="text-center text-xs sm:text-sm text-gray-400 pt-2">
-            Al finalizar, ingresa el monto para calcular tu tarifa por hora
+            💡 Al finalizar, ingresa el monto para calcular tu tarifa
           </div>
         </CardContent>
       </Card>

@@ -96,10 +96,15 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-emerald-50 via-white to-green-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Cargando...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-200 border-t-emerald-600 mx-auto mb-4"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Clock className="h-6 w-6 text-emerald-600" />
+            </div>
+          </div>
+          <p className="text-gray-600 font-medium">Cargando dashboard...</p>
         </div>
       </div>
     )
@@ -107,17 +112,20 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-500">
-          <p>{error}</p>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-sm mx-4">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <p className="text-red-600 font-semibold mb-4">{error}</p>
           <button
             onClick={() => {
               setIsLoading(true)
               fetchDashboard()
             }}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all shadow-lg hover:shadow-xl"
           >
-            Reintentar
+            🔄 Reintentar
           </button>
         </div>
       </div>
@@ -129,25 +137,32 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/50 via-white to-green-50/50">
       <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
         {/* Header */}
         <header className="text-center mb-6 sm:mb-8">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <Image 
-              src="/logo.png" 
-              alt="Meditron Logo" 
-              width={48} 
-              height={48}
-              className="rounded-xl"
-            />
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">
-              Meditron
-            </h1>
+            <div className="relative">
+              <Image 
+                src="/logo.png" 
+                alt="Meditron Logo" 
+                width={56} 
+                height={56}
+                className="rounded-2xl shadow-lg"
+              />
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
+                <Clock className="w-3 h-3 text-white" />
+              </div>
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                Meditron
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">
+                Control de Horas ⏱️
+              </p>
+            </div>
           </div>
-          <p className="text-sm sm:text-base text-gray-500">
-            Control de Horas
-          </p>
         </header>
 
         {/* Timer */}
@@ -170,22 +185,22 @@ export function Dashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="today" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4 h-auto">
-            <TabsTrigger value="today" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+          <TabsList className="grid w-full grid-cols-4 mb-4 h-auto bg-white/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-lg border border-gray-100">
+            <TabsTrigger value="today" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-1 sm:px-3 text-xs sm:text-sm rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Hoy</span>
+              <span className="hidden sm:inline font-medium">Hoy</span>
             </TabsTrigger>
-            <TabsTrigger value="weeks" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <TabsTrigger value="weeks" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-1 sm:px-3 text-xs sm:text-sm rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Semanas</span>
+              <span className="hidden sm:inline font-medium">Semanas</span>
             </TabsTrigger>
-            <TabsTrigger value="months" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <TabsTrigger value="months" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-1 sm:px-3 text-xs sm:text-sm rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Meses</span>
+              <span className="hidden sm:inline font-medium">Meses</span>
             </TabsTrigger>
-            <TabsTrigger value="calculator" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+            <TabsTrigger value="calculator" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-1 sm:px-3 text-xs sm:text-sm rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <Calculator className="h-4 w-4" />
-              <span className="hidden sm:inline">Calc</span>
+              <span className="hidden sm:inline font-medium">Calc</span>
             </TabsTrigger>
           </TabsList>
 
@@ -214,7 +229,10 @@ export function Dashboard() {
 
         {/* Footer */}
         <footer className="text-center mt-6 sm:mt-8 text-xs sm:text-sm text-gray-400 pb-20">
-          <p>Las semanas van de Lunes a Domingo</p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full border border-gray-100">
+            <Calendar className="w-4 h-4" />
+            <span>Semanas: Lunes → Domingo</span>
+          </div>
         </footer>
       </div>
       

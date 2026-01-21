@@ -43,9 +43,13 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         
         if (data.success && data.data) {
           setIsRunning(data.data.isRunning)
-          setElapsedSeconds(data.data.elapsedSeconds)
-          if (data.data.startTime) {
-            setStartTime(new Date(data.data.startTime))
+          if (data.data.isRunning && data.data.elapsedSeconds !== undefined) {
+            // Reconstruir startTime basado en elapsedSeconds del servidor
+            const reconstructedStartTime = new Date(Date.now() - (data.data.elapsedSeconds * 1000))
+            setStartTime(reconstructedStartTime)
+            setElapsedSeconds(data.data.elapsedSeconds)
+          } else {
+            setElapsedSeconds(0)
           }
           if (data.data.jobNumber) {
             setJobNumber(data.data.jobNumber)
@@ -65,9 +69,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
     if (isRunning && startTime) {
       interval = setInterval(() => {
-        const now = new Date()
-        const elapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000)
-        setElapsedSeconds(elapsed)
+        const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000)
+        setElapsedSeconds(Math.max(0, elapsed))
       }, 1000)
     }
 
@@ -97,7 +100,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
       if (data.success) {
         setIsRunning(true)
-        const newStartTime = new Date(data.data.entry.startTime)
+        // Usar la hora actual del cliente como startTime para evitar desfases
+        const newStartTime = new Date()
         setStartTime(newStartTime)
         setElapsedSeconds(0)
         setJobNumber('')
@@ -217,44 +221,55 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto border-0 shadow-xl shadow-emerald-100">
-      <CardHeader className="text-center pb-2 sm:pb-4">
-        <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
-          <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" />
-          Control de Horas
+    <Card className="w-full max-w-md mx-auto border-0 shadow-2xl bg-gradient-to-br from-white via-white to-emerald-50/50 overflow-hidden">
+      <CardHeader className="text-center pb-2 sm:pb-4 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-green-500/5" />
+        <CardTitle className="flex items-center justify-center gap-2 text-lg sm:text-xl font-bold relative">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-200">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+          </div>
+          <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+            Control de Horas
+          </span>
         </CardTitle>
         {isRunning && wakeLockActive && (
-          <div className="flex items-center justify-center gap-1 text-xs text-emerald-600">
-            <Smartphone className="h-3 w-3" />
+          <div className="flex items-center justify-center gap-1 text-xs text-emerald-600 mt-2">
+            <Smartphone className="h-3 w-3 animate-pulse" />
             <span>Modo background activo</span>
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
-        {/* Timer Display */}
-        <div className="text-center">
-          <div className={`text-4xl sm:text-6xl font-mono font-bold transition-colors ${
-            isRunning ? 'text-emerald-600' : 'text-gray-600'
-          }`}>
+      <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-6">
+        {/* Timer Display - NÚMEROS MÁS GRANDES */}
+        <div className="text-center py-4 sm:py-6">
+          <div className={`text-5xl sm:text-7xl md:text-8xl font-mono font-black tracking-tight transition-all duration-300 ${
+            isRunning 
+              ? 'text-emerald-600 scale-105' 
+              : 'text-gray-400'
+          }`} style={{ textShadow: isRunning ? '0 4px 20px rgba(16, 185, 129, 0.3)' : 'none' }}>
             {formatDuration(elapsedSeconds)}
           </div>
-          <div className="text-lg sm:text-xl text-emerald-600 mt-2 font-medium">
+          <div className={`text-2xl sm:text-3xl mt-3 font-bold transition-colors ${
+            isRunning ? 'text-green-500' : 'text-gray-300'
+          }`}>
             {formatCurrency(currentEarnings)}
           </div>
           {isRunning && startTime && (
-            <div className="text-xs sm:text-sm text-gray-400 mt-1">
-              Iniciado: {startTime.toLocaleTimeString('es-ES')}
+            <div className="text-xs sm:text-sm text-gray-400 mt-2 font-medium">
+              ⏱️ Iniciado: {startTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
             </div>
           )}
         </div>
 
         {/* Job Number - Solo visible cuando está corriendo */}
         {isRunning && (
-          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <div className="bg-gradient-to-r from-gray-50 to-emerald-50/30 rounded-2xl p-4 border border-emerald-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-gray-600">
-                <Hash className="h-4 w-4" />
-                <span className="text-sm font-medium">Trabajo #</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <Hash className="h-4 w-4 text-emerald-600" />
+                </div>
+                <span className="text-sm font-semibold">Trabajo #</span>
               </div>
               {isEditingJobNumber ? (
                 <div className="flex items-center gap-2">
@@ -263,13 +278,13 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                     value={jobNumberInput}
                     onChange={(e) => setJobNumberInput(e.target.value)}
                     placeholder="Ej: 12345"
-                    className="w-24 px-2 py-1 text-sm rounded border border-gray-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 outline-none font-mono"
+                    className="w-28 px-3 py-2 text-lg font-mono font-bold rounded-xl border-2 border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-center"
                     autoFocus
                   />
                   <Button
                     size="sm"
                     onClick={handleSaveJobNumber}
-                    className="h-7 px-2 text-xs bg-emerald-500 hover:bg-emerald-600"
+                    className="h-9 px-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl"
                   >
                     OK
                   </Button>
@@ -277,7 +292,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                     size="sm"
                     variant="ghost"
                     onClick={handleCancelEditJobNumber}
-                    className="h-7 px-2 text-xs"
+                    className="h-9 px-2"
                   >
                     ✕
                   </Button>
@@ -285,14 +300,14 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
               ) : (
                 <button
                   onClick={handleEditJobNumber}
-                  className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-all"
                 >
                   {jobNumber ? (
-                    <span className="font-mono font-medium">{jobNumber}</span>
+                    <span className="font-mono text-xl font-black text-emerald-700">{jobNumber}</span>
                   ) : (
-                    <span className="text-gray-400 text-sm">Sin asignar</span>
+                    <span className="text-gray-400 text-sm">Toca para asignar</span>
                   )}
-                  <Pencil className="h-3 w-3 ml-1" />
+                  <Pencil className="h-4 w-4 text-emerald-500" />
                 </button>
               )}
             </div>
@@ -307,23 +322,23 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         )}
 
         {/* Buttons */}
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center">
           {isRunning ? (
             <Button
               onClick={handleStop}
               disabled={isLoading}
-              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl shadow-lg shadow-red-200"
+              className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-2xl shadow-xl shadow-red-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Square className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+              <Square className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
               {isLoading ? 'Deteniendo...' : 'DETENER'}
             </Button>
           ) : (
             <Button
               onClick={handleStart}
               disabled={isLoading}
-              className="min-w-[160px] sm:min-w-[200px] py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-200"
+              className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-2xl shadow-xl shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Play className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+              <Play className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
               {isLoading ? 'Iniciando...' : 'INICIAR'}
             </Button>
           )}
