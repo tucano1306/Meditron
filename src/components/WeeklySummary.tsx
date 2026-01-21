@@ -87,6 +87,12 @@ export function WeeklySummary() {
             const hasDifference = week.companyPaidAmount > 0
             const differenceClass = week.difference >= 0 ? 'text-green-600' : 'text-red-600'
             
+            // Parsear fechas como fecha local (formato YYYY-MM-DD)
+            const parseLocalDate = (dateStr: string) => {
+              const [year, month, day] = dateStr.split('-').map(Number)
+              return new Date(year, month - 1, day)
+            }
+            
             return (
               <div key={`${week.year}-${week.weekNumber}`} className="border rounded-lg p-4 space-y-3">
                 {/* Header */}
@@ -96,10 +102,10 @@ export function WeeklySummary() {
                       Semana {week.weekNumber} - {week.year}
                     </h3>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                      {new Date(week.startDate).toLocaleDateString('es-ES', { 
+                      {parseLocalDate(week.startDate).toLocaleDateString('es-ES', { 
                         month: 'short', 
                         day: 'numeric' 
-                      })} - {new Date(week.endDate).toLocaleDateString('es-ES', { 
+                      })} - {parseLocalDate(week.endDate).toLocaleDateString('es-ES', { 
                         month: 'short', 
                         day: 'numeric' 
                       })}

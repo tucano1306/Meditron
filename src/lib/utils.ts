@@ -83,44 +83,70 @@ export function getWeekNumber(date: Date): number {
   const florida = getFloridaDateComponents(date)
   
   // Crear una fecha "virtual" con los componentes de Florida
-  // Esto nos permite calcular la semana correcta según la hora de Florida
   const d = new Date(florida.year, florida.month - 1, florida.day)
   
-  // Cálculo ISO 8601: semana comienza en lunes
-  // Ajustar al jueves más cercano (ISO semanas se definen por el jueves)
-  const dayNum = d.getDay() || 7 // Domingo = 7
-  d.setDate(d.getDate() + 4 - dayNum)
-  const yearStart = new Date(d.getFullYear(), 0, 1)
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+  // Calcular el número de semana ISO 8601 (Lunes-Domingo)
+  // La semana 1 es la primera semana con al menos 4 días en el nuevo año
+  const dayOfWeek = d.getDay() // 0 = domingo, 1 = lunes, etc.
+  
+  // Convertir a ISO: Lunes = 1, Domingo = 7
+  const isoDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek
+  
+  // Encontrar el jueves de esta semana (el jueves determina en qué año cae la semana)
+  const thursday = new Date(d)
+  thursday.setDate(d.getDate() + (4 - isoDayOfWeek))
+  
+  // El año de la semana ISO es el año del jueves
+  const isoYear = thursday.getFullYear()
+  
+  // Encontrar el primer jueves del año ISO
+  const jan4 = new Date(isoYear, 0, 4) // 4 de enero siempre está en semana 1
+  const jan4DayOfWeek = jan4.getDay() === 0 ? 7 : jan4.getDay()
+  const firstThursday = new Date(isoYear, 0, 4 - jan4DayOfWeek + 4)
+  
+  // Calcular el número de semana
+  const weekNum = Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000) + 1
+  
+  return weekNum
 }
 
 export function getWeekStartEnd(date: Date): { start: Date; end: Date } {
   // Usar zona horaria de Florida
   const florida = getFloridaDateComponents(date)
-  const dayOfWeek = florida.dayOfWeek
+  const dayOfWeek = florida.dayOfWeek // 0 = domingo, 1 = lunes, ..., 6 = sábado
   
-  // Calcular el lunes de esta semana
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  // Semana ISO: Lunes-Domingo
+  // Convertir a ISO: Lunes = 1, Domingo = 7
+  const isoDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek
+  
+  // Calcular el lunes de esta semana (inicio de semana ISO)
+  const diffToMonday = 1 - isoDayOfWeek
   
   const start = new Date(florida.year, florida.month - 1, florida.day + diffToMonday, 0, 0, 0, 0)
   const end = new Date(start)
-  end.setDate(start.getDate() + 6)
+  end.setDate(start.getDate() + 6) // Domingo
   end.setHours(23, 59, 59, 999)
   
   return { start, end }
 }
 
 export function getWeekStartEndFromWeekNumber(weekNumber: number, year: number): { start: Date; end: Date } {
-  // ISO 8601: La semana 1 es la primera semana que contiene un jueves del año
-  // o la primera semana que contiene el 4 de enero
+  // Semanas ISO 8601: Lunes-Domingo
+  // Semana 1 es la primera semana con al menos 4 días en el nuevo año
+  
+  // Encontrar el 4 de enero (siempre está en la semana 1)
   const jan4 = new Date(year, 0, 4)
-  const dayNum = jan4.getDay() || 7 // Domingo = 7
-  const weekOneMonday = new Date(jan4)
-  weekOneMonday.setDate(jan4.getDate() - dayNum + 1)
+  const jan4DayOfWeek = jan4.getDay() // 0 = domingo
+  
+  // Convertir a ISO: Lunes = 1, Domingo = 7
+  const isoJan4DayOfWeek = jan4DayOfWeek === 0 ? 7 : jan4DayOfWeek
+  
+  // Encontrar el lunes de la semana 1
+  const firstMonday = new Date(year, 0, 4 - isoJan4DayOfWeek + 1)
   
   // Calcular el lunes de la semana solicitada
-  const start = new Date(weekOneMonday)
-  start.setDate(weekOneMonday.getDate() + (weekNumber - 1) * 7)
+  const start = new Date(firstMonday)
+  start.setDate(firstMonday.getDate() + (weekNumber - 1) * 7)
   start.setHours(0, 0, 0, 0)
   
   // El domingo es 6 días después del lunes

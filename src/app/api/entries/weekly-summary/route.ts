@@ -82,12 +82,20 @@ export async function GET() {
 
       // Usar getWeekStartEndFromWeekNumber para fechas consistentes
       const { start, end } = getWeekStartEndFromWeekNumber(week.weekNumber, week.year)
+      
+      // Convertir a formato YYYY-MM-DD para evitar problemas de timezone
+      const formatDate = (d: Date) => {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
 
       return {
         weekNumber: week.weekNumber,
         year: week.year,
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
+        startDate: formatDate(start),
+        endDate: formatDate(end),
         totalJobs,
         totalHours,
         calculatedAmount,
