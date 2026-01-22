@@ -183,22 +183,12 @@ export function parseLocalDate(dateString: string): Date {
   return new Date(year, month - 1, day)
 }
 
-// Parsea una fecha ISO completa preservando la hora local del cliente
-// El cliente envía su hora local como ISO string (que incluye el offset o está en UTC)
-// Esta función la convierte a la misma hora en la zona local del servidor
+// Parsea una fecha ISO o timestamp del cliente
+// El cliente ahora envía timestamps UTC (usando toISOString o Date.now())
 export function parseClientDateTime(isoString: string): Date {
   if (!isoString) return new Date()
   
-  // Si el cliente envía timestamp con formato ISO (ej: 2026-01-19T20:39:13.000Z)
-  // Extraemos los componentes directamente para preservar la hora local del cliente
-  const regex = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/
-  const match = regex.exec(isoString)
-  if (match) {
-    const [, year, month, day, hour, minute, second] = match.map(Number)
-    return new Date(year, month - 1, day, hour, minute, second)
-  }
-  
-  // Fallback: parsear normalmente
+  // Parsear como fecha UTC normal - el cliente envía ISO string con Z o timestamp
   return new Date(isoString)
 }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
-import { parseClientDateTime, getFloridaDate, HOURLY_RATE } from '@/lib/utils'
+import { parseClientDateTime, getFloridaDateComponents, HOURLY_RATE } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,13 +17,13 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente si se envía, sino usar hora de Florida
+    // Obtener la hora del cliente (UTC) si se envía, sino usar hora actual UTC
     let now: Date
     try {
       const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : getFloridaDate()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
     } catch {
-      now = getFloridaDate()
+      now = new Date()
     }
     
     // Verificar si hay un timer activo para este usuario
@@ -41,13 +41,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener o crear la semana actual
+    // Obtener o crear la semana actual (usando hora de Florida para determinar semana)
     const week = await getOrCreateWeek(now, userId)
 
-    // Crear fecha local basada en la hora del cliente
-    const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    // Crear fecha basada en zona horaria de Florida (para agrupar por día)
+    const floridaComponents = getFloridaDateComponents(now)
+    const localDate = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
 
-    // Crear nueva entrada de tiempo
+    // Crear nueva entrada de tiempo (startTime en UTC)
     const entry = await prisma.timeEntry.create({
       data: {
         startTime: now,
@@ -84,15 +85,15 @@ export async function PUT(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente y jobNumber si se envía, sino usar hora de Florida
+    // Obtener la hora del cliente (UTC) y jobNumber si se envía
     let now: Date
     let jobNumber: string | undefined
     try {
       const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : getFloridaDate()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
       jobNumber = body.jobNumber
     } catch {
-      now = getFloridaDate()
+      now = new Date()
     }
 
     // Buscar timer activo del usuario

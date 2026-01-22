@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { parseClientDateTime, getFloridaDate } from '@/lib/utils'
+import { parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,13 +16,13 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente si se envía, sino usar hora de Florida
+    // Obtener la hora del cliente (UTC) si se envía, sino usar hora actual UTC
     let now: Date
     try {
       const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : getFloridaDate()
+      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
     } catch {
-      now = getFloridaDate()
+      now = new Date()
     }
 
     // Verificar si hay un trabajo activo
@@ -40,8 +40,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Crear fecha local basada en la hora del cliente
-    const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    // Crear fecha basada en zona horaria de Florida (para agrupar por día)
+    const floridaComponents = getFloridaDateComponents(now)
+    const localDate = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
 
     // Obtener jobNumber si se envía
     let jobNumber: string | undefined
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       // No body or no jobNumber
     }
 
-    // Crear nueva entrada de pago
+    // Crear nueva entrada de pago (startTime en UTC)
     const entry = await prisma.paymentEntry.create({
       data: {
         startTime: now,
@@ -91,8 +92,8 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { amount, clientTime, jobNumber } = body
     
-    // Usar la hora local del cliente si se envía, sino usar hora de Florida
-    const now = clientTime ? parseClientDateTime(clientTime) : getFloridaDate()
+    // Usar la hora UTC del cliente si se envía, sino usar hora actual UTC
+    const now = clientTime ? parseClientDateTime(clientTime) : new Date()
 
     if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(

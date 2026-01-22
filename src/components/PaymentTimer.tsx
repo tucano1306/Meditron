@@ -87,9 +87,9 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
     try {
       await requestWakeLock()
       
-      // Enviar la hora local del cliente (sin conversión a UTC)
+      // Enviar la hora UTC del cliente (usando toISOString que siempre es UTC)
       const now = new Date()
-      const clientTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+      const clientTime = now.toISOString()
       
       const res = await fetch('/api/payment', {
         method: 'POST',
@@ -133,9 +133,9 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
     setError(null)
 
     try {
-      // Enviar la hora local del cliente (sin conversión a UTC)
+      // Enviar la hora UTC del cliente
       const now = new Date()
-      const clientTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+      const clientTime = now.toISOString()
       
       const res = await fetch('/api/payment', {
         method: 'PUT',
