@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, formatDuration, getMonthName, getWeekNumber, toFloridaDate } from '@/lib/utils'
+import { formatCurrency, formatDuration, getMonthName, getWeekNumber, toFloridaDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -75,10 +75,13 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
           const totalDuration = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
           const avgHourlyRate = totalDuration > 0 ? totalAmount / (totalDuration / 3600) : 0
           
+          // Usar zona horaria de Florida para obtener el mes correcto
+          const floridaDateFirst = toFloridaDate(new Date(entries[0].date))
+          
           weekArray.push({
             weekNumber: weekNum,
             year,
-            month: new Date(entries[0].date).getMonth() + 1,
+            month: floridaDateFirst.getMonth() + 1,
             entries,
             totalAmount,
             totalDuration,
@@ -122,11 +125,12 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
   }
 
   const startEditing = (entry: PaymentEntry) => {
-    const start = new Date(entry.startTime)
-    const end = entry.endTime ? new Date(entry.endTime) : null
+    // Usar zona horaria de Florida para obtener la hora correcta
+    const startComponents = getFloridaDateComponents(new Date(entry.startTime))
+    const endComponents = entry.endTime ? getFloridaDateComponents(new Date(entry.endTime)) : null
     
-    setEditStartTime(start.toTimeString().slice(0, 5))
-    setEditEndTime(end ? end.toTimeString().slice(0, 5) : '')
+    setEditStartTime(`${String(startComponents.hour).padStart(2, '0')}:${String(startComponents.minute).padStart(2, '0')}`)
+    setEditEndTime(endComponents ? `${String(endComponents.hour).padStart(2, '0')}:${String(endComponents.minute).padStart(2, '0')}` : '')
     setEditAmount(entry.amount?.toString() || '')
     setEditingId(entry.id)
   }
@@ -224,7 +228,7 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
       </head>
       <body>
         <h1>💰 Historial de Pagos por Semana</h1>
-        <p class="subtitle">Control de Pagos - Meditron | Generado: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p class="subtitle">Control de Pagos - Meditron | Generado: ${formatLongDateFlorida(new Date())}</p>
         
         ${weeks.map(week => `
           <div class="week">
@@ -251,11 +255,11 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
                 <div class="entry">
                   <div>
                     <div class="entry-date">
-                      ${new Date(entry.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      ${formatShortDateFlorida(entry.date)}
                     </div>
                     <div class="entry-time">
-                      ${new Date(entry.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                      ${entry.endTime ? `→ ${new Date(entry.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                      ${formatTimeInFlorida(entry.startTime)}
+                      ${entry.endTime ? `→ ${formatTimeInFlorida(entry.endTime)}` : ''}
                       ${entry.duration ? ` • ${formatDuration(entry.duration)}` : ''}
                     </div>
                   </div>
@@ -422,11 +426,11 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
                             ) : (
                               <>
                                 <div className="text-sm font-medium">
-                                  {new Date(entry.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                  {formatShortDateFlorida(entry.date)}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  {new Date(entry.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                                  {entry.endTime && ` → ${new Date(entry.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}
+                                  {formatTimeInFlorida(entry.startTime)}
+                                  {entry.endTime && ` → ${formatTimeInFlorida(entry.endTime)}`}
                                   {entry.duration && ` • ${formatDuration(entry.duration)}`}
                                 </div>
                               </>

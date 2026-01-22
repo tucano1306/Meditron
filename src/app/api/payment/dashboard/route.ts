@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getFloridaDate } from '@/lib/utils'
+import { getFloridaDate, getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,8 +15,9 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
-    // Usar hora de Florida
-    const now = getFloridaDate()
+    // Usar hora de Florida para determinar "hoy" y "mes"
+    const floridaNow = getFloridaDate()
+    const floridaComponents = getFloridaDateComponents(new Date())
 
     // Trabajo activo
     const activeEntry = await prisma.paymentEntry.findFirst({
@@ -26,9 +27,9 @@ export async function GET() {
       }
     })
 
-    // Entradas de hoy (usando hora de Florida)
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    // Entradas de hoy (usando hora de Florida para determinar el día)
+    const todayStart = new Date(floridaNow.getFullYear(), floridaNow.getMonth(), floridaNow.getDate(), 0, 0, 0, 0)
+    const todayEnd = new Date(floridaNow.getFullYear(), floridaNow.getMonth(), floridaNow.getDate(), 23, 59, 59, 999)
 
     const todayEntries = await prisma.paymentEntry.findMany({
       where: {
@@ -60,8 +61,8 @@ export async function GET() {
       : 0
 
     // Historial reciente (últimos 30 días)
-    const thirtyDaysAgo = new Date(now)
-    thirtyDaysAgo.setDate(now.getDate() - 30)
+    const thirtyDaysAgo = new Date(floridaNow)
+    thirtyDaysAgo.setDate(floridaNow.getDate() - 30)
 
     const recentEntries = await prisma.paymentEntry.findMany({
       where: {
@@ -78,7 +79,7 @@ export async function GET() {
     })
 
     // Estadísticas del mes
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthStart = new Date(floridaNow.getFullYear(), floridaNow.getMonth(), 1)
     const monthEntries = await prisma.paymentEntry.findMany({
       where: {
         userId,
@@ -111,13 +112,15 @@ export async function GET() {
     }
 
     if (activeEntry) {
+      // Usar timestamp real para calcular elapsed time (no getFloridaDate)
+      const realNow = new Date()
       timerState = {
         isRunning: true,
         startTime: activeEntry.startTime.toISOString(),
         currentEntryId: activeEntry.id,
-        elapsedSeconds: Math.floor(
-          (now.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
-        )
+        elapsedSeconds: Math.max(0, Math.floor(
+          (realNow.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
+        ))
       }
     }
 
@@ -126,7 +129,7 @@ export async function GET() {
       data: {
         timerState,
         today: {
-          date: now.toISOString().split('T')[0],
+          date: `${floridaComponents.year}-${String(floridaComponents.month).padStart(2, '0')}-${String(floridaComponents.day).padStart(2, '0')}`,
           entries: todayEntries,
           totalSeconds: todayStats.totalDuration,
           totalHours: todayStats.totalDuration / 3600,
@@ -135,8 +138,8 @@ export async function GET() {
           jobCount: todayStats.count
         },
         month: {
-          year: now.getFullYear(),
-          month: now.getMonth() + 1,
+          year: floridaNow.getFullYear(),
+          month: floridaNow.getMonth() + 1,
           totalSeconds: monthStats.totalDuration,
           totalHours: monthStats.totalDuration / 3600,
           totalAmount: monthStats.totalAmount,

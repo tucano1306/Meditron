@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Play, Square, Clock, DollarSign, Check, Hash, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatDuration, formatCurrency } from '@/lib/utils'
+import { formatDuration, formatCurrency, formatTimeInFlorida } from '@/lib/utils'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import type { TimerState } from '@/types'
@@ -243,7 +243,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
             </div>
             {isRunning && startTime && (
               <div className="text-xs sm:text-sm text-gray-400 mt-3 font-medium">
-                ⏱️ Iniciado: {startTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                ⏱️ Iniciado: {formatTimeInFlorida(startTime)}
               </div>
             )}
           </div>

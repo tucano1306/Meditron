@@ -11,7 +11,10 @@ export const HOURLY_RATE = 25
 const FLORIDA_TIMEZONE = 'America/New_York'
 
 /**
- * Obtiene la fecha/hora actual en Florida
+ * Obtiene la fecha/hora actual en Florida (para mostrar, NO para cálculos de tiempo)
+ * IMPORTANTE: Esta función devuelve una fecha con componentes de Florida pero
+ * el timestamp interno NO es correcto para cálculos de diferencia de tiempo.
+ * Para cálculos de elapsed time, usar new Date() directamente.
  */
 export function getFloridaDate(): Date {
   // Crear fecha en zona horaria de Florida
@@ -21,7 +24,14 @@ export function getFloridaDate(): Date {
 }
 
 /**
- * Convierte una fecha UTC a fecha de Florida
+ * Obtiene el timestamp real actual (para cálculos de tiempo transcurrido)
+ */
+export function getCurrentTimestamp(): Date {
+  return new Date()
+}
+
+/**
+ * Convierte una fecha UTC a fecha de Florida (para mostrar, NO para cálculos)
  */
 export function toFloridaDate(date: Date): Date {
   const floridaString = date.toLocaleString('en-US', { timeZone: FLORIDA_TIMEZONE })
@@ -190,4 +200,83 @@ export function parseClientDateTime(isoString: string): Date {
   
   // Fallback: parsear normalmente
   return new Date(isoString)
+}
+
+// ========== FUNCIONES DE FORMATO CON ZONA HORARIA FLORIDA ==========
+
+/**
+ * Formatea una fecha para mostrarla en zona horaria de Florida
+ * @param date - Fecha (string ISO o Date)
+ * @param options - Opciones de formato Intl.DateTimeFormat
+ */
+export function formatDateInFlorida(date: string | Date, options: Intl.DateTimeFormatOptions = {}): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return dateObj.toLocaleDateString('es-ES', {
+    timeZone: FLORIDA_TIMEZONE,
+    ...options
+  })
+}
+
+/**
+ * Formatea una hora para mostrarla en zona horaria de Florida
+ * @param date - Fecha (string ISO o Date)
+ * @param options - Opciones de formato Intl.DateTimeFormat
+ */
+export function formatTimeInFlorida(date: string | Date, options: Intl.DateTimeFormatOptions = {}): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return dateObj.toLocaleTimeString('es-ES', {
+    timeZone: FLORIDA_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    ...options
+  })
+}
+
+/**
+ * Formatea fecha y hora completa en zona horaria de Florida
+ */
+export function formatDateTimeInFlorida(date: string | Date, options: Intl.DateTimeFormatOptions = {}): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return dateObj.toLocaleString('es-ES', {
+    timeZone: FLORIDA_TIMEZONE,
+    ...options
+  })
+}
+
+/**
+ * Obtiene la fecha corta en Florida (día, mes corto)
+ */
+export function formatShortDateFlorida(date: string | Date): string {
+  return formatDateInFlorida(date, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  })
+}
+
+/**
+ * Obtiene la fecha larga en Florida
+ */
+export function formatLongDateFlorida(date: string | Date): string {
+  return formatDateInFlorida(date, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+/**
+ * Obtiene la fecha actual en Florida como string YYYY-MM-DD
+ */
+export function getFloridaDateString(): string {
+  const components = getFloridaDateComponents(new Date())
+  return `${components.year}-${String(components.month).padStart(2, '0')}-${String(components.day).padStart(2, '0')}`
+}
+
+/**
+ * Obtiene el timestamp actual ajustado a Florida para calcular elapsed time correctamente
+ */
+export function getFloridaNow(): Date {
+  return getFloridaDate()
 }

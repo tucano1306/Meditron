@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDateInFlorida } from '@/lib/utils'
 import { Calendar, TrendingUp, TrendingDown, DollarSign, Clock, Briefcase, AlertCircle } from 'lucide-react'
 
 interface HourlyWeeklySummaryData {
@@ -87,11 +87,7 @@ export function HourlyWeeklySummary() {
             const hasDifference = week.companyPaidAmount > 0
             const differenceClass = week.difference >= 0 ? 'text-green-600' : 'text-red-600'
             
-            // Parsear fechas como fecha local (formato YYYY-MM-DD)
-            const parseLocalDate = (dateStr: string) => {
-              const [year, month, day] = dateStr.split('-').map(Number)
-              return new Date(year, month - 1, day)
-            }
+            // Parsear fechas usando zona horaria de Florida
             
             return (
               <div key={`${week.year}-${week.weekNumber}`} className="border rounded-lg p-4 space-y-3">
@@ -102,10 +98,10 @@ export function HourlyWeeklySummary() {
                       Semana {week.weekNumber} - {week.year}
                     </h3>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                      {parseLocalDate(week.startDate).toLocaleDateString('es-ES', { 
+                      {formatDateInFlorida(week.startDate, { 
                         month: 'short', 
                         day: 'numeric' 
-                      })} - {parseLocalDate(week.endDate).toLocaleDateString('es-ES', { 
+                      })} - {formatDateInFlorida(week.endDate, { 
                         month: 'short', 
                         day: 'numeric' 
                       })}

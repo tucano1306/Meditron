@@ -171,8 +171,9 @@ export async function GET() {
     })
 
     if (activeEntry) {
-      // Usar hora de Florida para calcular elapsed time correctamente
-      const now = getFloridaDate()
+      // Usar timestamp real para calcular elapsed time correctamente
+      // (no usar getFloridaDate() aquí porque esa fecha tiene timestamp alterado)
+      const now = new Date()
       const startTime = new Date(activeEntry.startTime)
       const elapsedSeconds = Math.floor(
         (now.getTime() - startTime.getTime()) / 1000
@@ -185,7 +186,7 @@ export async function GET() {
           startTime: activeEntry.startTime,
           currentEntryId: activeEntry.id,
           jobNumber: activeEntry.jobNumber,
-          elapsedSeconds
+          elapsedSeconds: Math.max(0, elapsedSeconds)
         }
       })
     }

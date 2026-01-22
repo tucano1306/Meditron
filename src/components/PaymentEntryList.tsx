@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatDuration, formatCurrency } from '@/lib/utils'
+import { formatDuration, formatCurrency, formatTimeInFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { Clock, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
 
 interface PaymentEntry {
@@ -52,11 +52,12 @@ export function PaymentEntryList({
   }
 
   const startEditing = (entry: PaymentEntry) => {
-    const start = new Date(entry.startTime)
-    const end = entry.endTime ? new Date(entry.endTime) : null
+    // Usar zona horaria de Florida para obtener la hora correcta
+    const startComponents = getFloridaDateComponents(new Date(entry.startTime))
+    const endComponents = entry.endTime ? getFloridaDateComponents(new Date(entry.endTime)) : null
     
-    setEditStartTime(start.toTimeString().slice(0, 5))
-    setEditEndTime(end ? end.toTimeString().slice(0, 5) : '')
+    setEditStartTime(`${String(startComponents.hour).padStart(2, '0')}:${String(startComponents.minute).padStart(2, '0')}`)
+    setEditEndTime(endComponents ? `${String(endComponents.hour).padStart(2, '0')}:${String(endComponents.minute).padStart(2, '0')}` : '')
     setEditAmount(entry.amount?.toString() || '')
     setEditingId(entry.id)
   }
@@ -201,19 +202,13 @@ export function PaymentEntryList({
                   ) : (
                     <>
                       <div className="font-medium text-gray-900 text-sm sm:text-base px-2 py-1 bg-white rounded-lg shadow-sm border border-gray-100 inline-block">
-                        {new Date(entry.startTime).toLocaleTimeString('es-ES', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                        {formatTimeInFlorida(entry.startTime)}
                         {entry.endTime && (
                           <span className="text-gray-400 mx-1">→</span>
                         )}
                         {entry.endTime ? (
                           <span className="text-gray-700">
-                            {new Date(entry.endTime).toLocaleTimeString('es-ES', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
+                            {formatTimeInFlorida(entry.endTime)}
                           </span>
                         ) : (
                           <span className="text-amber-500 animate-pulse ml-1">En curso...</span>

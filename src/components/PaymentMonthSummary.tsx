@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, formatDuration, getMonthName } from '@/lib/utils'
+import { formatCurrency, formatDuration, getMonthName, toFloridaDate, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { BarChart3, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -50,13 +50,13 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
       const data = await res.json()
       
       if (data.success && data.data.recentEntries) {
-        // Group entries by month
+        // Group entries by month usando zona horaria de Florida
         const entriesByMonth = new Map<string, PaymentEntry[]>()
         
         for (const entry of data.data.recentEntries) {
-          const date = new Date(entry.date)
-          const year = date.getFullYear()
-          const month = date.getMonth() + 1
+          const floridaDate = toFloridaDate(new Date(entry.date))
+          const year = floridaDate.getFullYear()
+          const month = floridaDate.getMonth() + 1
           const key = `${year}-${month}`
           
           if (!entriesByMonth.has(key)) {
@@ -120,11 +120,12 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
   }
 
   const startEditing = (entry: PaymentEntry) => {
-    const start = new Date(entry.startTime)
-    const end = entry.endTime ? new Date(entry.endTime) : null
+    // Usar zona horaria de Florida para obtener la hora correcta
+    const startComponents = getFloridaDateComponents(new Date(entry.startTime))
+    const endComponents = entry.endTime ? getFloridaDateComponents(new Date(entry.endTime)) : null
     
-    setEditStartTime(start.toTimeString().slice(0, 5))
-    setEditEndTime(end ? end.toTimeString().slice(0, 5) : '')
+    setEditStartTime(`${String(startComponents.hour).padStart(2, '0')}:${String(startComponents.minute).padStart(2, '0')}`)
+    setEditEndTime(endComponents ? `${String(endComponents.hour).padStart(2, '0')}:${String(endComponents.minute).padStart(2, '0')}` : '')
     setEditAmount(entry.amount?.toString() || '')
     setEditingId(entry.id)
   }
@@ -302,11 +303,11 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
                             ) : (
                               <>
                                 <div className="text-sm font-medium">
-                                  {new Date(entry.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                  {formatShortDateFlorida(entry.date)}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  {new Date(entry.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                                  {entry.endTime && ` → ${new Date(entry.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}
+                                  {formatTimeInFlorida(entry.startTime)}
+                                  {entry.endTime && ` → ${formatTimeInFlorida(entry.endTime)}`}
                                   {entry.duration && ` • ${formatDuration(entry.duration)}`}
                                 </div>
                               </>

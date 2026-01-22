@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatDuration, formatCurrency, getMonthName, parseLocalDate } from '@/lib/utils'
+import { formatDuration, formatCurrency, getMonthName, parseLocalDate, formatDateInFlorida } from '@/lib/utils'
 import { Calendar, Clock, DollarSign, TrendingUp, Pencil, Check, X } from 'lucide-react'
 
 interface DaySummary {
@@ -97,7 +97,7 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
             {formatCurrency(today.earnings)}
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 mt-1 hidden sm:block">
-            {new Date(today.date).toLocaleDateString('es-ES', {
+            {formatDateInFlorida(today.date, {
               weekday: 'long',
               day: 'numeric',
               month: 'short'

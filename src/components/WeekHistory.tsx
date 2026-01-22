@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, formatDuration, getMonthName, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, formatDuration, getMonthName, parseLocalDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida } from '@/lib/utils'
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
@@ -113,7 +113,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
       </head>
       <body>
         <h1>📊 Historial de Semanas</h1>
-        <p class="subtitle">Control de Horas - Meditron | Generado: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p class="subtitle">Control de Horas - Meditron | Generado: ${formatLongDateFlorida(new Date())}</p>
         
         ${weeks.map(week => `
           <div class="week">
@@ -140,12 +140,12 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                 <div class="entry">
                   <div>
                     <div class="entry-date">
-                      ${new Date(entry.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      ${formatShortDateFlorida(entry.date)}
                       ${entry.jobNumber ? `<span class="job-badge">#${entry.jobNumber}</span>` : ''}
                     </div>
                     <div class="entry-time">
-                      ${new Date(entry.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                      → ${entry.endTime ? new Date(entry.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : 'En curso'}
+                      ${formatTimeInFlorida(entry.startTime)}
+                      → ${entry.endTime ? formatTimeInFlorida(entry.endTime) : 'En curso'}
                     </div>
                   </div>
                   <div style="text-align: right;">

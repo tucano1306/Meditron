@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { HOURLY_RATE, getWeekStartEnd, getWeekNumber, getFloridaDate } from '@/lib/utils'
+import { HOURLY_RATE, getWeekStartEnd, getWeekNumber, getFloridaDate, getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -95,22 +95,28 @@ export async function GET() {
     }
 
     if (activeEntry) {
+      // Usar timestamp real para calcular elapsed time (no getFloridaDate)
+      const realNow = new Date()
       timerState = {
         isRunning: true,
         startTime: activeEntry.startTime.toISOString(),
         currentEntryId: activeEntry.id,
-        elapsedSeconds: Math.floor(
-          (now.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
-        )
+        elapsedSeconds: Math.max(0, Math.floor(
+          (realNow.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
+        ))
       }
     }
+
+    // Obtener componentes de fecha en Florida para el response
+    const floridaComponents = getFloridaDateComponents(new Date())
+    const todayDateString = `${floridaComponents.year}-${String(floridaComponents.month).padStart(2, '0')}-${String(floridaComponents.day).padStart(2, '0')}`
 
     return NextResponse.json({
       success: true,
       data: {
         timerState,
         today: {
-          date: now.toISOString().split('T')[0],
+          date: todayDateString,
           entries: todayEntries,
           totalSeconds: todayTotalSeconds,
           totalHours: todayHours,

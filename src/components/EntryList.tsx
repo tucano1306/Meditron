@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatDuration, formatCurrency, HOURLY_RATE } from '@/lib/utils'
+import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, Eye, FileText, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -58,14 +58,15 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   }
 
   const startEditing = (entry: Entry) => {
-    const start = new Date(entry.startTime)
-    const end = entry.endTime ? new Date(entry.endTime) : null
+    // Usar zona horaria de Florida para obtener la hora correcta
+    const startComponents = getFloridaDateComponents(new Date(entry.startTime))
+    const endComponents = entry.endTime ? getFloridaDateComponents(new Date(entry.endTime)) : null
     
     // Obtener fecha en formato YYYY-MM-DD
     const dateStr = typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]
     
-    setEditStartTime(start.toTimeString().slice(0, 5))
-    setEditEndTime(end ? end.toTimeString().slice(0, 5) : '')
+    setEditStartTime(`${String(startComponents.hour).padStart(2, '0')}:${String(startComponents.minute).padStart(2, '0')}`)
+    setEditEndTime(endComponents ? `${String(endComponents.hour).padStart(2, '0')}:${String(endComponents.minute).padStart(2, '0')}` : '')
     setEditDate(dateStr)
     setEditingId(entry.id)
   }
@@ -260,17 +261,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               <div className="flex-1 min-w-0">
                 {showDate && (
                   <div className="text-xs text-gray-500 mb-1">
-                    {(() => {
-                      // Parsear la fecha evitando problemas de zona horaria
-                      const dateStr = typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]
-                      const [year, month, day] = dateStr.split('-').map(Number)
-                      const localDate = new Date(year, month - 1, day)
-                      return localDate.toLocaleDateString('es-ES', {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short'
-                      })
-                    })()}
+                    {formatShortDateFlorida(entry.date)}
                   </div>
                 )}
                 {editingId === entry.id ? (
@@ -314,16 +305,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                 ) : (
                   <div className="flex items-center gap-2 sm:gap-4">
                     <span className="text-xs sm:text-sm font-medium text-gray-700 px-2 py-1 bg-white rounded-lg shadow-sm border border-gray-100">
-                      {new Date(entry.startTime).toLocaleTimeString('es-ES', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {formatTimeInFlorida(entry.startTime)}
                       <span className="text-gray-400 mx-1">→</span>
                       {entry.endTime
-                        ? new Date(entry.endTime).toLocaleTimeString('es-ES', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })
+                        ? formatTimeInFlorida(entry.endTime)
                         : <span className="text-amber-500 animate-pulse">En progreso...</span>}
                     </span>
                   </div>
