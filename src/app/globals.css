@@ -122,3 +122,15 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* Safe area padding for mobile modals (iOS notch/home indicator) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Modal responsive height on mobile */
+@supports (max-height: 100dvh) {
+  .max-h-screen-dynamic {
+    max-height: 100dvh;
+  }
+}
