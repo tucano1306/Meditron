@@ -81,11 +81,14 @@ export function formatHoursDecimal(seconds: number): string {
   return hours.toFixed(2)
 }
 
+// Caché para formatCurrency (evita crear Intl.NumberFormat repetidamente)
+const currencyFormatter = new Intl.NumberFormat('es-ES', {
+  style: 'currency',
+  currency: 'USD'
+})
+
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount)
+  return currencyFormatter.format(amount)
 }
 
 export function getWeekNumber(date: Date): number {

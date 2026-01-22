@@ -1,6 +1,10 @@
-const CACHE_NAME = 'meditron-v2';
+const CACHE_NAME = 'meditron-v3';
+const STATIC_CACHE = 'meditron-static-v1';
+
+// Assets estáticos que se cachean durante instalación
 const urlsToCache = [
-  '/manifest.json'
+  '/manifest.json',
+  '/logo.png'
 ];
 
 // Install event - cache minimal assets
@@ -14,11 +18,12 @@ globalThis.addEventListener('install', (event) => {
 
 // Activate event - clean ALL old caches immediately
 globalThis.addEventListener('activate', (event) => {
+  const cacheWhitelist = new Set([CACHE_NAME, STATIC_CACHE]);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (!cacheWhitelist.has(cacheName)) {
             return caches.delete(cacheName);
           }
         })
@@ -28,24 +33,44 @@ globalThis.addEventListener('activate', (event) => {
   globalThis.clients.claim();
 });
 
-// Fetch event - NETWORK FIRST strategy (always try network first)
+// Fetch event - estrategia inteligente según tipo de recurso
 globalThis.addEventListener('fetch', (event) => {
-  // Skip caching for API calls and Next.js assets
-  if (event.request.url.includes('/api/') || 
-      event.request.url.includes('/_next/')) {
+  const url = new URL(event.request.url);
+  
+  // Skip API calls - always network
+  if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(event.request));
     return;
   }
-
-  // Network first for everything else
+  
+  // Cache-first para assets estáticos (imágenes, fuentes)
+  if (event.request.destination === 'image' || 
+      event.request.destination === 'font' ||
+      url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|woff2?)$/)) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+  
+  // Network-first para Next.js y HTML
   event.respondWith(
     fetch(event.request)
-      .then((response) => {
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request);
-      })
+      .then((response) => response)
+      .catch(() => caches.match(event.request))
   );
 });
 
