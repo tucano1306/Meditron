@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
+import { getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -185,45 +186,51 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Función auxiliar para construir datos de actualización de trabajo
+function buildJobUpdateData(jobNumber?: string, calculatedAmount?: number, paidAmount?: number): Record<string, unknown> {
+  const updateData: Record<string, unknown> = {}
+  if (jobNumber !== undefined) updateData.jobNumber = jobNumber || null
+  if (calculatedAmount !== undefined) updateData.calculatedAmount = calculatedAmount
+  if (paidAmount !== undefined) updateData.paidAmount = paidAmount
+  return updateData
+}
+
 // PATCH - Actualizar entrada existente
 export async function PATCH(request: NextRequest) {
   try {
     const authResult = await validateSession()
-    if (!authResult.success) {
-      return authResult.response
-    }
+    if (!authResult.success) return authResult.response
 
     const userId = authResult.user.id
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const id = new URL(request.url).searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'ID requerido' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'ID requerido' }, { status: 400 })
     }
 
-    // Verificar que la entrada pertenece al usuario
-    const entry = await prisma.timeEntry.findFirst({
-      where: { id, userId }
-    })
-
+    const entry = await prisma.timeEntry.findFirst({ where: { id, userId } })
     if (!entry) {
-      return NextResponse.json(
-        { success: false, error: 'Entrada no encontrada' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: false, error: 'Entrada no encontrada' }, { status: 404 })
     }
 
     const body = await request.json()
     const { startTime, endTime, jobNumber, calculatedAmount, paidAmount } = body
 
+    // Si los tiempos no cambiaron, solo actualizar campos de trabajo
+    const isOnlyJobUpdate = startTime === entry.startTime.toISOString() && 
+                            endTime === entry.endTime?.toISOString()
+
+    if (isOnlyJobUpdate) {
+      const updatedEntry = await prisma.timeEntry.update({
+        where: { id },
+        data: buildJobUpdateData(jobNumber, calculatedAmount, paidAmount)
+      })
+      return NextResponse.json({ success: true, data: updatedEntry })
+    }
+
+    // Validar tiempos
     if (!startTime || !endTime) {
-      return NextResponse.json(
-        { success: false, error: 'startTime y endTime son requeridos' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'startTime y endTime son requeridos' }, { status: 400 })
     }
 
     const newStart = new Date(startTime)
@@ -231,62 +238,38 @@ export async function PATCH(request: NextRequest) {
     const duration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000)
 
     if (duration <= 0) {
-      return NextResponse.json(
-        { success: false, error: 'El tiempo de fin debe ser posterior al inicio' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'El tiempo de fin debe ser posterior al inicio' }, { status: 400 })
     }
 
-    // Usar la fecha del startTime para la fecha de la entrada (fecha local)
-    const entryDate = new Date(newStart.getFullYear(), newStart.getMonth(), newStart.getDate())
+    // Usar zona horaria de Florida para determinar la fecha
+    const floridaComponents = getFloridaDateComponents(newStart)
+    const entryDate = new Date(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day)
     
-    // Obtener la semana correcta para la nueva fecha (por si cambió)
     const newWeek = await getOrCreateWeek(entryDate, userId)
     const oldWeekId = entry.weekId
 
-    // Preparar datos de actualización
-    const updateData: Record<string, unknown> = {
-      startTime: newStart,
-      endTime: newEnd,
-      duration,
-      date: entryDate,
-      weekId: newWeek.id
-    }
-
-    // Agregar campos opcionales si están presentes
-    if (jobNumber !== undefined) {
-      updateData.jobNumber = jobNumber || null
-    }
-    if (calculatedAmount !== undefined) {
-      updateData.calculatedAmount = calculatedAmount
-    }
-    if (paidAmount !== undefined) {
-      updateData.paidAmount = paidAmount
-    }
-
     const updatedEntry = await prisma.timeEntry.update({
       where: { id },
-      data: updateData
+      data: {
+        startTime: newStart,
+        endTime: newEnd,
+        duration,
+        date: entryDate,
+        weekId: newWeek.id,
+        ...buildJobUpdateData(jobNumber, calculatedAmount, paidAmount)
+      }
     })
 
-    // Actualizar totales de la semana anterior si cambió
+    // Actualizar totales
     if (oldWeekId && oldWeekId !== newWeek.id) {
       await updateWeekTotals(oldWeekId, userId)
     }
-    
-    // Actualizar totales de semana y mes actuales
     await updateWeekTotals(newWeek.id, userId)
     await updateMonthSummary(newStart.getFullYear(), newStart.getMonth() + 1, userId)
 
-    return NextResponse.json({
-      success: true,
-      data: updatedEntry
-    })
+    return NextResponse.json({ success: true, data: updatedEntry })
   } catch (error) {
     console.error('Error updating entry:', error)
-    return NextResponse.json(
-      { success: false, error: 'Error al actualizar entrada' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Error al actualizar entrada' }, { status: 500 })
   }
 }
