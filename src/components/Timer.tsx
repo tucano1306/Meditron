@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil } from 'lucide-react'
+import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil, ChevronDown, Bus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida } from '@/lib/utils'
@@ -29,6 +29,14 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [jobNumber, setJobNumber] = useState('')
   const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
   const [jobNumberInput, setJobNumberInput] = useState('')
+  const [vehicleType, setVehicleType] = useState('')
+  const [isSelectingVehicle, setIsSelectingVehicle] = useState(false)
+  
+  const vehicleOptions = [
+    { value: 'sprinter', label: 'Sprinter' },
+    { value: 'mini-bus', label: 'Mini Bus' },
+    { value: 'motorcoach', label: 'Motorcoach' },
+  ]
   
   // PWA and background support
   const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
@@ -105,6 +113,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         setStartTime(newStartTime)
         setElapsedSeconds(0)
         setJobNumber('')
+        setVehicleType('')
         
         // Start background timer
         startBackgroundTimer(newStartTime.toISOString())
@@ -141,6 +150,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         setStartTime(null)
         setElapsedSeconds(0) // Reset counter to zero
         setJobNumber('')
+        setVehicleType('')
         
         // Stop background timer and release wake lock
         stopBackgroundTimer()
@@ -191,6 +201,16 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const handleCancelEditJobNumber = () => {
     setIsEditingJobNumber(false)
     setJobNumberInput('')
+  }
+
+  const handleSelectVehicle = (selectedVehicle: string) => {
+    setVehicleType(selectedVehicle)
+    setIsSelectingVehicle(false)
+  }
+
+  const getVehicleLabel = (value: string) => {
+    const vehicle = vehicleOptions.find(v => v.value === value)
+    return vehicle ? vehicle.label : value
   }
 
   const handleSaveRate = async () => {
@@ -310,6 +330,48 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                   <Pencil className="h-4 w-4 text-emerald-500" />
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Vehicle Type Dropdown - Solo visible cuando está corriendo */}
+        {isRunning && (
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-4 border border-blue-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gray-600">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Bus className="h-4 w-4 text-blue-600" />
+                </div>
+                <span className="text-sm font-semibold">Vehículo</span>
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setIsSelectingVehicle(!isSelectingVehicle)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all min-w-[140px] justify-between"
+                >
+                  {vehicleType ? (
+                    <span className="font-semibold text-blue-700">{getVehicleLabel(vehicleType)}</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Seleccionar</span>
+                  )}
+                  <ChevronDown className={`h-4 w-4 text-blue-500 transition-transform ${isSelectingVehicle ? 'rotate-180' : ''}`} />
+                </button>
+                {isSelectingVehicle && (
+                  <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden z-10 min-w-[160px]">
+                    {vehicleOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleSelectVehicle(option.value)}
+                        className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
+                          vehicleType === option.value ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
