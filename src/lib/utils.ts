@@ -203,7 +203,23 @@ export function parseClientDateTime(isoString: string): Date {
  * @param options - Opciones de formato Intl.DateTimeFormat
  */
 export function formatDateInFlorida(date: string | Date, options: Intl.DateTimeFormatOptions = {}): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date
+  let dateObj: Date
+  
+  if (typeof date === 'string') {
+    // Si es un string de fecha ISO que termina en T00:00:00.000Z (fecha sin hora real)
+    // parsearlo como fecha local para evitar problemas de zona horaria
+    if (date.includes('T00:00:00')) {
+      const datePart = date.split('T')[0]
+      const [year, month, day] = datePart.split('-').map(Number)
+      // Crear fecha con hora del mediodía para evitar problemas de zona horaria
+      dateObj = new Date(year, month - 1, day, 12, 0, 0)
+    } else {
+      dateObj = new Date(date)
+    }
+  } else {
+    dateObj = date
+  }
+  
   return dateObj.toLocaleDateString('es-ES', {
     timeZone: FLORIDA_TIMEZONE,
     ...options
