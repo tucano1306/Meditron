@@ -92,6 +92,8 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { amount, clientTime, jobNumber, vehicle } = body
     
+    console.log('PUT /api/payment - received:', { amount, jobNumber, vehicle })
+    
     // Usar la hora UTC del cliente si se envía, sino usar hora actual UTC
     const now = clientTime ? parseClientDateTime(clientTime) : new Date()
 
@@ -124,6 +126,11 @@ export async function PUT(request: Request) {
     const hours = duration / 3600
     const hourlyRate = hours > 0 ? amount / hours : 0
 
+    // Calcular la fecha correcta basada en la hora de FIN en Florida
+    // Esto asegura que si terminas a las 2am del día 2, la fecha sea del día 2
+    const floridaEndComponents = getFloridaDateComponents(now)
+    const correctDate = new Date(Date.UTC(floridaEndComponents.year, floridaEndComponents.month - 1, floridaEndComponents.day))
+
     // Actualizar entrada
     const updatedEntry = await prisma.paymentEntry.update({
       where: { id: activeEntry.id },
@@ -134,6 +141,7 @@ export async function PUT(request: Request) {
         hourlyRate,
         jobNumber: jobNumber || activeEntry.jobNumber,
         vehicle: vehicle || activeEntry.vehicle,
+        date: correctDate,
         completed: true
       }
     })

@@ -24,7 +24,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
   const [error, setError] = useState<string | null>(null)
   const [showAmountModal, setShowAmountModal] = useState(false)
   const [amount, setAmount] = useState('')
-  const [result, setResult] = useState<{ amount: number; hourlyRate: number } | null>(null)
+  const [result, setResult] = useState<{ amount: number; hourlyRate: number; jobNumber?: string; vehicle?: string } | null>(null)
   const [jobNumber, setJobNumber] = useState('')
   const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
   const [jobNumberInput, setJobNumberInput] = useState('')
@@ -149,14 +149,22 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
       const now = new Date()
       const clientTime = now.toISOString()
       
+      console.log('handleConfirmAmount - sending:', { amount: numAmount, jobNumber, vehicle: vehicleType })
+      
       const res = await fetch('/api/payment', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: numAmount, clientTime, jobNumber, vehicle: vehicleType })
       })
       const data = await res.json()
+      
+      console.log('handleConfirmAmount - response:', data)
 
       if (data.success) {
+        // Guardar jobNumber y vehicle antes de limpiar
+        const savedJobNumber = jobNumber
+        const savedVehicle = vehicleType
+        
         setIsRunning(false)
         setStartTime(null)
         setElapsedSeconds(0) // Reset counter to zero
@@ -167,7 +175,9 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         
         setResult({
           amount: numAmount,
-          hourlyRate: data.data.calculatedHourlyRate
+          hourlyRate: data.data.calculatedHourlyRate,
+          jobNumber: savedJobNumber || data.data.entry?.jobNumber,
+          vehicle: savedVehicle || data.data.entry?.vehicle
         })
         
         setShowAmountModal(false)
@@ -225,16 +235,19 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
   }
 
   const handleSelectVehicle = async (selectedVehicle: string) => {
+    console.log('handleSelectVehicle called with:', selectedVehicle)
     setVehicleType(selectedVehicle)
     setIsSelectingVehicle(false)
     
     // Guardar el vehículo en el servidor
     try {
-      await fetch('/api/payment', {
+      const res = await fetch('/api/payment', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vehicle: selectedVehicle })
       })
+      const data = await res.json()
+      console.log('PATCH vehicle response:', data)
     } catch (err) {
       console.error('Error saving vehicle:', err)
     }
@@ -384,6 +397,22 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 <Check className="h-5 w-5" />
                 <span className="font-medium">¡Trabajo Completado!</span>
               </div>
+              {/* Job Number and Vehicle */}
+              {(result.jobNumber || result.vehicle) && (
+                <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
+                  {result.jobNumber && (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm font-bold rounded-full">
+                      #{result.jobNumber}
+                    </span>
+                  )}
+                  {result.vehicle && (
+                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-sm font-medium rounded-full flex items-center gap-1">
+                      <Bus className="h-3 w-3" />
+                      {vehicleOptions.find(v => v.value === result.vehicle)?.label || result.vehicle}
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div>
                   <div className="text-sm text-gray-500">Monto</div>
