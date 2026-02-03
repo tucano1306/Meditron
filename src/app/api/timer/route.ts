@@ -85,13 +85,15 @@ export async function PUT(request: NextRequest) {
 
     const userId = authResult.user.id
     
-    // Obtener la hora del cliente (UTC) y jobNumber si se envía
+    // Obtener la hora del cliente (UTC), jobNumber y vehicle si se envía
     let now: Date
     let jobNumber: string | undefined
+    let vehicle: string | undefined
     try {
       const body = await request.json()
       now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
       jobNumber = body.jobNumber
+      vehicle = body.vehicle
     } catch {
       now = new Date()
     }
@@ -123,14 +125,21 @@ export async function PUT(request: NextRequest) {
     const hours = duration / 3600
     const calculatedAmount = hours * HOURLY_RATE
 
-    // Actualizar entrada con duración y monto calculado
+    // Calcular la fecha correcta basada en la hora de FIN en Florida
+    // Esto asegura que si terminas a las 2am del día 2, la fecha sea del día 2
+    const floridaEndComponents = getFloridaDateComponents(now)
+    const correctDate = new Date(Date.UTC(floridaEndComponents.year, floridaEndComponents.month - 1, floridaEndComponents.day))
+
+    // Actualizar entrada con duración, monto calculado y fecha correcta
     const updatedEntry = await prisma.timeEntry.update({
       where: { id: activeEntry.id },
       data: {
         endTime: now,
         duration,
         calculatedAmount,
-        jobNumber: jobNumber || activeEntry.jobNumber
+        jobNumber: jobNumber || activeEntry.jobNumber,
+        vehicle: vehicle || activeEntry.vehicle,
+        date: correctDate
       }
     })
 
@@ -195,6 +204,7 @@ export async function GET() {
           startTime: activeEntry.startTime,
           currentEntryId: activeEntry.id,
           jobNumber: activeEntry.jobNumber,
+          vehicle: activeEntry.vehicle,
           elapsedSeconds: Math.max(0, elapsedSeconds)
         }
       })
@@ -218,7 +228,7 @@ export async function GET() {
   }
 }
 
-// PATCH - Actualizar jobNumber del timer en curso
+// PATCH - Actualizar jobNumber o vehicle del timer en curso
 export async function PATCH(request: NextRequest) {
   try {
     const authResult = await validateSession()
@@ -228,7 +238,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { jobNumber } = body
+    const { jobNumber, vehicle } = body
 
     // Buscar timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -245,23 +255,27 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Actualizar jobNumber
+    // Actualizar jobNumber y/o vehicle
+    const updateData: { jobNumber?: string; vehicle?: string } = {}
+    if (jobNumber !== undefined) updateData.jobNumber = jobNumber
+    if (vehicle !== undefined) updateData.vehicle = vehicle
+    
     const updatedEntry = await prisma.timeEntry.update({
       where: { id: activeEntry.id },
-      data: { jobNumber }
+      data: updateData
     })
 
     return NextResponse.json({
       success: true,
       data: {
         entry: updatedEntry,
-        message: 'Número de trabajo actualizado'
+        message: 'Entrada actualizada'
       }
     })
   } catch (error) {
-    console.error('Error updating job number:', error)
+    console.error('Error updating timer entry:', error)
     return NextResponse.json(
-      { success: false, error: 'Error al actualizar número de trabajo' },
+      { success: false, error: 'Error al actualizar entrada' },
       { status: 500 }
     )
   }

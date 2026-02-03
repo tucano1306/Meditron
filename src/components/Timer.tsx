@@ -31,6 +31,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [jobNumberInput, setJobNumberInput] = useState('')
   const [vehicleType, setVehicleType] = useState('')
   const [isSelectingVehicle, setIsSelectingVehicle] = useState(false)
+  const [result, setResult] = useState<{ duration: number; earnings: number; jobNumber?: string; vehicle?: string } | null>(null)
   
   const vehicleOptions = [
     { value: 'sprinter', label: 'Sprinter' },
@@ -49,20 +50,20 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         const res = await fetch('/api/timer')
         const data = await res.json()
         
-        if (data.success && data.data) {
-          setIsRunning(data.data.isRunning)
-          if (data.data.isRunning && data.data.elapsedSeconds !== undefined) {
-            // Reconstruir startTime basado en elapsedSeconds del servidor
-            const reconstructedStartTime = new Date(Date.now() - (data.data.elapsedSeconds * 1000))
-            setStartTime(reconstructedStartTime)
-            setElapsedSeconds(data.data.elapsedSeconds)
-          } else {
-            setElapsedSeconds(0)
-          }
-          if (data.data.jobNumber) {
-            setJobNumber(data.data.jobNumber)
-          }
+        if (!data.success || !data.data) return
+        
+        const { isRunning: running, elapsedSeconds: elapsed, jobNumber: job, vehicle } = data.data
+        setIsRunning(running)
+        
+        if (running && elapsed !== undefined) {
+          setStartTime(new Date(Date.now() - (elapsed * 1000)))
+          setElapsedSeconds(elapsed)
+        } else {
+          setElapsedSeconds(0)
         }
+        
+        if (job) setJobNumber(job)
+        if (vehicle) setVehicleType(vehicle)
       } catch (err) {
         console.error('Error loading timer state:', err)
       }
@@ -73,54 +74,51 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
   // Actualizar timer cada segundo
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    if (!isRunning || !startTime) return
 
-    if (isRunning && startTime) {
-      interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000)
-        setElapsedSeconds(Math.max(0, elapsed))
-      }, 1000)
-    }
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000)
+      setElapsedSeconds(Math.max(0, elapsed))
+    }, 1000)
 
-    return () => {
-      if (interval) clearInterval(interval)
-    }
+    return () => clearInterval(interval)
   }, [isRunning, startTime])
+
+  const resetTimerState = useCallback(() => {
+    setIsRunning(false)
+    setStartTime(null)
+    setElapsedSeconds(0)
+    setJobNumber('')
+    setVehicleType('')
+  }, [])
 
   const handleStart = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // Request wake lock to keep screen on
       await requestWakeLock()
-      
-      // Enviar la hora UTC del cliente
-      const now = new Date()
-      const clientTime = now.toISOString()
       
       const res = await fetch('/api/timer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime })
+        body: JSON.stringify({ clientTime: new Date().toISOString() })
       })
       const data = await res.json()
 
-      if (data.success) {
-        setIsRunning(true)
-        // Usar la hora actual del cliente como startTime para evitar desfases
-        const newStartTime = new Date()
-        setStartTime(newStartTime)
-        setElapsedSeconds(0)
-        setJobNumber('')
-        setVehicleType('')
-        
-        // Start background timer
-        startBackgroundTimer(newStartTime.toISOString())
-      } else {
+      if (!data.success) {
         setError(data.error || 'Error al iniciar')
         await releaseWakeLock()
+        return
       }
+      
+      const newStartTime = new Date()
+      setIsRunning(true)
+      setStartTime(newStartTime)
+      setElapsedSeconds(0)
+      setJobNumber('')
+      setVehicleType('')
+      startBackgroundTimer(newStartTime.toISOString())
     } catch (err) {
       setError('Error de conexión')
       console.error(err)
@@ -134,31 +132,31 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setError(null)
 
     try {
-      // Enviar la hora UTC del cliente
-      const now = new Date()
-      const clientTime = now.toISOString()
-      
       const res = await fetch('/api/timer', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime, jobNumber })
+        body: JSON.stringify({ clientTime: new Date().toISOString(), jobNumber, vehicle: vehicleType })
       })
       const data = await res.json()
 
       if (data.success) {
-        setIsRunning(false)
-        setStartTime(null)
-        setElapsedSeconds(0) // Reset counter to zero
-        setJobNumber('')
-        setVehicleType('')
+        const savedJobNumber = jobNumber
+        const savedVehicle = vehicleType
+        const finalDuration = elapsedSeconds
+        const finalEarnings = (elapsedSeconds / 3600) * hourlyRate
         
-        // Stop background timer and release wake lock
+        resetTimerState()
         stopBackgroundTimer()
         await releaseWakeLock()
         
-        if (onTimerStop) {
-          onTimerStop()
-        }
+        setResult({
+          duration: finalDuration,
+          earnings: finalEarnings,
+          jobNumber: savedJobNumber || data.data.entry?.jobNumber,
+          vehicle: savedVehicle || data.data.entry?.vehicle
+        })
+        
+        onTimerStop?.()
       } else {
         setError(data.error || 'Error al detener')
       }
@@ -168,7 +166,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     } finally {
       setIsLoading(false)
     }
-  }, [onTimerStop, stopBackgroundTimer, releaseWakeLock])
+  }, [onTimerStop, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType, elapsedSeconds, hourlyRate, resetTimerState])
 
   const currentEarnings = (elapsedSeconds / 3600) * hourlyRate
 
@@ -193,27 +191,38 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     }
   }, [jobNumberInput])
 
-  const handleEditJobNumber = () => {
+  const handleEditJobNumber = useCallback(() => {
     setJobNumberInput(jobNumber)
     setIsEditingJobNumber(true)
-  }
+  }, [jobNumber])
 
-  const handleCancelEditJobNumber = () => {
+  const handleCancelEditJobNumber = useCallback(() => {
     setIsEditingJobNumber(false)
     setJobNumberInput('')
-  }
+  }, [])
 
-  const handleSelectVehicle = (selectedVehicle: string) => {
+  const handleSelectVehicle = async (selectedVehicle: string) => {
     setVehicleType(selectedVehicle)
     setIsSelectingVehicle(false)
+    
+    // Guardar el vehículo en el servidor
+    try {
+      await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vehicle: selectedVehicle })
+      })
+    } catch (err) {
+      console.error('Error saving vehicle:', err)
+    }
   }
 
-  const getVehicleLabel = (value: string) => {
+  const getVehicleLabel = useCallback((value: string) => {
     const vehicle = vehicleOptions.find(v => v.value === value)
     return vehicle ? vehicle.label : value
-  }
+  }, [])
 
-  const handleSaveRate = async () => {
+  const handleSaveRate = useCallback(async () => {
     const newRate = Number.parseFloat(tempRate)
     if (Number.isNaN(newRate) || newRate <= 0) {
       setError('Tarifa inválida')
@@ -238,7 +247,17 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       setError('Error de conexión')
       console.error(err)
     }
-  }
+  }, [tempRate, onRateChange])
+
+  const handleCancelRateEdit = useCallback(() => {
+    setIsEditingRate(false)
+    setTempRate(hourlyRate.toString())
+  }, [hourlyRate])
+
+  const handleStartRateEdit = useCallback(() => {
+    setTempRate(hourlyRate.toString())
+    setIsEditingRate(true)
+  }, [hourlyRate])
 
   return (
     <Card className="w-full max-w-md mx-auto border-0 shadow-2xl bg-gradient-to-br from-white via-white to-emerald-50/50 overflow-hidden">
@@ -274,15 +293,15 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
           }`}>
             {formatCurrency(currentEarnings)}
           </div>
-          {isRunning && startTime && (
+          {isRunning && startTime ? (
             <div className="text-xs sm:text-sm text-gray-400 mt-2 font-medium">
               ⏱️ Iniciado: {formatTimeInFlorida(startTime)}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Job Number - Solo visible cuando está corriendo */}
-        {isRunning && (
+        {isRunning ? (
           <div className="bg-gradient-to-r from-gray-50 to-emerald-50/30 rounded-2xl p-4 border border-emerald-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-gray-600">
@@ -322,20 +341,18 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                   onClick={handleEditJobNumber}
                   className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-all"
                 >
-                  {jobNumber ? (
-                    <span className="font-mono text-xl font-black text-emerald-700">{jobNumber}</span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">Toca para asignar</span>
-                  )}
+                  <span className={jobNumber ? "font-mono text-xl font-black text-emerald-700" : "text-gray-400 text-sm"}>
+                    {jobNumber || 'Toca para asignar'}
+                  </span>
                   <Pencil className="h-4 w-4 text-emerald-500" />
                 </button>
               )}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Vehicle Type Dropdown - Solo visible cuando está corriendo */}
-        {isRunning && (
+        {isRunning ? (
           <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-4 border border-blue-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-gray-600">
@@ -371,6 +388,42 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Result Display - Mostrar después de cerrar */}
+        {result && !isRunning && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
+            <div className="flex items-center justify-center gap-2 text-green-600 mb-3">
+              <Clock className="h-5 w-5" />
+              <span className="font-medium">¡Turno Completado!</span>
+            </div>
+            {/* Job Number and Vehicle */}
+            {(result.jobNumber ?? result.vehicle) && (
+              <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
+                {result.jobNumber && (
+                  <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-full">
+                    #{result.jobNumber}
+                  </span>
+                )}
+                {result.vehicle && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full flex items-center gap-1">
+                    <Bus className="h-3 w-3" />
+                    {getVehicleLabel(result.vehicle)}
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div>
+                <div className="text-sm text-gray-500">Duración</div>
+                <div className="text-xl font-bold text-gray-900">{formatDuration(result.duration)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Ganado</div>
+                <div className="text-xl font-bold text-green-600">{formatCurrency(result.earnings)}</div>
               </div>
             </div>
           </div>
@@ -431,10 +484,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  setIsEditingRate(false)
-                  setTempRate(hourlyRate.toString())
-                }}
+                onClick={handleCancelRateEdit}
                 className="text-gray-400 hover:text-gray-600"
               >
                 ✕
@@ -442,10 +492,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
             </div>
           ) : (
             <button
-              onClick={() => {
-                setTempRate(hourlyRate.toString())
-                setIsEditingRate(true)
-              }}
+              onClick={handleStartRateEdit}
               className="text-xs sm:text-sm text-gray-400 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1 mx-auto"
             >
               <Settings className="h-3 w-3" />

@@ -29,6 +29,7 @@ model TimeEntry {
   duration         Int?
   date             DateTime @db.Date
   jobNumber        String?
+  vehicle          String?
   calculatedAmount Float?
   paidAmount       Float?
   companyPaid      Float?
