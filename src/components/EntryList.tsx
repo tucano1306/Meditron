@@ -494,14 +494,17 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                         <label htmlFor="vehicleModal" className="block text-sm font-medium text-gray-700 mb-1">
                           🚗 Vehículo
                         </label>
-                        <input
+                        <select
                           id="vehicleModal"
-                          type="text"
                           value={vehicleModal}
                           onChange={(e) => setVehicleModal(e.target.value)}
-                          placeholder="Ej: Toyota Camry 2020"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        >
+                          <option value="">Seleccionar vehículo</option>
+                          <option value="sprinter">Sprinter</option>
+                          <option value="mini-bus">Mini Bus</option>
+                          <option value="motorcoach">Motorcoach</option>
+                        </select>
                       </div>
                       
                       {/* Monto calculado (automático) */}
