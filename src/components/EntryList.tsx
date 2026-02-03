@@ -13,6 +13,7 @@ interface Entry {
   duration: number | null
   date: string
   jobNumber?: string | null
+  vehicle?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
 }
@@ -37,6 +38,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   // Estado para el modal de información del trabajo
   const [jobModalEntryId, setJobModalEntryId] = useState<string | null>(null)
   const [jobNumber, setJobNumber] = useState('')
+  const [vehicleModal, setVehicleModal] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
   const [isSavingJob, setIsSavingJob] = useState(false)
 
@@ -82,12 +84,14 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const openJobModal = (entry: Entry) => {
     setJobModalEntryId(entry.id)
     setJobNumber(entry.jobNumber || '')
+    setVehicleModal(entry.vehicle || '')
     setPaidAmount(entry.paidAmount?.toString() || '')
   }
 
   const closeJobModal = () => {
     setJobModalEntryId(null)
     setJobNumber('')
+    setVehicleModal('')
     setPaidAmount('')
   }
 
@@ -105,6 +109,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobNumber,
+          vehicle: vehicleModal || null,
           calculatedAmount,
           paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
           startTime: entry.startTime,
@@ -329,11 +334,18 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                         {formatCurrency((entry.duration / 3600) * hourlyRate)}
                       </div>
                       {/* Mostrar info del trabajo si existe */}
-                      {entry.jobNumber && (
+                      {(entry.jobNumber || entry.vehicle) && (
                         <div className="flex items-center gap-1 mt-1 pt-1 border-t border-gray-200">
-                          <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[80px] sm:max-w-none">
-                            #{entry.jobNumber}
-                          </span>
+                          {entry.jobNumber && (
+                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[80px] sm:max-w-none">
+                              #{entry.jobNumber}
+                            </span>
+                          )}
+                          {entry.vehicle && (
+                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-slate-500 to-gray-600 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm">
+                              🚗 {entry.vehicle}
+                            </span>
+                          )}
                           {entry.paidAmount !== null && entry.paidAmount !== undefined && (
                             <div className="flex items-center gap-1">
                               {(() => {
@@ -473,6 +485,21 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           value={jobNumber}
                           onChange={(e) => setJobNumber(e.target.value)}
                           placeholder="Ej: 12345"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      
+                      {/* Vehículo */}
+                      <div>
+                        <label htmlFor="vehicleModal" className="block text-sm font-medium text-gray-700 mb-1">
+                          🚗 Vehículo
+                        </label>
+                        <input
+                          id="vehicleModal"
+                          type="text"
+                          value={vehicleModal}
+                          onChange={(e) => setVehicleModal(e.target.value)}
+                          placeholder="Ej: Toyota Camry 2020"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
