@@ -91,6 +91,7 @@ model PaymentEntry {
   amount          Float?
   hourlyRate      Float?
   jobNumber       String?
+  vehicle         String?
   date            DateTime @db.Date
   completed       Boolean  @default(false)
   companyPaid     Float?

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatDuration, formatCurrency, formatTimeInFlorida, getFloridaDateComponents } from '@/lib/utils'
-import { Clock, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
+import { Clock, DollarSign, Trash2, Pencil, X, Check, Bus } from 'lucide-react'
 
 interface PaymentEntry {
   id: string
@@ -13,6 +13,8 @@ interface PaymentEntry {
   duration: number | null
   amount: number | null
   hourlyRate: number | null
+  jobNumber?: string | null
+  vehicle?: string | null
   date: string
   completed: boolean
 }
@@ -109,6 +111,17 @@ export function PaymentEntryList({
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const vehicleLabels: Record<string, string> = {
+    'sprinter': 'Sprinter',
+    'mini-bus': 'Mini Bus',
+    'motorcoach': 'Motorcoach'
+  }
+
+  const getVehicleLabel = (value: string | null) => {
+    if (!value) return null
+    return vehicleLabels[value] || value
   }
 
   if (entries.length === 0) {
@@ -214,8 +227,21 @@ export function PaymentEntryList({
                           <span className="text-amber-500 animate-pulse ml-1">En curso...</span>
                         )}
                       </div>
-                      <div className="text-sm sm:text-base font-mono font-bold text-gray-700 mt-1">
-                        {entry.duration ? formatDuration(entry.duration) : <span className="text-amber-500 animate-pulse">⏱️</span>}
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="text-sm sm:text-base font-mono font-bold text-gray-700">
+                          {entry.duration ? formatDuration(entry.duration) : <span className="text-amber-500 animate-pulse">⏱️</span>}
+                        </div>
+                        {entry.jobNumber && (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                            #{entry.jobNumber}
+                          </span>
+                        )}
+                        {entry.vehicle && (
+                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full flex items-center gap-1">
+                            <Bus className="h-3 w-3" />
+                            {getVehicleLabel(entry.vehicle)}
+                          </span>
+                        )}
                       </div>
                     </>
                   )}

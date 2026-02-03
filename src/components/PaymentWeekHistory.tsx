@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDuration, getMonthName, getWeekNumber, toFloridaDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida, getFloridaDateComponents } from '@/lib/utils'
-import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check, Printer } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check, Printer, Bus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const ITEMS_PER_PAGE = 5
@@ -15,6 +15,8 @@ interface PaymentEntry {
   duration: number | null
   amount: number | null
   hourlyRate: number | null
+  jobNumber?: string | null
+  vehicle?: string | null
   date: string
   completed: boolean
 }
@@ -185,6 +187,17 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
     }
   }
 
+  const vehicleLabels: Record<string, string> = {
+    'sprinter': 'Sprinter',
+    'mini-bus': 'Mini Bus',
+    'motorcoach': 'Motorcoach'
+  }
+
+  const getVehicleLabel = (value: string | null) => {
+    if (!value) return null
+    return vehicleLabels[value] || value
+  }
+
   // Paginación
   const totalPages = Math.ceil(weeks.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
@@ -256,6 +269,8 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
                   <div>
                     <div class="entry-date">
                       ${formatShortDateFlorida(entry.date)}
+                      ${entry.jobNumber ? `<span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">#${entry.jobNumber}</span>` : ''}
+                      ${entry.vehicle ? `<span style="font-size: 11px; background: #e0e7ff; color: #4338ca; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">${getVehicleLabel(entry.vehicle)}</span>` : ''}
                     </div>
                     <div class="entry-time">
                       ${formatTimeInFlorida(entry.startTime)}
@@ -425,8 +440,21 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
                               </div>
                             ) : (
                               <>
-                                <div className="text-sm font-medium">
-                                  {formatShortDateFlorida(entry.date)}
+                                <div className="flex items-center gap-2">
+                                  <div className="text-sm font-medium">
+                                    {formatShortDateFlorida(entry.date)}
+                                  </div>
+                                  {entry.jobNumber && (
+                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">
+                                      #{entry.jobNumber}
+                                    </span>
+                                  )}
+                                  {entry.vehicle && (
+                                    <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-medium rounded-full flex items-center gap-0.5">
+                                      <Bus className="h-2.5 w-2.5" />
+                                      {getVehicleLabel(entry.vehicle)}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {formatTimeInFlorida(entry.startTime)}

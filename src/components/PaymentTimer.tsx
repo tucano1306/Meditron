@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, DollarSign, Check, Hash, Pencil } from 'lucide-react'
+import { Play, Square, Clock, DollarSign, Check, Hash, Pencil, Bus, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, formatTimeInFlorida } from '@/lib/utils'
@@ -28,6 +28,14 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
   const [jobNumber, setJobNumber] = useState('')
   const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
   const [jobNumberInput, setJobNumberInput] = useState('')
+  const [vehicleType, setVehicleType] = useState('')
+  const [isSelectingVehicle, setIsSelectingVehicle] = useState(false)
+  
+  const vehicleOptions = [
+    { value: 'sprinter', label: 'Sprinter' },
+    { value: 'mini-bus', label: 'Mini Bus' },
+    { value: 'motorcoach', label: 'Motorcoach' },
+  ]
   
   const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
   const { requestWakeLock, releaseWakeLock, isActive: wakeLockActive } = useWakeLock()
@@ -51,6 +59,9 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
           }
           if (data.data.jobNumber) {
             setJobNumber(data.data.jobNumber)
+          }
+          if (data.data.vehicle) {
+            setVehicleType(data.data.vehicle)
           }
         }
       } catch (err) {
@@ -105,6 +116,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         setStartTime(newStartTime)
         setElapsedSeconds(0)
         setJobNumber('')
+        setVehicleType('')
         startBackgroundTimer(newStartTime.toISOString())
       } else {
         setError(data.error || 'Error al iniciar')
@@ -140,7 +152,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
       const res = await fetch('/api/payment', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: numAmount, clientTime, jobNumber })
+        body: JSON.stringify({ amount: numAmount, clientTime, jobNumber, vehicle: vehicleType })
       })
       const data = await res.json()
 
@@ -149,6 +161,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         setStartTime(null)
         setElapsedSeconds(0) // Reset counter to zero
         setJobNumber('')
+        setVehicleType('')
         stopBackgroundTimer()
         await releaseWakeLock()
         
@@ -209,6 +222,27 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
   const handleCancelEditJobNumber = () => {
     setIsEditingJobNumber(false)
     setJobNumberInput('')
+  }
+
+  const handleSelectVehicle = async (selectedVehicle: string) => {
+    setVehicleType(selectedVehicle)
+    setIsSelectingVehicle(false)
+    
+    // Guardar el vehículo en el servidor
+    try {
+      await fetch('/api/payment', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vehicle: selectedVehicle })
+      })
+    } catch (err) {
+      console.error('Error saving vehicle:', err)
+    }
+  }
+
+  const getVehicleLabel = (value: string) => {
+    const vehicle = vehicleOptions.find(v => v.value === value)
+    return vehicle ? vehicle.label : value
   }
 
   return (
@@ -297,6 +331,48 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                     <Pencil className="h-4 w-4 text-blue-500" />
                   </button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Vehicle Type Dropdown - Solo visible cuando está corriendo */}
+          {isRunning && (
+            <div className="bg-gradient-to-r from-gray-50 to-indigo-50/30 rounded-2xl p-4 border border-indigo-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <Bus className="h-4 w-4 text-indigo-600" />
+                  </div>
+                  <span className="text-sm font-semibold">Vehículo</span>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsSelectingVehicle(!isSelectingVehicle)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 transition-all min-w-[140px] justify-between"
+                  >
+                    {vehicleType ? (
+                      <span className="font-semibold text-indigo-700">{getVehicleLabel(vehicleType)}</span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Seleccionar</span>
+                    )}
+                    <ChevronDown className={`h-4 w-4 text-indigo-500 transition-transform ${isSelectingVehicle ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isSelectingVehicle && (
+                    <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-indigo-100 overflow-hidden z-10 min-w-[160px]">
+                      {vehicleOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => handleSelectVehicle(option.value)}
+                          className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors ${
+                            vehicleType === option.value ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-gray-700'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
