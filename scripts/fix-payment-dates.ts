@@ -77,7 +77,6 @@ async function main() {
     
     // Ver también la fecha basada en startTime para comparar
     const floridaStart = getFloridaDateComponents(entry.startTime)
-    const startDateStr = `${floridaStart.year}-${String(floridaStart.month).padStart(2, '0')}-${String(floridaStart.day).padStart(2, '0')}`
     
     // Calcular semanas
     const currentWeek = getWeekNumber(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, currentDate.getUTCDate())
@@ -90,7 +89,9 @@ async function main() {
     console.log(`  Fecha guardada: ${currentDateStr} (Semana ${currentWeek})`)
     console.log(`  Fecha correcta: ${correctDateStr} (Semana ${correctWeek})`)
     
-    if (currentDateStr !== correctDateStr) {
+    if (currentDateStr === correctDateStr) {
+      console.log(`  ✓ Fecha correcta`)
+    } else {
       console.log(`  🔧 CORRIGIENDO: ${currentDateStr} -> ${correctDateStr} (Semana ${currentWeek} -> ${correctWeek})`)
       
       await prisma.paymentEntry.update({
@@ -99,8 +100,6 @@ async function main() {
       })
       
       corrected++
-    } else {
-      console.log(`  ✓ Fecha correcta`)
     }
     console.log('')
   }
@@ -110,6 +109,10 @@ async function main() {
   console.log(`Corregidas: ${corrected}`)
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect())
+try {
+  await main()
+} catch (err) {
+  console.error(err)
+} finally {
+  await prisma.$disconnect()
+}

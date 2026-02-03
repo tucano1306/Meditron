@@ -30,4 +30,5 @@ async function main() {
   });
 }
 
-main().finally(() => p.$disconnect());
+await main();
+await p.$disconnect();
