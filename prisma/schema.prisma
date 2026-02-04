@@ -74,6 +74,7 @@ model MonthSummary {
   month       Int
   totalHours  Float    @default(0)
   earnings    Float    @default(0)
+  companyPaid Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
