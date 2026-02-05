@@ -192,7 +192,10 @@ function buildJobUpdateData(jobNumber?: string, vehicle?: string | null, calcula
   if (jobNumber !== undefined) updateData.jobNumber = jobNumber || null
   if (vehicle !== undefined) updateData.vehicle = vehicle || null
   if (calculatedAmount !== undefined) updateData.calculatedAmount = calculatedAmount
-  if (paidAmount !== undefined) updateData.paidAmount = paidAmount
+  if (paidAmount !== undefined) {
+    updateData.paidAmount = paidAmount
+    updateData.companyPaid = paidAmount // Guardar también en companyPaid para el resumen semanal
+  }
   return updateData
 }
 
