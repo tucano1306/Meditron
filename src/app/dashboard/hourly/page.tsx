@@ -7,7 +7,7 @@ import { Timer } from '@/components/Timer'
 import { SummaryCards } from '@/components/SummaryCards'
 import { EntryList } from '@/components/EntryList'
 import { WeekHistory } from '@/components/WeekHistory'
-import { MonthSummary } from '@/components/MonthSummary'
+import { WeeklySummaryCard } from '@/components/WeeklySummaryCard'
 import { RateCalculator } from '@/components/RateCalculator'
 
 import { InstallPWA } from '@/components/InstallPWA'
@@ -232,7 +232,7 @@ export default function HourlyDashboardPage() {
               className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <BarChart3 className="h-4 w-4" />
-              <span>Meses</span>
+              <span>Resumen</span>
             </TabsTrigger>
             <TabsTrigger 
               value="calculator" 
@@ -257,7 +257,7 @@ export default function HourlyDashboardPage() {
           </TabsContent>
 
           <TabsContent value="months">
-            <MonthSummary refreshTrigger={refreshKey} />
+            <WeeklySummaryCard refreshTrigger={refreshKey} />
           </TabsContent>
 
           <TabsContent value="calculator">
