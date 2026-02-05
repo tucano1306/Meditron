@@ -441,199 +441,131 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           <>
             {/* Overlay con blur */}
             <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
               aria-hidden="true"
               onClick={closeJobModal}
             />
-            {/* Modal - Diseño moderno y responsive */}
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-              <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-                <div className="bg-gradient-to-b from-white to-gray-50 rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-sm max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden animate-slide-in-from-bottom-4">
+            {/* Modal - Centrado y compacto */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-[320px] overflow-hidden">
                   
-                  {/* Header con gradiente - más compacto */}
-                  <div className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-3 py-3 sm:px-4 sm:py-4">
-                    <button
-                      onClick={closeJobModal}
-                      className="absolute top-2.5 right-2.5 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200"
-                      aria-label="Cerrar"
-                    >
-                      <X className="h-4 w-4 text-white" />
-                    </button>
+                {/* Header compacto */}
+                <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5">
+                  <button
+                    onClick={closeJobModal}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30"
+                    aria-label="Cerrar"
+                  >
+                    <X className="h-3.5 w-3.5 text-white" />
+                  </button>
+                  
+                  <div className="flex items-center gap-2 pr-6">
+                    <FileText className="h-4 w-4 text-white/80" />
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-white">Detalles del Trabajo</h3>
+                    </div>
+                    <div className="bg-white/20 rounded-full px-2 py-0.5">
+                      <span className="text-white font-mono font-bold text-xs">
+                        {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--:--'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                  
+                {/* Contenido del formulario */}
+                <div className="px-3 py-3 space-y-2.5">
                     
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                        <FileText className="h-4 w-4 text-white" />
+                  {/* Fila: Trabajo + Vehículo */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label htmlFor="jobNumberModal" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide"># Trabajo</label>
+                      <input
+                        id="jobNumberModal"
+                        type="text"
+                        value={jobNumber}
+                        onChange={(e) => setJobNumber(e.target.value)}
+                        placeholder="196088"
+                        className="w-full mt-0.5 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="vehicleModalSelect" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">🚐 Vehículo</label>
+                      <select
+                        id="vehicleModalSelect"
+                        value={vehicleModal}
+                        onChange={(e) => setVehicleModal(e.target.value)}
+                        className="w-full mt-0.5 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Seleccionar</option>
+                        <option value="sprinter">Sprinter</option>
+                        <option value="mini-bus">Mini Bus</option>
+                        <option value="motorcoach">Motorcoach</option>
+                      </select>
+                    </div>
+                  </div>
+                    
+                  {/* Monto Calculado - Compacto */}
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-semibold text-emerald-600 uppercase">Monto Calculado</div>
+                        <div className="text-xl font-bold text-emerald-700">{formatCurrency(calculatedAmount)}</div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-bold text-white">
-                          Detalles del Trabajo
-                        </h3>
-                        <p className="text-blue-100 text-[11px]">
-                          Registra la información de tu servicio
-                        </p>
+                      <div className="text-right text-[10px] text-emerald-600">
+                        {modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : 0} hrs<br/>
+                        × {formatCurrency(hourlyRate)}/hr
                       </div>
-                      {/* Badge de tiempo trabajado */}
-                      <div className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1">
-                        <Clock className="h-3 w-3 text-white" />
-                        <span className="text-white font-mono font-semibold text-xs">
-                          {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--:--'}
+                    </div>
+                  </div>
+                    
+                  {/* Monto Pagado */}
+                  <div>
+                    <label htmlFor="paidAmountModal" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">💵 Monto Pagado por Compañía</label>
+                    <div className="relative mt-0.5">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">$</span>
+                      <input
+                        id="paidAmountModal"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={paidAmount}
+                        onChange={(e) => setPaidAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full pl-6 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-base font-bold text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                    
+                  {/* Diferencia - Solo si hay monto pagado */}
+                  {paidAmount && (
+                    <div className={`rounded-lg p-2 ${isPositive ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-semibold ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
+                          {isPositive ? '✓ A favor' : '✗ En contra'}
+                        </span>
+                        <span className={`text-lg font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
                         </span>
                       </div>
                     </div>
-                  </div>
+                  )}
+                </div>
                   
-                  {/* Contenido del formulario - más compacto */}
-                  <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 space-y-2.5">
-                    
-                    {/* Grid de campos principales */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Número de trabajo */}
-                      <div className="space-y-1">
-                        <label htmlFor="jobNumber" className="flex items-center gap-1 text-[11px] font-semibold text-gray-600">
-                          <span className="flex items-center justify-center w-4 h-4 rounded bg-blue-100 text-blue-600 text-[10px] font-bold">#</span>
-                          <span>Trabajo</span>
-                        </label>
-                        <input
-                          id="jobNumber"
-                          type="text"
-                          value={jobNumber}
-                          onChange={(e) => setJobNumber(e.target.value)}
-                          placeholder="196088"
-                          className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-sm text-gray-900 placeholder:text-gray-400"
-                        />
-                      </div>
-                      
-                      {/* Vehículo */}
-                      <div className="space-y-1">
-                        <label htmlFor="vehicleModal" className="flex items-center gap-1 text-[11px] font-semibold text-gray-600">
-                          <span className="flex items-center justify-center w-4 h-4 rounded bg-amber-100 text-amber-600 text-[10px]">🚐</span>
-                          <span>Vehículo</span>
-                        </label>
-                        <select
-                          id="vehicleModal"
-                          value={vehicleModal}
-                          onChange={(e) => setVehicleModal(e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-sm text-gray-900 cursor-pointer appearance-none"
-                          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '14px' }}
-                        >
-                          <option value="">Seleccionar...</option>
-                          <option value="sprinter">Sprinter</option>
-                          <option value="mini-bus">Mini Bus</option>
-                          <option value="motorcoach">Motorcoach</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    {/* Tarjeta de monto calculado */}
-                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-2.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100">
-                            <span className="text-sm">💰</span>
-                          </div>
-                          <div>
-                            <div className="text-[11px] font-semibold text-emerald-700">
-                              Monto Calculado
-                            </div>
-                            <div className="text-lg font-bold text-emerald-600">
-                              {formatCurrency(calculatedAmount)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-emerald-600 font-medium">
-                            {modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : 0} hrs × {formatCurrency(hourlyRate)}/hr
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Campo de monto pagado */}
-                    <div className="space-y-1">
-                      <label htmlFor="paidAmount" className="flex items-center gap-1 text-[11px] font-semibold text-gray-600">
-                        <span className="flex items-center justify-center w-4 h-4 rounded bg-purple-100 text-purple-600 text-[10px]">💵</span>
-                        <span>Monto Pagado por la Compañía</span>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                          <span className="text-gray-500 font-semibold text-sm">$</span>
-                        </div>
-                        <input
-                          id="paidAmount"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={paidAmount}
-                          onChange={(e) => setPaidAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="w-full pl-6 pr-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 text-base font-semibold text-gray-900 placeholder:text-gray-300"
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Tarjeta de diferencia */}
-                    {paidAmount && (
-                      <div className={`rounded-lg p-2.5 transition-all duration-300 ${
-                        isPositive 
-                          ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200' 
-                          : 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200'
-                      }`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${
-                            isPositive ? 'bg-green-100' : 'bg-red-100'
-                          }`}>
-                            <span className="text-base">{isPositive ? '🎉' : '😔'}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-[11px] font-semibold ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
-                              {isPositive ? 'Diferencia a favor' : 'Diferencia en contra'}
-                            </div>
-                            <p className={`text-[10px] ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                              {isPositive 
-                                ? `Ganaste extra`
-                                : `Te deben`
-                              }
-                            </p>
-                          </div>
-                          <div className={`text-lg font-bold tracking-tight ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                            {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Footer con botones */}
-                  <div className="px-3 py-2.5 sm:px-4 sm:py-3 bg-white border-t border-gray-100 pb-safe">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={closeJobModal}
-                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg font-semibold text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 active:scale-[0.98]"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={() => handleSaveJobInfo(modalEntry)}
-                        disabled={isSavingJob}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg font-semibold text-sm text-white shadow-md shadow-blue-500/25 hover:shadow-blue-500/35 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
-                      >
-                        {isSavingJob ? (
-                          <span className="flex items-center justify-center gap-1.5">
-                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Guardando...
-                          </span>
-                        ) : (
-                          <span className="flex items-center justify-center gap-1.5">
-                            <Check className="h-4 w-4" />
-                            Guardar
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                {/* Botones */}
+                <div className="px-3 pb-3 flex gap-2">
+                  <button
+                    onClick={closeJobModal}
+                    className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 active:scale-[0.98]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => handleSaveJobInfo(modalEntry)}
+                    disabled={isSavingJob}
+                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {isSavingJob ? 'Guardando...' : 'Guardar'}
+                  </button>
                 </div>
               </div>
             </div>
