@@ -104,6 +104,11 @@ export default function HourlyDashboardPage() {
     setRefreshKey(prev => prev + 1) // Forzar refresh de componentes de semanas/meses
   }
 
+  const handleEntryUpdate = () => {
+    fetchDashboard()
+    setRefreshKey(prev => prev + 1) // Forzar refresh del resumen semanal
+  }
+
   const handleLogout = async () => {
     await signOut({ redirect: false })
     router.push('/login')
@@ -248,12 +253,12 @@ export default function HourlyDashboardPage() {
               entries={data.today.entries}
               title="Entradas de Hoy"
               onDelete={handleEntryDelete}
-              onUpdate={fetchDashboard}
+              onUpdate={handleEntryUpdate}
             />
           </TabsContent>
 
           <TabsContent value="weeks">
-            <WeekHistory refreshTrigger={refreshKey} onRefresh={fetchDashboard} />
+            <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
           </TabsContent>
 
           <TabsContent value="months">
