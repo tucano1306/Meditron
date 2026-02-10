@@ -451,20 +451,21 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               onClick={closeJobModal}
             />
             {/* Modal - Bottom sheet en móvil, centrado en desktop */}
-            <div className="fixed inset-0 z-[9999] overflow-hidden">
-              <div className="min-h-full flex items-end sm:items-center sm:justify-center">
-                <div 
-                  className="w-full sm:max-w-[380px] sm:mx-4 sm:my-4 bg-white sm:rounded-xl rounded-t-2xl shadow-2xl flex flex-col"
-                  style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 20px)' }}
-                >
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center" onClick={closeJobModal}>
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+              <div 
+                className="w-full sm:max-w-[380px] sm:mx-4 bg-white sm:rounded-xl rounded-t-2xl shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
                   
                   {/* Drag handle - solo móvil */}
-                  <div className="sm:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+                  <div className="sm:hidden flex justify-center pt-2 pb-1">
                     <div className="w-10 h-1 bg-gray-300 rounded-full" />
                   </div>
 
                   {/* Header */}
-                  <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex-shrink-0 sm:rounded-t-xl">
+                  <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 sm:rounded-t-xl">
                     <button
                       onClick={closeJobModal}
                       className="absolute top-2.5 right-2.5 p-2 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 touch-manipulation z-10"
@@ -485,7 +486,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Contenido scrollable */}
-                  <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <div className="overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ maxHeight: '60vh', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                     
                     {/* Trabajo + Vehículo */}
                     <div className="grid grid-cols-2 gap-3">
@@ -582,8 +583,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                     </div>
                   </div>
                   
-                  {/* Botones fijos */}
-                  <div className="px-4 pt-3 flex gap-3 border-t border-gray-100 flex-shrink-0 bg-white sm:rounded-b-xl" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
+                  {/* Botones siempre visibles */}
+                  <div className="px-4 py-3 flex gap-3 border-t border-gray-100 bg-white sm:rounded-b-xl">
                     <button
                       onClick={closeJobModal}
                       className="flex-1 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98] touch-manipulation"
@@ -598,7 +599,6 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       {isSavingJob ? 'Guardando...' : 'Guardar'}
                     </button>
                   </div>
-                </div>
               </div>
             </div>
           </>
