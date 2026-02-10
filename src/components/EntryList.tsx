@@ -14,6 +14,7 @@ interface Entry {
   date: string
   jobNumber?: string | null
   vehicle?: string | null
+  observation?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
 }
@@ -40,6 +41,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [jobNumber, setJobNumber] = useState('')
   const [vehicleModal, setVehicleModal] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
+  const [observation, setObservation] = useState('')
   const [isSavingJob, setIsSavingJob] = useState(false)
 
   const handleDelete = async (id: string) => {
@@ -86,6 +88,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setJobNumber(entry.jobNumber || '')
     setVehicleModal(entry.vehicle || '')
     setPaidAmount(entry.paidAmount?.toString() || '')
+    setObservation(entry.observation || '')
   }
 
   const closeJobModal = () => {
@@ -93,6 +96,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setJobNumber('')
     setVehicleModal('')
     setPaidAmount('')
+    setObservation('')
   }
 
   const getCalculatedAmount = (entry: Entry) => {
@@ -110,6 +114,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         body: JSON.stringify({
           jobNumber,
           vehicle: vehicleModal || null,
+          observation: observation || null,
           calculatedAmount,
           paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
           startTime: entry.startTime,
@@ -445,26 +450,26 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               aria-hidden="true"
               onClick={closeJobModal}
             />
-            {/* Modal - Centrado y compacto */}
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
-              <div className="bg-white rounded-xl shadow-2xl w-full max-w-[320px] overflow-hidden">
+            {/* Modal - Centrado, responsive y scrollable en móvil */}
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+              <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-[360px] max-h-[90vh] sm:max-h-[85vh] sm:mx-3 flex flex-col overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 duration-200">
                   
-                {/* Header compacto */}
-                <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5">
+                {/* Header compacto - fijo */}
+                <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex-shrink-0">
                   <button
                     onClick={closeJobModal}
-                    className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30"
+                    className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 touch-manipulation"
                     aria-label="Cerrar"
                   >
-                    <X className="h-3.5 w-3.5 text-white" />
+                    <X className="h-4 w-4 text-white" />
                   </button>
                   
-                  <div className="flex items-center gap-2 pr-6">
-                    <FileText className="h-4 w-4 text-white/80" />
-                    <div className="flex-1">
+                  <div className="flex items-center gap-2 pr-8">
+                    <FileText className="h-4 w-4 text-white/80 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-bold text-white">Detalles del Trabajo</h3>
                     </div>
-                    <div className="bg-white/20 rounded-full px-2 py-0.5">
+                    <div className="bg-white/20 rounded-full px-2.5 py-0.5 flex-shrink-0">
                       <span className="text-white font-mono font-bold text-xs">
                         {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--:--'}
                       </span>
@@ -472,8 +477,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                 </div>
                   
-                {/* Contenido del formulario */}
-                <div className="px-3 py-3 space-y-2.5">
+                {/* Contenido del formulario - scrollable */}
+                <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 space-y-3">
                     
                   {/* Fila: Trabajo + Vehículo */}
                   <div className="grid grid-cols-2 gap-2">
@@ -482,10 +487,11 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       <input
                         id="jobNumberModal"
                         type="text"
+                        inputMode="numeric"
                         value={jobNumber}
                         onChange={(e) => setJobNumber(e.target.value)}
                         placeholder="196088"
-                        className="w-full mt-0.5 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full mt-0.5 px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
                       />
                     </div>
                     <div>
@@ -494,7 +500,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                         id="vehicleModalSelect"
                         value={vehicleModal}
                         onChange={(e) => setVehicleModal(e.target.value)}
-                        className="w-full mt-0.5 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full mt-0.5 px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
                       >
                         <option value="">Seleccionar</option>
                         <option value="sprinter">Sprinter</option>
@@ -505,7 +511,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                     
                   {/* Monto Calculado - Compacto */}
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-[10px] font-semibold text-emerald-600 uppercase">Monto Calculado</div>
@@ -522,23 +528,24 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   <div>
                     <label htmlFor="paidAmountModal" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">💵 Monto Pagado por Compañía</label>
                     <div className="relative mt-0.5">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">$</span>
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">$</span>
                       <input
                         id="paidAmountModal"
                         type="number"
+                        inputMode="decimal"
                         step="0.01"
                         min="0"
                         value={paidAmount}
                         onChange={(e) => setPaidAmount(e.target.value)}
                         placeholder="0.00"
-                        className="w-full pl-6 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-base font-bold text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-7 pr-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-base font-bold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
                       />
                     </div>
                   </div>
                     
                   {/* Diferencia - Solo si hay monto pagado */}
                   {paidAmount && (
-                    <div className={`rounded-lg p-2 ${isPositive ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                    <div className={`rounded-lg p-2.5 ${isPositive ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                       <div className="flex items-center justify-between">
                         <span className={`text-xs font-semibold ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
                           {isPositive ? '✓ A favor' : '✗ En contra'}
@@ -549,20 +556,33 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       </div>
                     </div>
                   )}
+
+                  {/* Observación */}
+                  <div>
+                    <label htmlFor="observationModal" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">📝 Observación</label>
+                    <textarea
+                      id="observationModal"
+                      value={observation}
+                      onChange={(e) => setObservation(e.target.value)}
+                      placeholder="Agregar una nota u observación..."
+                      rows={2}
+                      className="w-full mt-0.5 px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation resize-none"
+                    />
+                  </div>
                 </div>
                   
-                {/* Botones */}
-                <div className="px-3 pb-3 flex gap-2">
+                {/* Botones - fijo en la parte inferior */}
+                <div className="px-4 py-3 flex gap-2 border-t border-gray-100 flex-shrink-0 bg-white">
                   <button
                     onClick={closeJobModal}
-                    className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 active:scale-[0.98]"
+                    className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98] touch-manipulation"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={() => handleSaveJobInfo(modalEntry)}
                     disabled={isSavingJob}
-                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60"
+                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation"
                   >
                     {isSavingJob ? 'Guardando...' : 'Guardar'}
                   </button>

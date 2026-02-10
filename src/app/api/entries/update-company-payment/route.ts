@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
+import { getWeekNumberFromUTCDate } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-function getWeekNumber(date: Date): number {
-  const startOfYear = new Date(date.getFullYear(), 0, 1)
-  const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
-  return Math.ceil((days + startOfYear.getDay() + 1) / 7)
-}
 
 // POST - Actualizar pago de compañía para una semana
 export async function POST(request: Request) {
@@ -47,8 +42,8 @@ export async function POST(request: Request) {
     // Filtrar entradas por semana
     const weekEntries = entries.filter(entry => {
       const date = new Date(entry.date)
-      const entryWeek = getWeekNumber(date)
-      const entryYear = date.getFullYear()
+      const entryWeek = getWeekNumberFromUTCDate(date)
+      const entryYear = date.getUTCFullYear()
       return entryWeek === weekNumber && entryYear === year
     })
 

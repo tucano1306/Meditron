@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, formatDuration, getMonthName, toFloridaDate, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
+import { formatCurrency, formatDuration, getMonthName, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { BarChart3, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -54,9 +54,10 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
         const entriesByMonth = new Map<string, PaymentEntry[]>()
         
         for (const entry of data.data.recentEntries) {
-          const floridaDate = toFloridaDate(new Date(entry.date))
-          const year = floridaDate.getFullYear()
-          const month = floridaDate.getMonth() + 1
+          // La fecha ya está almacenada como UTC midnight del día correcto
+          const entryDate = new Date(entry.date)
+          const year = entryDate.getUTCFullYear()
+          const month = entryDate.getUTCMonth() + 1
           const key = `${year}-${month}`
           
           if (!entriesByMonth.has(key)) {

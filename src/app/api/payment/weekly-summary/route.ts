@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getWeekNumber, getWeekStartEndFromWeekNumber, getFloridaDate, toFloridaDate } from '@/lib/utils'
+import { getWeekNumberFromUTCDate, getWeekStartEndFromWeekNumber, getFloridaDate } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,10 +43,11 @@ export async function GET() {
     }>()
 
     entries.forEach(entry => {
-      // Convertir la fecha a zona horaria de Florida para calcular la semana
-      const floridaDate = toFloridaDate(new Date(entry.date))
-      const weekNumber = getWeekNumber(floridaDate)
-      const year = floridaDate.getFullYear()
+      // La fecha ya está almacenada como UTC midnight del día correcto en Florida
+      // Usar getWeekNumberFromUTCDate para evitar conversión de timezone incorrecta
+      const entryDate = new Date(entry.date)
+      const weekNumber = getWeekNumberFromUTCDate(entryDate)
+      const year = entryDate.getUTCFullYear()
       const key = `${year}-${weekNumber}`
 
       if (!weeklyMap.has(key)) {

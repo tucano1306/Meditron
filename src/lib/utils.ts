@@ -123,6 +123,44 @@ export function getWeekNumber(date: Date): number {
   return weekNum
 }
 
+/**
+ * Calcula el número de semana ISO para una fecha que ya está almacenada como UTC midnight
+ * representando una fecha específica (ej: 2026-02-09T00:00:00Z = Feb 9).
+ * NO convierte a Florida porque la fecha ya representa el día correcto en UTC.
+ */
+export function getWeekNumberFromUTCDate(date: Date): number {
+  // Usar los componentes UTC directamente (la fecha ya está en UTC midnight del día correcto)
+  const year = date.getUTCFullYear()
+  const month = date.getUTCMonth()
+  const day = date.getUTCDate()
+  
+  // Crear una fecha "virtual" con los componentes UTC
+  const d = new Date(year, month, day)
+  
+  // Calcular el número de semana ISO 8601 (Lunes-Domingo)
+  const dayOfWeek = d.getDay() // 0 = domingo, 1 = lunes, etc.
+  
+  // Convertir a ISO: Lunes = 1, Domingo = 7
+  const isoDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek
+  
+  // Encontrar el jueves de esta semana (el jueves determina en qué año cae la semana)
+  const thursday = new Date(d)
+  thursday.setDate(d.getDate() + (4 - isoDayOfWeek))
+  
+  // El año de la semana ISO es el año del jueves
+  const isoYear = thursday.getFullYear()
+  
+  // Encontrar el primer jueves del año ISO
+  const jan4 = new Date(isoYear, 0, 4) // 4 de enero siempre está en semana 1
+  const jan4DayOfWeek = jan4.getDay() === 0 ? 7 : jan4.getDay()
+  const firstThursday = new Date(isoYear, 0, 4 - jan4DayOfWeek + 4)
+  
+  // Calcular el número de semana
+  const weekNum = Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000) + 1
+  
+  return weekNum
+}
+
 export function getWeekStartEnd(date: Date): { start: Date; end: Date } {
   // Usar zona horaria de Florida
   const florida = getFloridaDateComponents(date)

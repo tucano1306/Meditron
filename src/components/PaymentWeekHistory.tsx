@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, formatDuration, getMonthName, getWeekNumber, toFloridaDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida, getFloridaDateComponents } from '@/lib/utils'
+import { formatCurrency, formatDuration, getMonthName, getWeekNumberFromUTCDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft, DollarSign, Trash2, Pencil, X, Check, Printer, Bus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -57,10 +57,10 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
         const entriesByWeek = new Map<string, PaymentEntry[]>()
         
         for (const entry of data.data.recentEntries) {
-          // Convertir a zona horaria de Florida para calcular la semana correcta
-          const floridaDate = toFloridaDate(new Date(entry.date))
-          const weekNum = getWeekNumber(floridaDate)
-          const year = floridaDate.getFullYear()
+          // La fecha ya está almacenada como UTC midnight del día correcto
+          const entryDate = new Date(entry.date)
+          const weekNum = getWeekNumberFromUTCDate(entryDate)
+          const year = entryDate.getUTCFullYear()
           const key = `${year}-${weekNum}`
           
           if (!entriesByWeek.has(key)) {
@@ -77,13 +77,13 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
           const totalDuration = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
           const avgHourlyRate = totalDuration > 0 ? totalAmount / (totalDuration / 3600) : 0
           
-          // Usar zona horaria de Florida para obtener el mes correcto
-          const floridaDateFirst = toFloridaDate(new Date(entries[0].date))
+          // La fecha ya está almacenada como UTC midnight del día correcto
+          const entryDateFirst = new Date(entries[0].date)
           
           weekArray.push({
             weekNumber: weekNum,
             year,
-            month: floridaDateFirst.getMonth() + 1,
+            month: entryDateFirst.getUTCMonth() + 1,
             entries,
             totalAmount,
             totalDuration,

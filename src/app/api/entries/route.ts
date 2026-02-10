@@ -187,10 +187,11 @@ export async function POST(request: NextRequest) {
 }
 
 // Función auxiliar para construir datos de actualización de trabajo
-function buildJobUpdateData(jobNumber?: string, vehicle?: string | null, calculatedAmount?: number, paidAmount?: number): Record<string, unknown> {
+function buildJobUpdateData(jobNumber?: string, vehicle?: string | null, calculatedAmount?: number, paidAmount?: number, observation?: string | null): Record<string, unknown> {
   const updateData: Record<string, unknown> = {}
   if (jobNumber !== undefined) updateData.jobNumber = jobNumber || null
   if (vehicle !== undefined) updateData.vehicle = vehicle || null
+  if (observation !== undefined) updateData.observation = observation || null
   if (calculatedAmount !== undefined) updateData.calculatedAmount = calculatedAmount
   if (paidAmount !== undefined) {
     updateData.paidAmount = paidAmount
@@ -218,7 +219,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { startTime, endTime, jobNumber, vehicle, calculatedAmount, paidAmount } = body
+    const { startTime, endTime, jobNumber, vehicle, calculatedAmount, paidAmount, observation } = body
 
     // Si los tiempos no cambiaron, solo actualizar campos de trabajo
     const isOnlyJobUpdate = startTime === entry.startTime.toISOString() && 
@@ -227,7 +228,7 @@ export async function PATCH(request: NextRequest) {
     if (isOnlyJobUpdate) {
       const updatedEntry = await prisma.timeEntry.update({
         where: { id },
-        data: buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount)
+        data: buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation)
       })
       return NextResponse.json({ success: true, data: updatedEntry })
     }
@@ -260,7 +261,7 @@ export async function PATCH(request: NextRequest) {
         duration,
         date: entryDate,
         weekId: newWeek.id,
-        ...buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount)
+        ...buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation)
       }
     })
 

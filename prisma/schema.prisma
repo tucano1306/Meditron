@@ -30,6 +30,7 @@ model TimeEntry {
   date             DateTime @db.Date
   jobNumber        String?
   vehicle          String?
+  observation      String?
   calculatedAmount Float?
   paidAmount       Float?
   companyPaid      Float?
