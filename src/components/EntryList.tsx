@@ -264,9 +264,15 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         <CardContent className="px-2 sm:px-6 pt-4">
         <div className="space-y-3">
           {entries.map((entry) => (
+            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
             <div
               key={entry.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-2"
+              className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-2 ${entry.endTime && entry.duration !== null && editingId !== entry.id ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+              onClick={() => {
+                if (entry.endTime && entry.duration !== null && editingId !== entry.id) {
+                  openJobModal(entry)
+                }
+              }}
             >
               <div className="flex-1 min-w-0">
                 {showDate && (
@@ -395,16 +401,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openJobModal(entry)}
-                          className={`h-7 w-7 sm:h-8 sm:w-8 ${entry.jobNumber ? 'text-blue-500 hover:text-blue-600 hover:bg-blue-50' : 'text-purple-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                          title="Información del trabajo"
-                        >
-                          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </Button>
+                      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                      <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="icon"
