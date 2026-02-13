@@ -333,9 +333,13 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
               <ChevronDown className={`h-4 w-4 text-blue-500 transition-transform ${isSelectingVehicle ? 'rotate-180' : ''}`} />
             </button>
             {isSelectingVehicle && (
-              <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden z-10 min-w-[160px]">
+              <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden z-10 w-[180px]">
                 {VEHICLE_OPTIONS.map((option) => (
-                  <button key={option.value} onClick={() => handleSelectVehicle(option.value)} className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors ${vehicleType === option.value ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'}`}>
+                  <button 
+                    key={option.value} 
+                    onClick={() => handleSelectVehicle(option.value)} 
+                    className={`block w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${vehicleType === option.value ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'}`}
+                  >
                     {option.label}
                   </button>
                 ))}
