@@ -511,13 +511,13 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           id="vehicleModalSelect"
                           value={vehicleModal}
                           onChange={(e) => setVehicleModal(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
+                          className="w-full px-2 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-sm sm:text-base"
                           style={{ fontSize: '16px' }}
                         >
-                          <option value="">Seleccionar</option>
-                          <option value="sprinter">Sprinter</option>
-                          <option value="mini-bus">Mini Bus</option>
-                          <option value="motorcoach">Motorcoach</option>
+                          <option value="">Sin vehículo</option>
+                          <option value="sprinter">🚐 Sprinter</option>
+                          <option value="mini-bus">🚌 Mini Bus</option>
+                          <option value="motorcoach">🚍 Motorcoach</option>
                         </select>
                       </div>
                     </div>
