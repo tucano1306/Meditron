@@ -34,7 +34,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [editEndTime, setEditEndTime] = useState('')
   const [editDate, setEditDate] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(showDate)
   
   // Estado para el modal de información del trabajo
   const [jobModalEntryId, setJobModalEntryId] = useState<string | null>(null)
@@ -450,10 +450,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             />
             {/* Modal - Bottom sheet en móvil, centrado en desktop */}
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center" onClick={closeJobModal}>
+            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center overflow-hidden" onClick={closeJobModal}>
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-[380px] sm:mx-4 bg-white sm:rounded-xl rounded-t-2xl shadow-2xl overflow-hidden"
+                className="w-full sm:max-w-[380px] sm:mx-4 bg-white sm:rounded-xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
                   
@@ -484,7 +484,11 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Contenido scrollable */}
-                  <div className="overflow-y-auto overscroll-contain px-4 py-3 space-y-3" style={{ maxHeight: '60vh', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                  <div 
+                    className="overflow-y-auto overscroll-contain px-4 py-3 space-y-3 flex-1 min-h-0"
+                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as React.CSSProperties}
+                    onTouchMove={(e) => e.stopPropagation()}
+                  >
                     
                     {/* Trabajo + Vehículo */}
                     <div className="grid grid-cols-2 gap-3">
