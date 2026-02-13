@@ -401,7 +401,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                         </Button>
                       </div>
                     ) : (
-                      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                       <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="ghost"
