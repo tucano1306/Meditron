@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil, ChevronDown, Bus } from 'lucide-react'
+import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil, Bus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida } from '@/lib/utils'
@@ -41,7 +41,6 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
   const [jobNumberInput, setJobNumberInput] = useState('')
   const [vehicleType, setVehicleType] = useState('')
-  const [isSelectingVehicle, setIsSelectingVehicle] = useState(false)
   const [result, setResult] = useState<{ duration: number; earnings: number; jobNumber?: string; vehicle?: string } | null>(null)
   
   // PWA and background support
@@ -207,8 +206,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }, [])
 
   const handleSelectVehicle = async (selectedVehicle: string) => {
-    setVehicleType(selectedVehicle)
-    setIsSelectingVehicle(false)
+    setVehicleType(prev => prev === selectedVehicle ? '' : selectedVehicle)
     
     // Guardar el vehículo en el servidor
     try {
@@ -320,32 +318,26 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     if (!isRunning) return null
     return (
       <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-4 border border-blue-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-gray-600">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Bus className="h-4 w-4 text-blue-600" />
-            </div>
-            <span className="text-sm font-semibold">Vehículo</span>
+        <div className="flex items-center gap-2 text-gray-600 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <Bus className="h-4 w-4 text-blue-600" />
           </div>
-          <div className="relative">
-            <button onClick={() => setIsSelectingVehicle(!isSelectingVehicle)} className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all min-w-[140px] justify-between">
-              {vehicleType ? <span className="font-semibold text-blue-700">{getVehicleLabel(vehicleType)}</span> : <span className="text-gray-400 text-sm">Seleccionar</span>}
-              <ChevronDown className={`h-4 w-4 text-blue-500 transition-transform ${isSelectingVehicle ? 'rotate-180' : ''}`} />
+          <span className="text-sm font-semibold">Vehículo</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {VEHICLE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => handleSelectVehicle(option.value)}
+              className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                vehicleType === option.value
+                  ? 'bg-blue-600 text-white shadow-md scale-[1.02]'
+                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+              }`}
+            >
+              {option.label}
             </button>
-            {isSelectingVehicle && (
-              <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden z-10 w-[180px]">
-                {VEHICLE_OPTIONS.map((option) => (
-                  <button 
-                    key={option.value} 
-                    onClick={() => handleSelectVehicle(option.value)} 
-                    className={`block w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${vehicleType === option.value ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
         </div>
       </div>
     )
