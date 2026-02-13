@@ -10,9 +10,9 @@ import { useWakeLock } from '@/hooks/useWakeLock'
 import type { TimerState } from '@/types'
 
 const VEHICLE_OPTIONS = [
-  { value: 'sprinter', label: 'Sprinter' },
-  { value: 'mini-bus', label: 'Mini Bus' },
-  { value: 'motorcoach', label: 'Motorcoach' },
+  { value: 'sprinter', label: 'Sprinter', short: 'Sprinter' },
+  { value: 'mini-bus', label: 'Mini Bus', short: 'Mini Bus' },
+  { value: 'motorcoach', label: 'Motorcoach', short: 'Motor C.' },
 ]
 
 function getVehicleLabel(value: string): string {
@@ -329,13 +329,14 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
             <button
               key={option.value}
               onClick={() => handleSelectVehicle(option.value)}
-              className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              className={`px-2 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                 vehicleType === option.value
                   ? 'bg-blue-600 text-white shadow-md scale-[1.02]'
                   : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
               }`}
             >
-              {option.label}
+              <span className="sm:hidden">{option.short}</span>
+              <span className="hidden sm:inline">{option.label}</span>
             </button>
           ))}
         </div>
