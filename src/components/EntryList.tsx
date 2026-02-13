@@ -491,7 +491,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   >
                     
                     {/* Trabajo + Vehículo */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label htmlFor="jobNumberModal" className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1"># Trabajo</label>
                         <input
