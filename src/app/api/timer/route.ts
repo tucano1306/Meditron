@@ -130,7 +130,11 @@ export async function PUT(request: NextRequest) {
     const floridaEndComponents = getFloridaDateComponents(now)
     const correctDate = new Date(Date.UTC(floridaEndComponents.year, floridaEndComponents.month - 1, floridaEndComponents.day))
 
-    // Actualizar entrada con duración, monto calculado y fecha correcta
+    // Recalcular la semana correcta basada en la fecha de fin (por si cruzó límite de semana)
+    const correctWeek = await getOrCreateWeek(now, userId)
+    const weekChanged = correctWeek.id !== activeEntry.weekId
+
+    // Actualizar entrada con duración, monto calculado, fecha correcta y semana correcta
     const updatedEntry = await prisma.timeEntry.update({
       where: { id: activeEntry.id },
       data: {
@@ -139,17 +143,29 @@ export async function PUT(request: NextRequest) {
         calculatedAmount,
         jobNumber: jobNumber || activeEntry.jobNumber,
         vehicle: vehicle || activeEntry.vehicle,
-        date: correctDate
+        date: correctDate,
+        weekId: correctWeek.id
       }
     })
 
-    // Actualizar totales de la semana
-    const weekTotals = await updateWeekTotals(activeEntry.weekId, userId)
+    // Actualizar totales de la semana anterior si cambió
+    if (weekChanged) {
+      await updateWeekTotals(activeEntry.weekId, userId)
+      // Actualizar resumen mensual de la semana anterior
+      await updateMonthSummary(
+        activeEntry.week.year,
+        activeEntry.week.month,
+        userId
+      )
+    }
+
+    // Actualizar totales de la semana (actual o nueva)
+    const weekTotals = await updateWeekTotals(correctWeek.id, userId)
 
     // Actualizar resumen mensual
     const monthTotals = await updateMonthSummary(
-      activeEntry.week.year,
-      activeEntry.week.month,
+      correctWeek.year,
+      correctWeek.month,
       userId
     )
 

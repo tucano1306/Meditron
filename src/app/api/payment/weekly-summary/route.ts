@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getWeekNumberFromUTCDate, getWeekStartEndFromWeekNumber, getFloridaDate } from '@/lib/utils'
+import { getWeekNumberFromUTCDate, getWeekStartEndFromWeekNumber, getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,12 +15,12 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
-    // Usar hora de Florida para el cálculo
-    const now = getFloridaDate()
+    // Usar timestamp real con componentes de Florida (evitar doble conversión)
+    const realNow = new Date()
+    const floridaComponents = getFloridaDateComponents(realNow)
 
     // Obtener entradas de los últimos 60 días
-    const sixtyDaysAgo = new Date(now)
-    sixtyDaysAgo.setDate(now.getDate() - 60)
+    const sixtyDaysAgo = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day - 60))
 
     const entries = await prisma.paymentEntry.findMany({
       where: {

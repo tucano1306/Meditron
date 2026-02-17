@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { HOURLY_RATE, getWeekStartEnd, getWeekNumber, getFloridaDate, getFloridaDateComponents } from '@/lib/utils'
+import { HOURLY_RATE, getWeekStartEnd, getWeekNumber, getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,12 +17,14 @@ export async function GET() {
     const userId = authResult.user.id
     const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
     
-    // Usar hora de Florida
-    const now = getFloridaDate()
-    const year = now.getFullYear()
-    const month = now.getMonth() + 1
-    const { start: weekStart, end: weekEnd } = getWeekStartEnd(now)
-    const weekNumber = getWeekNumber(now)
+    // Usar timestamp real y calcular componentes de Florida directamente
+    // IMPORTANTE: No usar getFloridaDate() + getWeekNumber() porque causa doble conversión
+    const realNow = new Date()
+    const floridaComponents = getFloridaDateComponents(realNow)
+    const year = floridaComponents.year
+    const month = floridaComponents.month
+    const { start: weekStart, end: weekEnd } = getWeekStartEnd(realNow)
+    const weekNumber = getWeekNumber(realNow)
 
     // Timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -61,9 +63,9 @@ export async function GET() {
       }
     })
 
-    // Entradas de hoy - usar fecha local sin conversión UTC
-    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const tomorrowLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    // Entradas de hoy - usar componentes de Florida para UTC midnight
+    const todayLocal = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
+    const tomorrowLocal = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day + 1))
 
     const todayEntries = await prisma.timeEntry.findMany({
       where: {
@@ -95,8 +97,7 @@ export async function GET() {
     }
 
     if (activeEntry) {
-      // Usar timestamp real para calcular elapsed time (no getFloridaDate)
-      const realNow = new Date()
+      // Usar timestamp real para calcular elapsed time
       timerState = {
         isRunning: true,
         startTime: activeEntry.startTime.toISOString(),
@@ -107,8 +108,7 @@ export async function GET() {
       }
     }
 
-    // Obtener componentes de fecha en Florida para el response
-    const floridaComponents = getFloridaDateComponents(new Date())
+    // Componentes de fecha en Florida ya calculados arriba
     const todayDateString = `${floridaComponents.year}-${String(floridaComponents.month).padStart(2, '0')}-${String(floridaComponents.day).padStart(2, '0')}`
 
     return NextResponse.json({

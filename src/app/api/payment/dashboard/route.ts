@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getFloridaDate, getFloridaDateComponents } from '@/lib/utils'
+import { getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,9 +15,9 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
-    // Usar hora de Florida para determinar "hoy" y "mes"
-    const floridaNow = getFloridaDate()
-    const floridaComponents = getFloridaDateComponents(new Date())
+    // Usar timestamp real con componentes de Florida (evitar doble conversión con getFloridaDate)
+    const realNow = new Date()
+    const floridaComponents = getFloridaDateComponents(realNow)
 
     // Trabajo activo
     const activeEntry = await prisma.paymentEntry.findFirst({
@@ -27,15 +27,15 @@ export async function GET() {
       }
     })
 
-    // Entradas de hoy (usando hora de Florida para determinar el día)
-    const todayStart = new Date(floridaNow.getFullYear(), floridaNow.getMonth(), floridaNow.getDate(), 0, 0, 0, 0)
-    const todayEnd = new Date(floridaNow.getFullYear(), floridaNow.getMonth(), floridaNow.getDate(), 23, 59, 59, 999)
+    // Entradas de hoy (usando componentes de Florida para UTC midnight)
+    const todayStart = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
+    const todayEnd = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day + 1))
 
     const todayEntries = await prisma.paymentEntry.findMany({
       where: {
         date: {
           gte: todayStart,
-          lte: todayEnd
+          lt: todayEnd
         },
         userId,
         completed: true
@@ -61,8 +61,7 @@ export async function GET() {
       : 0
 
     // Historial reciente (últimos 30 días)
-    const thirtyDaysAgo = new Date(floridaNow)
-    thirtyDaysAgo.setDate(floridaNow.getDate() - 30)
+    const thirtyDaysAgo = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day - 30))
 
     const recentEntries = await prisma.paymentEntry.findMany({
       where: {
@@ -79,7 +78,7 @@ export async function GET() {
     })
 
     // Estadísticas del mes
-    const monthStart = new Date(floridaNow.getFullYear(), floridaNow.getMonth(), 1)
+    const monthStart = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, 1))
     const monthEntries = await prisma.paymentEntry.findMany({
       where: {
         userId,
@@ -112,8 +111,7 @@ export async function GET() {
     }
 
     if (activeEntry) {
-      // Usar timestamp real para calcular elapsed time (no getFloridaDate)
-      const realNow = new Date()
+      // Usar timestamp real para calcular elapsed time
       timerState = {
         isRunning: true,
         startTime: activeEntry.startTime.toISOString(),
@@ -138,8 +136,8 @@ export async function GET() {
           jobCount: todayStats.count
         },
         month: {
-          year: floridaNow.getFullYear(),
-          month: floridaNow.getMonth() + 1,
+          year: floridaComponents.year,
+          month: floridaComponents.month,
           totalSeconds: monthStats.totalDuration,
           totalHours: monthStats.totalDuration / 3600,
           totalAmount: monthStats.totalAmount,

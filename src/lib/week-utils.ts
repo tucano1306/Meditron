@@ -1,11 +1,14 @@
 import { prisma } from './prisma'
-import { getWeekNumber, getWeekStartEnd, HOURLY_RATE } from './utils'
+import { getWeekNumber, getWeekStartEnd, getFloridaDateComponents, HOURLY_RATE } from './utils'
 
 export async function getOrCreateWeek(date: Date, userId: string) {
   const { start, end } = getWeekStartEnd(date)
   const weekNumber = getWeekNumber(date)
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
+  
+  // Usar componentes de Florida para año y mes (consistente con getWeekNumber)
+  const floridaComponents = getFloridaDateComponents(date)
+  const year = floridaComponents.year
+  const month = floridaComponents.month
 
   // First, verify the user exists
   const userExists = await prisma.user.findUnique({
