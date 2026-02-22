@@ -280,29 +280,30 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderJobNumberSection = () => {
     if (!isRunning) return null
     return (
-      <div className="bg-gradient-to-r from-gray-50 to-emerald-50/30 rounded-2xl p-4 border border-emerald-100">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-gray-50 to-emerald-50/30 rounded-2xl p-3 sm:p-4 border border-emerald-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2 text-gray-600">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
               <Hash className="h-4 w-4 text-emerald-600" />
             </div>
             <span className="text-sm font-semibold">Trabajo #</span>
           </div>
           {isEditingJobNumber ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <input
                 type="text"
                 value={jobNumberInput}
                 onChange={(e) => setJobNumberInput(e.target.value)}
                 placeholder="Ej: 12345"
-                className="w-28 px-3 py-2 text-lg font-mono font-bold rounded-xl border-2 border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-center"
+                className="flex-1 sm:w-28 sm:flex-none px-3 py-2 text-lg font-mono font-bold rounded-xl border-2 border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-center"
+                style={{ fontSize: '16px' }}
                 autoFocus
               />
-              <Button size="sm" onClick={handleSaveJobNumber} className="h-9 px-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl">OK</Button>
-              <Button size="sm" variant="ghost" onClick={handleCancelEditJobNumber} className="h-9 px-2">✕</Button>
+              <Button size="sm" onClick={handleSaveJobNumber} className="h-9 px-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl flex-shrink-0">OK</Button>
+              <Button size="sm" variant="ghost" onClick={handleCancelEditJobNumber} className="h-9 px-2 flex-shrink-0">✕</Button>
             </div>
           ) : (
-            <button onClick={handleEditJobNumber} className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-all">
+            <button onClick={handleEditJobNumber} className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-all w-full sm:w-auto justify-center sm:justify-start">
               <span className={jobNumber ? "font-mono text-xl font-black text-emerald-700" : "text-gray-400 text-sm"}>
                 {jobNumber || 'Toca para asignar'}
               </span>
@@ -317,19 +318,19 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderVehicleSection = () => {
     if (!isRunning) return null
     return (
-      <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-4 border border-blue-100">
+      <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-3 sm:p-4 border border-blue-100">
         <div className="flex items-center gap-2 text-gray-600 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
             <Bus className="h-4 w-4 text-blue-600" />
           </div>
           <span className="text-sm font-semibold">Vehículo</span>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           {VEHICLE_OPTIONS.map((option) => (
             <button
               key={option.value}
               onClick={() => handleSelectVehicle(option.value)}
-              className={`px-2 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              className={`px-1.5 sm:px-2 py-2.5 rounded-xl text-[11px] sm:text-sm font-semibold transition-all truncate ${
                 vehicleType === option.value
                   ? 'bg-blue-600 text-white shadow-md scale-[1.02]'
                   : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50'

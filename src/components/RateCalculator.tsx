@@ -160,16 +160,16 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
 
           {/* Resultado automático */}
           {result && (
-            <div className="p-4 bg-white rounded-lg border border-purple-200 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-purple-500" />
-                  <span className="text-gray-600">{result.totalHours.toFixed(2)} hrs</span>
+            <div className="p-3 sm:p-4 bg-white rounded-lg border border-purple-200 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500 flex-shrink-0" />
+                  <span className="text-sm sm:text-base text-gray-600 truncate">{result.totalHours.toFixed(2)} hrs</span>
                 </div>
-                <ArrowRight className="h-4 w-4 text-gray-400" />
-                <div className="flex items-center gap-2 bg-gradient-to-br from-green-50 to-emerald-50 px-4 py-2 rounded-lg border border-green-200">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                  <span className="text-xl font-bold text-green-700">
+                <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-br from-green-50 to-emerald-50 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg border border-green-200">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
+                  <span className="text-lg sm:text-xl font-bold text-green-700">
                     ${result.paymentAmount.toFixed(2)}
                   </span>
                 </div>

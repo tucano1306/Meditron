@@ -185,28 +185,31 @@ export function PaymentEntryList({
                 <div className="flex-1 min-w-0">
                   {editingId === entry.id ? (
                     <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 sm:gap-2">
                         <input
                           type="time"
                           value={editStartTime}
                           onChange={(e) => setEditStartTime(e.target.value)}
-                          className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
+                          className="px-1.5 sm:px-2 py-1.5 text-sm border rounded flex-1 min-w-0 sm:w-24 sm:flex-none"
+                          style={{ fontSize: '16px' }}
                         />
-                        <span className="text-gray-400">→</span>
+                        <span className="text-gray-400 text-xs flex-shrink-0">→</span>
                         <input
                           type="time"
                           value={editEndTime}
                           onChange={(e) => setEditEndTime(e.target.value)}
-                          className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
+                          className="px-1.5 sm:px-2 py-1.5 text-sm border rounded flex-1 min-w-0 sm:w-24 sm:flex-none"
+                          style={{ fontSize: '16px' }}
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">$</span>
+                        <span className="text-sm text-gray-500 flex-shrink-0">$</span>
                         <input
                           type="number"
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
-                          className="px-2 py-1 text-sm border rounded w-20 sm:w-24"
+                          className="px-1.5 sm:px-2 py-1.5 text-sm border rounded w-full sm:w-24"
+                          style={{ fontSize: '16px' }}
                           step="0.01"
                           min="0"
                         />

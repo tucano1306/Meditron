@@ -297,28 +297,29 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
           {/* Job Number - Solo visible cuando está corriendo */}
           {isRunning && (
-            <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-4 border border-blue-100">
-              <div className="flex items-center justify-between">
+            <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-3 sm:p-4 border border-blue-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-2 text-gray-600">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                     <Hash className="h-4 w-4 text-blue-600" />
                   </div>
                   <span className="text-sm font-semibold">Trabajo #</span>
                 </div>
                 {isEditingJobNumber ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <input
                       type="text"
                       value={jobNumberInput}
                       onChange={(e) => setJobNumberInput(e.target.value)}
                       placeholder="Ej: 12345"
-                      className="w-28 px-3 py-2 text-lg font-mono font-bold rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-center"
+                      className="flex-1 sm:w-28 sm:flex-none px-3 py-2 text-lg font-mono font-bold rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-center"
+                      style={{ fontSize: '16px' }}
                       autoFocus
                     />
                     <Button
                       size="sm"
                       onClick={handleSaveJobNumber}
-                      className="h-9 px-3 bg-blue-500 hover:bg-blue-600 rounded-xl"
+                      className="h-9 px-3 bg-blue-500 hover:bg-blue-600 rounded-xl flex-shrink-0"
                     >
                       OK
                     </Button>
@@ -326,7 +327,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                       size="sm"
                       variant="ghost"
                       onClick={handleCancelEditJobNumber}
-                      className="h-9 px-2"
+                      className="h-9 px-2 flex-shrink-0"
                     >
                       ✕
                     </Button>
@@ -334,7 +335,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 ) : (
                   <button
                     onClick={handleEditJobNumber}
-                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all w-full sm:w-auto justify-center sm:justify-start"
                   >
                     {jobNumber ? (
                       <span className="font-mono text-xl font-black text-blue-700">{jobNumber}</span>
@@ -350,28 +351,28 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
           {/* Vehicle Type Dropdown - Solo visible cuando está corriendo */}
           {isRunning && (
-            <div className="bg-gradient-to-r from-gray-50 to-indigo-50/30 rounded-2xl p-4 border border-indigo-100">
-              <div className="flex items-center justify-between">
+            <div className="bg-gradient-to-r from-gray-50 to-indigo-50/30 rounded-2xl p-3 sm:p-4 border border-indigo-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-2 text-gray-600">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
                     <Bus className="h-4 w-4 text-indigo-600" />
                   </div>
                   <span className="text-sm font-semibold">Vehículo</span>
                 </div>
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                   <button
                     onClick={() => setIsSelectingVehicle(!isSelectingVehicle)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 transition-all min-w-[140px] justify-between"
+                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 transition-all w-full sm:w-auto sm:min-w-[140px] justify-between"
                   >
                     {vehicleType ? (
                       <span className="font-semibold text-indigo-700">{getVehicleLabel(vehicleType)}</span>
                     ) : (
                       <span className="text-gray-400 text-sm">Seleccionar</span>
                     )}
-                    <ChevronDown className={`h-4 w-4 text-indigo-500 transition-transform ${isSelectingVehicle ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-4 w-4 text-indigo-500 transition-transform flex-shrink-0 ${isSelectingVehicle ? 'rotate-180' : ''}`} />
                   </button>
                   {isSelectingVehicle && (
-                    <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-indigo-100 overflow-hidden z-10 min-w-[160px]">
+                    <div className="absolute left-0 right-0 sm:left-auto sm:right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-indigo-100 overflow-hidden z-10 sm:min-w-[160px]">
                       {vehicleOptions.map((option) => (
                         <button
                           key={option.value}
@@ -465,8 +466,12 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
       {/* Amount Modal */}
       {showAmountModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
+            {/* Drag handle - solo móvil */}
+            <div className="sm:hidden flex justify-center -mt-2 mb-3">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">
               Ingresa el Monto
             </h3>
@@ -490,6 +495,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
                 className="w-full pl-12 pr-4 py-4 text-2xl text-center rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none font-mono"
+                style={{ fontSize: '24px' }}
                 autoFocus
               />
             </div>
@@ -517,6 +523,8 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 {isLoading ? 'Guardando...' : 'Confirmar'}
               </Button>
             </div>
+            {/* Safe area padding for iOS */}
+            <div className="sm:hidden pb-safe" />
           </div>
         </div>
       )}

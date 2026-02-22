@@ -281,12 +281,13 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                 )}
                 {editingId === entry.id ? (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="date"
                       value={editDate}
                       onChange={(e) => setEditDate(e.target.value)}
-                      className="px-2 py-1 text-sm border rounded w-full sm:w-36"
+                      className="px-2 py-1.5 text-sm border rounded w-full sm:w-36"
+                      style={{ fontSize: '16px' }}
                     />
                     <div className="flex items-center gap-1 sm:gap-2">
                       <input
@@ -300,9 +301,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           if (val.length === 2 && !val.includes(':')) val += ':'
                           if (val.length <= 5) setEditStartTime(val)
                         }}
-                        className="px-1 sm:px-2 py-1 text-xs sm:text-sm border rounded w-14 sm:w-20 text-center"
+                        className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
+                        style={{ fontSize: '16px' }}
                       />
-                      <span className="text-gray-400 text-xs">-</span>
+                      <span className="text-gray-400 text-xs flex-shrink-0">-</span>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -314,7 +316,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           if (val.length === 2 && !val.includes(':')) val += ':'
                           if (val.length <= 5) setEditEndTime(val)
                         }}
-                        className="px-1 sm:px-2 py-1 text-xs sm:text-sm border rounded w-14 sm:w-20 text-center"
+                        className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
+                        style={{ fontSize: '16px' }}
                       />
                     </div>
                   </div>
@@ -346,14 +349,14 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       </div>
                       {/* Mostrar info del trabajo si existe */}
                       {(entry.jobNumber || entry.vehicle) && (
-                        <div className="flex items-center gap-1 mt-1 pt-1 border-t border-gray-200">
+                        <div className="flex items-center gap-1 mt-1 pt-1 border-t border-gray-200 flex-wrap">
                           {entry.jobNumber && (
-                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[80px] sm:max-w-none">
+                            <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[70px] sm:max-w-none">
                               #{entry.jobNumber}
                             </span>
                           )}
                           {entry.vehicle && (
-                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-slate-500 to-gray-600 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm">
+                            <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-slate-500 to-gray-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm">
                               🚗 {entry.vehicle}
                             </span>
                           )}
@@ -364,7 +367,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                                 const diff = entry.paidAmount - calculated
                                 const isPositive = diff >= 0
                                 return (
-                                  <span className={`text-xs font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  <span className={`text-[10px] sm:text-xs font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                                     {isPositive ? '😊' : '😢'} {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
                                   </span>
                                 )
@@ -491,7 +494,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   >
                     
                     {/* Trabajo + Vehículo */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label htmlFor="jobNumberModal" className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1"># Trabajo</label>
                         <input

@@ -122,31 +122,31 @@ export function WeeklySummary() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {/* Trabajos */}
-                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
-                    <Briefcase className="h-4 w-4 text-blue-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Trabajos</p>
-                      <p className="font-semibold text-sm">{week.totalJobs}</p>
+                  <div className="flex items-center gap-1.5 sm:gap-2 p-2 bg-blue-50 rounded">
+                    <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Trabajos</p>
+                      <p className="font-semibold text-xs sm:text-sm">{week.totalJobs}</p>
                     </div>
                   </div>
 
                   {/* Horas */}
-                  <div className="flex items-center gap-2 p-2 bg-purple-50 rounded">
-                    <Clock className="h-4 w-4 text-purple-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Horas</p>
-                      <p className="font-semibold text-sm">{week.totalHours.toFixed(2)}</p>
+                  <div className="flex items-center gap-1.5 sm:gap-2 p-2 bg-purple-50 rounded">
+                    <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Horas</p>
+                      <p className="font-semibold text-xs sm:text-sm">{week.totalHours.toFixed(2)}</p>
                     </div>
                   </div>
 
                   {/* Monto Calculado */}
-                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Calculado</p>
-                      <p className="font-semibold text-sm">{formatCurrency(week.calculatedAmount)}</p>
+                  <div className="flex items-center gap-1.5 sm:gap-2 p-2 bg-green-50 rounded">
+                    <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Calculado</p>
+                      <p className="font-semibold text-xs sm:text-sm">{formatCurrency(week.calculatedAmount)}</p>
                     </div>
                   </div>
                 </div>

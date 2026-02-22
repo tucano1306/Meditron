@@ -144,7 +144,7 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
             Pago Recibido
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg font-semibold">
+            <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg font-semibold">
               $
             </span>
             <input
@@ -154,24 +154,25 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
               placeholder="0.00"
               min="0"
               step="0.01"
-              className="w-full pl-10 pr-4 py-3 border rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 sm:pl-10 pr-4 py-3 border rounded-xl text-base sm:text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ fontSize: '16px' }}
             />
           </div>
         </div>
 
         {/* Result */}
         {result.isValid && (
-          <div className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-100">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-4 sm:p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-100">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="flex items-center gap-2 text-green-600">
-                <TrendingUp className="h-5 w-5" />
-                <span className="font-medium">Tu Tarifa por Hora</span>
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="font-medium text-sm sm:text-base">Tu Tarifa por Hora</span>
               </div>
             </div>
             <div className="text-center">
-              <div className="text-5xl font-bold text-green-600 mb-2">
+              <div className="text-4xl sm:text-5xl font-bold text-green-600 mb-2">
                 {formatCurrency(result.hourlyRate)}
-                <span className="text-xl text-green-500">/h</span>
+                <span className="text-lg sm:text-xl text-green-500">/h</span>
               </div>
               <div className="text-sm text-gray-500">
                 {result.totalHours.toFixed(2)} horas → {formatCurrency(result.payment)}

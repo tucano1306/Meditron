@@ -128,9 +128,50 @@ input[type="number"] {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
 
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 /* Modal responsive height on mobile */
 @supports (max-height: 100dvh) {
   .max-h-screen-dynamic {
     max-height: 100dvh;
   }
+}
+
+/* Prevent iOS input zoom - ensure inputs are at least 16px */
+@media screen and (max-width: 640px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="time"],
+  input[type="tel"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Ensure touch targets are at least 44px on mobile */
+@media screen and (max-width: 640px) {
+  button,
+  [role="button"],
+  a {
+    min-height: 36px;
+  }
+}
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Fix for mobile modal backdrop scrolling */
+.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
 }

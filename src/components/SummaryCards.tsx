@@ -184,12 +184,13 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
           {isEditingRate ? (
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <span className="text-orange-600 font-black text-lg">$</span>
+                <span className="text-orange-600 font-black text-lg flex-shrink-0">$</span>
                 <input
                   type="number"
                   value={tempRate}
                   onChange={(e) => setTempRate(e.target.value)}
-                  className="w-16 sm:w-20 px-2 py-1 text-xl font-black text-orange-600 border-2 border-orange-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50"
+                  className="w-full max-w-[80px] px-2 py-1 text-lg sm:text-xl font-black text-orange-600 border-2 border-orange-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50"
+                  style={{ fontSize: '16px' }}
                   step="0.01"
                   min="0"
                   autoFocus
