@@ -281,7 +281,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                 )}
                 {editingId === entry.id ? (
-                  <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                  {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+                  <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <input
                       type="date"
                       value={editDate}
