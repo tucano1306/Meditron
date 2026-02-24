@@ -129,6 +129,15 @@ export function getWeekNumber(date: Date): number {
  * NO convierte a Florida porque la fecha ya representa el día correcto en UTC.
  */
 export function getWeekNumberFromUTCDate(date: Date): number {
+  return getISOWeekAndYearFromUTCDate(date).weekNumber
+}
+
+/**
+ * Calcula el número de semana ISO Y el año ISO para una fecha UTC midnight.
+ * El año ISO puede diferir del calendario (ej: Dic 31 puede ser semana 1 del año siguiente).
+ * Esta función es SEGURA para usar en cualquier timezone de servidor.
+ */
+export function getISOWeekAndYearFromUTCDate(date: Date): { weekNumber: number; isoYear: number } {
   // Usar los componentes UTC directamente (la fecha ya está en UTC midnight del día correcto)
   const year = date.getUTCFullYear()
   const month = date.getUTCMonth()
@@ -158,7 +167,19 @@ export function getWeekNumberFromUTCDate(date: Date): number {
   // Calcular el número de semana
   const weekNum = Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000) + 1
   
-  return weekNum
+  return { weekNumber: weekNum, isoYear }
+}
+
+/**
+ * Obtiene el número de semana ISO y el año ISO para cualquier timestamp.
+ * Primero convierte a zona horaria de Florida, luego calcula la semana.
+ * SEGURO para usar con cualquier timezone de servidor.
+ */
+export function getISOWeekAndYear(date: Date): { weekNumber: number; isoYear: number } {
+  const florida = getFloridaDateComponents(date)
+  // Crear UTC midnight del día de Florida para cálculo seguro
+  const floridaAsUTC = new Date(Date.UTC(florida.year, florida.month - 1, florida.day))
+  return getISOWeekAndYearFromUTCDate(floridaAsUTC)
 }
 
 export function getWeekStartEnd(date: Date): { start: Date; end: Date } {

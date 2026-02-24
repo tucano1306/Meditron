@@ -256,6 +256,10 @@ async function handleFullEntryEdit(id: string, userId: string, body: { startTime
   const hours = duration / 3600
   const hourlyRate = hours > 0 ? Number(amount) / hours : 0
 
+  // Recalcular la fecha basada en la hora de fin en Florida
+  const floridaEndComponents = getFloridaDateComponents(newEnd)
+  const correctDate = new Date(Date.UTC(floridaEndComponents.year, floridaEndComponents.month - 1, floridaEndComponents.day))
+
   const updatedEntry = await prisma.paymentEntry.update({
     where: { id },
     data: {
@@ -264,6 +268,7 @@ async function handleFullEntryEdit(id: string, userId: string, body: { startTime
       duration,
       amount: Number(amount),
       hourlyRate,
+      date: correctDate,
       jobNumber: jobNumber ?? entry.jobNumber
     }
   })

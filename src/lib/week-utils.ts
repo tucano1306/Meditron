@@ -1,14 +1,39 @@
 import { prisma } from './prisma'
-import { getWeekNumber, getWeekStartEnd, getFloridaDateComponents, HOURLY_RATE } from './utils'
+import { getISOWeekAndYear, getISOWeekAndYearFromUTCDate, getWeekStartEndFromWeekNumber, getFloridaDateComponents, HOURLY_RATE } from './utils'
 
+/**
+ * Obtiene o crea una semana a partir de un TIMESTAMP real (UTC).
+ * Convierte a Florida timezone para determinar el día y la semana.
+ * Usar para: timer start/stop, cualquier operación con hora real.
+ */
 export async function getOrCreateWeek(date: Date, userId: string) {
-  const { start, end } = getWeekStartEnd(date)
-  const weekNumber = getWeekNumber(date)
-  
-  // Usar componentes de Florida para año y mes (consistente con getWeekNumber)
   const floridaComponents = getFloridaDateComponents(date)
-  const year = floridaComponents.year
+  const { weekNumber, isoYear } = getISOWeekAndYear(date)
+  
+  const year = isoYear
   const month = floridaComponents.month
+  
+  return _findOrCreateWeek(weekNumber, year, month, userId)
+}
+
+/**
+ * Obtiene o crea una semana a partir de una FECHA CALENDARIO (año, mes, día).
+ * NO hace conversión de timezone - los valores ya representan el día correcto.
+ * Usar para: entradas manuales, fechas seleccionadas por el usuario.
+ */
+export async function getOrCreateWeekFromCalendarDate(calYear: number, calMonth: number, calDay: number, userId: string) {
+  const dateAsUTC = new Date(Date.UTC(calYear, calMonth - 1, calDay))
+  const { weekNumber, isoYear } = getISOWeekAndYearFromUTCDate(dateAsUTC)
+  
+  return _findOrCreateWeek(weekNumber, isoYear, calMonth, userId)
+}
+
+async function _findOrCreateWeek(weekNumber: number, year: number, month: number, userId: string) {
+  // Calcular rangos de la semana de forma consistente
+  const { start, end } = getWeekStartEndFromWeekNumber(weekNumber, year)
+  // Convertir a UTC midnight para almacenamiento @db.Date
+  const startDate = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()))
+  const endDate = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()))
 
   // First, verify the user exists
   const userExists = await prisma.user.findUnique({
@@ -41,8 +66,8 @@ export async function getOrCreateWeek(date: Date, userId: string) {
       weekNumber,
       year,
       month,
-      startDate: start,
-      endDate: end,
+      startDate: startDate,
+      endDate: endDate,
       totalHours: 0,
       earnings: 0,
       userId

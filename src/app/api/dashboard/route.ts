@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { HOURLY_RATE, getWeekStartEnd, getWeekNumber, getFloridaDateComponents } from '@/lib/utils'
+import { HOURLY_RATE, getWeekStartEnd, getISOWeekAndYear, getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -24,7 +24,7 @@ export async function GET() {
     const year = floridaComponents.year
     const month = floridaComponents.month
     const { start: weekStart, end: weekEnd } = getWeekStartEnd(realNow)
-    const weekNumber = getWeekNumber(realNow)
+    const { weekNumber } = getISOWeekAndYear(realNow)
 
     // Timer activo
     const activeEntry = await prisma.timeEntry.findFirst({

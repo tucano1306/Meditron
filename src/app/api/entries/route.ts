@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
+import { getOrCreateWeek, getOrCreateWeekFromCalendarDate, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
 import { getFloridaDateComponents } from '@/lib/utils'
 
 export const runtime = 'nodejs'
@@ -132,24 +132,35 @@ export async function POST(request: NextRequest) {
 
     const totalSeconds = (Number(hours) * 3600) + (Number(minutes) * 60)
     
-    // Si se proporciona una fecha, usarla; si no, usar hoy
+    // Si se proporciona una fecha, usarla; si no, usar hoy en Florida
     let targetDate: Date
+    let targetYear: number
+    let targetMonth: number
+    let targetDay: number
     if (date) {
       // Parsear la fecha en formato YYYY-MM-DD
-      const [year, month, day] = date.split('-').map(Number)
-      targetDate = new Date(year, month - 1, day)
+      const [y, m, d] = date.split('-').map(Number)
+      targetYear = y
+      targetMonth = m
+      targetDay = d
     } else {
-      const now = new Date()
-      targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      // Usar fecha actual en Florida (no la del servidor)
+      const floridaNow = getFloridaDateComponents(new Date())
+      targetYear = floridaNow.year
+      targetMonth = floridaNow.month
+      targetDay = floridaNow.day
     }
+    // Crear fecha como UTC midnight para almacenamiento @db.Date correcto
+    targetDate = new Date(Date.UTC(targetYear, targetMonth - 1, targetDay))
     
     // Crear tiempos de inicio y fin para la fecha seleccionada
     // Ponemos el fin a las 18:00 de ese día y el inicio según la duración
-    const endTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 18, 0, 0)
+    const endTime = new Date(Date.UTC(targetYear, targetMonth - 1, targetDay, 18, 0, 0))
     const startTime = new Date(endTime.getTime() - totalSeconds * 1000)
 
-    // Obtener o crear semana
-    const week = await getOrCreateWeek(targetDate, userId)
+    // Obtener o crear semana usando fecha calendario directamente
+    // (NO convertir a Florida porque la fecha ya es la que el usuario seleccionó)
+    const week = await getOrCreateWeekFromCalendarDate(targetYear, targetMonth, targetDay, userId)
 
     // Crear la entrada
     const entry = await prisma.timeEntry.create({
@@ -165,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     // Actualizar totales
     await updateWeekTotals(week.id, userId)
-    await updateMonthSummary(targetDate.getFullYear(), targetDate.getMonth() + 1, userId)
+    await updateMonthSummary(targetYear, targetMonth, userId)
 
     return NextResponse.json({
       success: true,
@@ -248,9 +259,11 @@ export async function PATCH(request: NextRequest) {
 
     // Usar zona horaria de Florida para determinar la fecha
     const floridaComponents = getFloridaDateComponents(newStart)
-    const entryDate = new Date(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day)
+    // Crear fecha como UTC midnight para almacenamiento @db.Date correcto
+    const entryDate = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
     
-    const newWeek = await getOrCreateWeek(entryDate, userId)
+    // getOrCreateWeek ahora maneja correctamente fechas UTC midnight
+    const newWeek = await getOrCreateWeek(newStart, userId)
     const oldWeekId = entry.weekId
 
     const updatedEntry = await prisma.timeEntry.update({
@@ -270,7 +283,7 @@ export async function PATCH(request: NextRequest) {
       await updateWeekTotals(oldWeekId, userId)
     }
     await updateWeekTotals(newWeek.id, userId)
-    await updateMonthSummary(newStart.getFullYear(), newStart.getMonth() + 1, userId)
+    await updateMonthSummary(floridaComponents.year, floridaComponents.month, userId)
 
     return NextResponse.json({ success: true, data: updatedEntry })
   } catch (error) {
