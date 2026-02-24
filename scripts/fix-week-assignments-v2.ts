@@ -138,6 +138,10 @@ async function fixMisassignedEntries() {
   }
 }
 
-fixMisassignedEntries()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect())
+try {
+  await fixMisassignedEntries()
+} catch (err) {
+  console.error(err)
+} finally {
+  await prisma.$disconnect()
+}
