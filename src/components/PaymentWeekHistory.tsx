@@ -357,7 +357,7 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
             variant="outline"
             size="sm"
             onClick={handlePrintPDF}
-            className="flex items-center gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+            className="flex items-center gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 touch-manipulation"
           >
             <Printer className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
@@ -538,7 +538,7 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
               size="sm"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Anterior</span>
@@ -551,7 +551,7 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
               size="sm"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <span className="hidden sm:inline">Siguiente</span>
               <ChevronRight className="h-4 w-4" />

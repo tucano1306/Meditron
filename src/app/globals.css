@@ -132,10 +132,22 @@ input[type="number"] {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* Safe area margins */
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Modal responsive height on mobile */
 @supports (max-height: 100dvh) {
   .max-h-screen-dynamic {
     max-height: 100dvh;
+  }
+}
+
+/* Use dvh for full height containers */
+@supports (min-height: 100dvh) {
+  .min-h-screen-dynamic {
+    min-height: 100dvh;
   }
 }
 
@@ -174,4 +186,57 @@ html, body {
   overflow: hidden;
   position: fixed;
   width: 100%;
+}
+
+/* Mobile bottom sheet modal animation */
+@keyframes slide-up-modal {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-modal {
+  animation: slide-up-modal 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.animate-fade-in-backdrop {
+  animation: fade-in-backdrop 0.2s ease-out forwards;
+}
+
+/* Better tap highlight for mobile */
+@media screen and (max-width: 640px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button, [role="button"], a, input, select, textarea {
+    touch-action: manipulation;
+  }
+}
+
+/* Ensure proper box-sizing for all elements */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Fix for iOS overscroll bounce on modals */
+.modal-scroll-lock {
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
 }

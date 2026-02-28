@@ -173,7 +173,7 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
                   setTempRate(hourlyRate.toString())
                   setIsEditingRate(true)
                 }}
-                className="ml-auto p-1 text-gray-400 hover:text-orange-500 transition-colors hover:bg-orange-50 rounded-lg"
+                className="ml-auto p-1.5 text-gray-400 hover:text-orange-500 transition-colors hover:bg-orange-50 rounded-lg touch-manipulation"
               >
                 <Pencil className="h-3 w-3" />
               </button>
@@ -201,7 +201,7 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
                   size="sm"
                   onClick={handleSaveRate}
                   disabled={isSaving}
-                  className="flex-1 h-8 text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl"
+                  className="flex-1 h-8 text-xs bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl touch-manipulation active:scale-[0.96]"
                 >
                   <Check className="h-3 w-3" />
                 </Button>
@@ -212,7 +212,7 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
                     setIsEditingRate(false)
                     setTempRate(hourlyRate.toString())
                   }}
-                  className="flex-1 h-8 text-xs text-gray-500 hover:bg-gray-100 rounded-xl"
+                  className="flex-1 h-8 text-xs text-gray-500 hover:bg-gray-100 rounded-xl touch-manipulation"
                 >
                   <X className="h-3 w-3" />
                 </Button>

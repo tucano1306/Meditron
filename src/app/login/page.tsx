@@ -50,17 +50,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 flex items-center justify-center p-4 pb-20">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-emerald-50 via-white to-blue-50 flex items-center justify-center px-4 py-6 sm:p-4 pb-safe">
       <div className="w-full max-w-md">
         {/* Logo y título */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg shadow-emerald-200 mb-4">
-            <Clock className="w-8 h-8 text-white" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg shadow-emerald-200 mb-3 sm:mb-4">
+            <Clock className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
             Meditron
           </h1>
-          <p className="text-gray-500 mt-1">Control de Tiempo y Pagos</p>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">Control de Tiempo y Pagos</p>
         </div>
 
         <Card className="border-0 shadow-xl shadow-gray-200/50">
@@ -132,7 +132,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-medium text-lg shadow-lg shadow-emerald-200 transition-all"
+                className="w-full py-5 sm:py-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-medium text-base sm:text-lg shadow-lg shadow-emerald-200 transition-all active:scale-[0.98] touch-manipulation"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">

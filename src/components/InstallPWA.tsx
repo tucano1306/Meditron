@@ -80,8 +80,8 @@ export function InstallPWA() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-50 animate-slide-up">
-      <div className="max-w-md mx-auto flex items-center gap-4">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 pb-safe z-50 animate-slide-up">
+      <div className="max-w-md mx-auto flex items-center gap-3 sm:gap-4">
         <div className="flex-shrink-0">
           <Image 
             src="/logo.png" 
@@ -110,7 +110,7 @@ export function InstallPWA() {
             <Button
               onClick={handleInstallClick}
               size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white touch-manipulation active:scale-[0.98]"
             >
               <Download className="h-4 w-4 mr-1" />
               Instalar
@@ -118,7 +118,7 @@ export function InstallPWA() {
           )}
           <button
             onClick={handleDismiss}
-            className="p-1 text-gray-400 hover:text-gray-600"
+            className="p-2 text-gray-400 hover:text-gray-600 touch-manipulation"
             aria-label="Cerrar"
           >
             <X className="h-5 w-5" />

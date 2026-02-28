@@ -87,14 +87,14 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
   return (
     <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-            <Calculator className="h-5 w-5 text-white" />
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+            <Calculator className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
           </div>
           <span>Calculadora de Tarifa</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
+      <CardContent className="space-y-4 sm:space-y-6 pt-4 sm:pt-6">
         {/* Time Input */}
         <div className="space-y-3">
           <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -110,7 +110,8 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
                   onChange={(e) => setHours(e.target.value)}
                   placeholder="0"
                   min="0"
-                  className="w-full px-4 py-3 pr-16 border rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 sm:px-4 py-3 pr-14 sm:pr-16 border rounded-xl text-base sm:text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ fontSize: '16px' }}
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
                   horas
@@ -127,7 +128,8 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
                   placeholder="0"
                   min="0"
                   max="59"
-                  className="w-full px-4 py-3 pr-14 border rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 sm:px-4 py-3 pr-12 sm:pr-14 border rounded-xl text-base sm:text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ fontSize: '16px' }}
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
                   min
@@ -199,7 +201,7 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
             <Button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1 bg-green-600 hover:bg-green-700 touch-manipulation active:scale-[0.98]"
             >
               <Save className="h-4 w-4 mr-2" />
               {isSaving ? 'Guardando...' : 'Guardar Registro'}
@@ -214,7 +216,7 @@ export function PaymentCalculator({ onSave }: Readonly<PaymentCalculatorProps>) 
           <Button
             variant="outline"
             onClick={handleReset}
-            className={result.isValid && !saved ? '' : 'flex-1'}
+            className={`touch-manipulation active:scale-[0.98] ${result.isValid && !saved ? '' : 'flex-1'}`}
             disabled={!hours && !minutes && !amount}
           >
             <RotateCcw className="h-4 w-4 mr-2" />

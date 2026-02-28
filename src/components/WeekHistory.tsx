@@ -233,7 +233,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
             variant="outline"
             size="sm"
             onClick={handlePrintPDF}
-            className="flex items-center gap-1.5 text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300"
+            className="flex items-center gap-1.5 text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300 touch-manipulation"
           >
             <Printer className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
@@ -302,7 +302,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
               size="sm"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Anterior</span>
@@ -315,7 +315,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
               size="sm"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <span className="hidden sm:inline">Siguiente</span>
               <ChevronRight className="h-4 w-4" />

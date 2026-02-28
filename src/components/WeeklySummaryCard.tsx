@@ -220,7 +220,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
               size="sm"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="h-8 px-2"
+              className="h-8 px-2 touch-manipulation"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -232,7 +232,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
               size="sm"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="h-8 px-2"
+              className="h-8 px-2 touch-manipulation"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

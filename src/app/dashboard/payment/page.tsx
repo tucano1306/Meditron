@@ -119,26 +119,26 @@ export default function PaymentDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-4xl">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-6 max-w-4xl">
         {/* Header */}
-        <header className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <header className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.push('/mode-select')}
-              className="text-gray-500"
+              className="text-gray-500 h-9 w-9 p-0 touch-manipulation"
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">Por Pago</h1>
-                <p className="text-xs text-gray-500">Calcula tu tarifa por hora</p>
+                <h1 className="text-base sm:text-lg font-bold text-gray-900">Por Pago</h1>
+                <p className="text-[10px] sm:text-xs text-gray-500">Calcula tu tarifa por hora</p>
               </div>
             </div>
           </div>
@@ -159,7 +159,7 @@ export default function PaymentDashboardPage() {
         </header>
 
         {/* Timer */}
-        <section className="mb-6">
+        <section className="mb-4 sm:mb-6">
           <PaymentTimer
             onComplete={handleComplete}
             initialState={data?.timerState}
@@ -168,36 +168,36 @@ export default function PaymentDashboardPage() {
 
         {/* Stats Cards */}
         {data && (
-          <section className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
-            <Card className="border-0 shadow-lg shadow-blue-50">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 text-blue-500 mb-1">
-                  <Briefcase className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="text-[10px] sm:text-xs font-medium">Trabajos Hoy</span>
+          <section className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <Card className="border-0 shadow-lg shadow-blue-50 overflow-hidden">
+              <CardContent className="p-2.5 sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-blue-500 mb-1">
+                  <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="text-[9px] sm:text-xs font-medium truncate">Trabajos Hoy</span>
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-900">{data.today.jobCount}</div>
+                <div className="text-lg sm:text-2xl font-bold text-gray-900">{data.today.jobCount}</div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg shadow-green-50">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 text-green-500 mb-1">
-                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="text-[10px] sm:text-xs font-medium">Ganado Hoy</span>
+            <Card className="border-0 shadow-lg shadow-green-50 overflow-hidden">
+              <CardContent className="p-2.5 sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-green-500 mb-1">
+                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="text-[9px] sm:text-xs font-medium truncate">Ganado Hoy</span>
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                   {formatCurrency(data.today.totalAmount)}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg shadow-purple-50">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 text-purple-500 mb-1">
-                  <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="text-[10px] sm:text-xs font-medium">Horas Hoy</span>
+            <Card className="border-0 shadow-lg shadow-purple-50 overflow-hidden">
+              <CardContent className="p-2.5 sm:p-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-purple-500 mb-1">
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="text-[9px] sm:text-xs font-medium truncate">Horas Hoy</span>
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                <div className="text-lg sm:text-2xl font-bold text-gray-900">
                   {data.today.totalHours.toFixed(1)}h
                 </div>
               </CardContent>
@@ -261,7 +261,7 @@ export default function PaymentDashboardPage() {
         </Tabs>
 
         {/* Footer */}
-        <footer className="text-center mt-6 text-xs text-gray-400 pb-20">
+        <footer className="text-center mt-6 text-xs text-gray-400 pb-24 sm:pb-20">
           <p>Registra trabajos con tiempo y pago para calcular tu tarifa por hora</p>
         </footer>
       </div>

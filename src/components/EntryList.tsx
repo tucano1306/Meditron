@@ -448,7 +448,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           <>
             {/* Overlay */}
             <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] animate-fade-in-backdrop"
               aria-hidden="true"
               onClick={closeJobModal}
             />
@@ -457,7 +457,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center overflow-hidden" onClick={closeJobModal}>
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-[380px] sm:mx-4 bg-white sm:rounded-xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                className="w-full sm:max-w-[380px] sm:mx-4 bg-white sm:rounded-xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-slide-up-modal"
                 onClick={(e) => e.stopPropagation()}
               >
                   
@@ -590,7 +590,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Botones siempre visibles */}
-                  <div className="px-4 py-3 flex gap-3 border-t border-gray-100 bg-white sm:rounded-b-xl">
+                  <div className="px-4 py-3 flex gap-3 border-t border-gray-100 bg-white sm:rounded-b-xl pb-safe">
                     <button
                       onClick={closeJobModal}
                       className="flex-1 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98] touch-manipulation"

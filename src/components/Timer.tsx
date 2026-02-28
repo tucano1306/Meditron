@@ -299,11 +299,11 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                 style={{ fontSize: '16px' }}
                 autoFocus
               />
-              <Button size="sm" onClick={handleSaveJobNumber} className="h-9 px-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl flex-shrink-0">OK</Button>
-              <Button size="sm" variant="ghost" onClick={handleCancelEditJobNumber} className="h-9 px-2 flex-shrink-0">✕</Button>
+              <Button size="sm" onClick={handleSaveJobNumber} className="h-9 px-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl flex-shrink-0 touch-manipulation active:scale-[0.96]">OK</Button>
+              <Button size="sm" variant="ghost" onClick={handleCancelEditJobNumber} className="h-9 px-2 flex-shrink-0 touch-manipulation">✕</Button>
             </div>
           ) : (
-            <button onClick={handleEditJobNumber} className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-all w-full sm:w-auto justify-center sm:justify-start">
+            <button onClick={handleEditJobNumber} className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-all w-full sm:w-auto justify-center sm:justify-start touch-manipulation active:scale-[0.98]">
               <span className={jobNumber ? "font-mono text-xl font-black text-emerald-700" : "text-gray-400 text-sm"}>
                 {jobNumber || 'Toca para asignar'}
               </span>
@@ -330,7 +330,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
             <button
               key={option.value}
               onClick={() => handleSelectVehicle(option.value)}
-              className={`px-1.5 sm:px-2 py-2.5 rounded-xl text-[11px] sm:text-sm font-semibold transition-all truncate ${
+              className={`px-1.5 sm:px-2 py-2.5 rounded-xl text-[11px] sm:text-sm font-semibold transition-all truncate touch-manipulation active:scale-[0.96] ${
                 vehicleType === option.value
                   ? 'bg-blue-600 text-white shadow-md scale-[1.02]'
                   : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
@@ -370,7 +370,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderRateEditor = () => {
     if (!isEditingRate) {
       return (
-        <button onClick={handleStartRateEdit} className="text-xs sm:text-sm text-gray-400 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1 mx-auto">
+        <button onClick={handleStartRateEdit} className="text-xs sm:text-sm text-gray-400 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1 mx-auto touch-manipulation py-1">
           <Settings className="h-3 w-3" />
           Tarifa: ${hourlyRate}/hora
         </button>
@@ -381,8 +381,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         <span className="text-gray-500">$</span>
         <input type="number" value={tempRate} onChange={(e) => setTempRate(e.target.value)} className="w-20 px-2 py-1 text-center border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" step="0.01" min="0" />
         <span className="text-gray-500">/hora</span>
-        <Button size="sm" variant="ghost" onClick={handleSaveRate} className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50">✓</Button>
-        <Button size="sm" variant="ghost" onClick={handleCancelRateEdit} className="text-gray-400 hover:text-gray-600">✕</Button>
+        <Button size="sm" variant="ghost" onClick={handleSaveRate} className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 touch-manipulation">✓</Button>
+        <Button size="sm" variant="ghost" onClick={handleCancelRateEdit} className="text-gray-400 hover:text-gray-600 touch-manipulation">✕</Button>
       </div>
     )
   }

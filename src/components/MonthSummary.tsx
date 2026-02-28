@@ -201,13 +201,14 @@ export function MonthSummary({ refreshTrigger = 0 }: Readonly<MonthSummaryProps>
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         className="w-24 px-2 py-1 text-sm border rounded text-right"
+                        style={{ fontSize: '16px' }}
                         placeholder="0.00"
                         autoFocus
                       />
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 p-0 touch-manipulation"
                         onClick={() => saveCompanyPaid(month)}
                         disabled={isSaving}
                       >
@@ -216,7 +217,7 @@ export function MonthSummary({ refreshTrigger = 0 }: Readonly<MonthSummaryProps>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 p-0 touch-manipulation"
                         onClick={cancelEditing}
                         disabled={isSaving}
                       >
@@ -231,7 +232,7 @@ export function MonthSummary({ refreshTrigger = 0 }: Readonly<MonthSummaryProps>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 p-0 touch-manipulation"
                         onClick={() => startEditing(month)}
                       >
                         <Edit2 className="h-3 w-3 text-gray-400 hover:text-gray-600" />
@@ -265,7 +266,7 @@ export function MonthSummary({ refreshTrigger = 0 }: Readonly<MonthSummaryProps>
               size="sm"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Anterior</span>
@@ -278,7 +279,7 @@ export function MonthSummary({ refreshTrigger = 0 }: Readonly<MonthSummaryProps>
               size="sm"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <span className="hidden sm:inline">Siguiente</span>
               <ChevronRight className="h-4 w-4" />

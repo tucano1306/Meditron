@@ -87,9 +87,9 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
 
   return (
     <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-purple-700 text-lg sm:text-xl">
-          <Calculator className="h-5 w-5" />
+      <CardHeader className="pb-3 sm:pb-4">
+        <CardTitle className="flex items-center gap-2 text-purple-700 text-base sm:text-xl">
+          <Calculator className="h-4 w-4 sm:h-5 sm:w-5" />
           Registrar Horas Trabajadas
         </CardTitle>
         <p className="text-sm text-purple-600 mt-1">
@@ -114,6 +114,7 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
                     onChange={(e) => setHours(e.target.value)}
                     placeholder="0"
                     className="w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
+                    style={{ fontSize: '16px' }}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
                     hrs
@@ -131,6 +132,7 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
                     onChange={(e) => setMinutes(e.target.value)}
                     placeholder="0"
                     className="w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
+                    style={{ fontSize: '16px' }}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
                     min
@@ -154,6 +156,7 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
                 max={getLocalDateString(new Date())}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="w-full pl-9 pr-3 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
+                style={{ fontSize: '16px' }}
               />
             </div>
           </fieldset>
@@ -183,7 +186,7 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex-1 bg-green-600 hover:bg-green-700 py-3 sm:py-2"
+                className="flex-1 bg-green-600 hover:bg-green-700 py-3 sm:py-2 touch-manipulation active:scale-[0.98]"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? 'Guardando...' : 'Guardar Registro'}

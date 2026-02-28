@@ -388,7 +388,7 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
               size="sm"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Anterior</span>
@@ -401,7 +401,7 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
               size="sm"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 touch-manipulation"
             >
               <span className="hidden sm:inline">Siguiente</span>
               <ChevronRight className="h-4 w-4" />

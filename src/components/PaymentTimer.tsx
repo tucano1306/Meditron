@@ -319,7 +319,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                     <Button
                       size="sm"
                       onClick={handleSaveJobNumber}
-                      className="h-9 px-3 bg-blue-500 hover:bg-blue-600 rounded-xl flex-shrink-0"
+                      className="h-9 px-3 bg-blue-500 hover:bg-blue-600 rounded-xl flex-shrink-0 touch-manipulation active:scale-[0.96]"
                     >
                       OK
                     </Button>
@@ -327,7 +327,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                       size="sm"
                       variant="ghost"
                       onClick={handleCancelEditJobNumber}
-                      className="h-9 px-2 flex-shrink-0"
+                      className="h-9 px-2 flex-shrink-0 touch-manipulation"
                     >
                       ✕
                     </Button>
@@ -335,7 +335,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 ) : (
                   <button
                     onClick={handleEditJobNumber}
-                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all w-full sm:w-auto justify-center sm:justify-start"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all w-full sm:w-auto justify-center sm:justify-start touch-manipulation active:scale-[0.98]"
                   >
                     {jobNumber ? (
                       <span className="font-mono text-xl font-black text-blue-700">{jobNumber}</span>
@@ -362,7 +362,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 <div className="relative w-full sm:w-auto">
                   <button
                     onClick={() => setIsSelectingVehicle(!isSelectingVehicle)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 transition-all w-full sm:w-auto sm:min-w-[140px] justify-between"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 transition-all w-full sm:w-auto sm:min-w-[140px] justify-between touch-manipulation active:scale-[0.98]"
                   >
                     {vehicleType ? (
                       <span className="font-semibold text-indigo-700">{getVehicleLabel(vehicleType)}</span>
@@ -377,7 +377,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                         <button
                           key={option.value}
                           onClick={() => handleSelectVehicle(option.value)}
-                          className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors ${
+                          className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors touch-manipulation ${
                             vehicleType === option.value ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-gray-700'
                           }`}
                         >
@@ -466,8 +466,10 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
       {/* Amount Modal */}
       {showAmountModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in-backdrop" onClick={handleCancelModal}>
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto animate-slide-up-modal" onClick={(e) => e.stopPropagation()}>
             {/* Drag handle - solo móvil */}
             <div className="sm:hidden flex justify-center -mt-2 mb-3">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
@@ -510,7 +512,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
               <Button
                 onClick={handleCancelModal}
                 variant="ghost"
-                className="flex-1 py-4"
+                className="flex-1 py-4 touch-manipulation active:scale-[0.98]"
                 disabled={isLoading}
               >
                 Cancelar
@@ -518,7 +520,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
               <Button
                 onClick={handleConfirmAmount}
                 disabled={isLoading}
-                className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white touch-manipulation active:scale-[0.98]"
               >
                 {isLoading ? 'Guardando...' : 'Confirmar'}
               </Button>

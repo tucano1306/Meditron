@@ -149,26 +149,26 @@ export default function HourlyDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-4xl">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-6 max-w-4xl">
         {/* Header */}
-        <header className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <header className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.push('/mode-select')}
-              className="text-gray-500"
+              className="text-gray-500 h-9 w-9 p-0 touch-manipulation"
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                <Clock className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">Por Hora</h1>
-                <p className="text-xs text-gray-500">Control de tiempo</p>
+                <h1 className="text-base sm:text-lg font-bold text-gray-900">Por Hora</h1>
+                <p className="text-[10px] sm:text-xs text-gray-500">Control de tiempo</p>
               </div>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function HourlyDashboardPage() {
         </header>
 
         {/* Timer */}
-        <section className="mb-6">
+        <section className="mb-4 sm:mb-6">
           <Timer
             onTimerStop={handleTimerStop}
             initialState={data.timerState}
@@ -202,7 +202,7 @@ export default function HourlyDashboardPage() {
         </section>
 
         {/* Summary Cards */}
-        <section className="mb-6">
+        <section className="mb-4 sm:mb-6">
           <SummaryCards
             today={data.today}
             currentWeek={data.currentWeek}
@@ -271,7 +271,7 @@ export default function HourlyDashboardPage() {
         </Tabs>
 
         {/* Footer */}
-        <footer className="text-center mt-6 text-xs text-gray-400 pb-20">
+        <footer className="text-center mt-6 text-xs text-gray-400 pb-24 sm:pb-20">
           <p>Las semanas van de Lunes a Domingo</p>
         </footer>
       </div>
