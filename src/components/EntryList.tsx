@@ -457,7 +457,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center overflow-hidden" onClick={closeJobModal}>
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-[380px] sm:mx-4 bg-white sm:rounded-xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-slide-up-modal"
+                className="w-full sm:max-w-[480px] lg:max-w-[520px] sm:mx-4 bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-slide-up-modal sm:border sm:border-gray-200"
                 onClick={(e) => e.stopPropagation()}
               >
                   
@@ -467,37 +467,37 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
 
                   {/* Header */}
-                  <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 sm:rounded-t-xl">
+                  <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-4 sm:px-6 py-4 sm:py-5 sm:rounded-t-2xl">
                     <button
                       onClick={closeJobModal}
-                      className="absolute top-2.5 right-2.5 p-2 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 touch-manipulation z-10"
+                      className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 touch-manipulation z-10"
                       aria-label="Cerrar"
                     >
-                      <X className="h-4 w-4 text-white" />
+                      <X className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </button>
                     
-                    <div className="flex items-center gap-2 pr-10">
-                      <FileText className="h-4 w-4 text-white/80 flex-shrink-0" />
-                      <h3 className="text-sm font-bold text-white flex-1">Detalles del Trabajo</h3>
-                      <div className="bg-white/20 rounded-full px-2.5 py-0.5 flex-shrink-0">
-                        <span className="text-white font-mono font-bold text-xs">
-                          {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--:--'}
-                        </span>
+                    <div className="flex items-center gap-3 pr-12">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base sm:text-lg font-bold text-white">Detalles del Trabajo</h3>
+                        <div className="text-white/70 text-xs sm:text-sm">Duración: <span className="font-mono font-bold text-white">{modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--:--'}</span></div>
                       </div>
                     </div>
                   </div>
                   
                   {/* Contenido scrollable */}
                   <div 
-                    className="overflow-y-auto overscroll-contain px-4 py-3 space-y-3 flex-1 min-h-0"
+                    className="overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5 flex-1 min-h-0"
                     style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as React.CSSProperties}
                     onTouchMove={(e) => e.stopPropagation()}
                   >
                     
                     {/* Trabajo + Vehículo */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label htmlFor="jobNumberModal" className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1"># Trabajo</label>
+                        <label htmlFor="jobNumberModal" className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2"># Trabajo</label>
                         <input
                           id="jobNumberModal"
                           type="text"
@@ -505,17 +505,17 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           value={jobNumber}
                           onChange={(e) => setJobNumber(e.target.value)}
                           placeholder="196088"
-                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg font-semibold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
+                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl font-semibold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-base sm:text-lg"
                           style={{ fontSize: '16px' }}
                         />
                       </div>
                       <div>
-                        <label htmlFor="vehicleModalSelect" className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">🚐 Vehículo</label>
+                        <label htmlFor="vehicleModalSelect" className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">🚐 Vehículo</label>
                         <select
                           id="vehicleModalSelect"
                           value={vehicleModal}
                           onChange={(e) => setVehicleModal(e.target.value)}
-                          className="w-full px-2 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-sm sm:text-base"
+                          className="w-full px-2 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-sm sm:text-base"
                           style={{ fontSize: '16px' }}
                         >
                           <option value="">Sin vehículo</option>
@@ -527,24 +527,24 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                     </div>
                     
                     {/* Monto Calculado */}
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-xl sm:rounded-2xl p-4 sm:p-5">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-[10px] font-semibold text-emerald-600 uppercase">Monto Calculado</div>
-                          <div className="text-xl font-bold text-emerald-700">{formatCurrency(calculatedAmount)}</div>
+                          <div className="text-[10px] sm:text-xs font-semibold text-emerald-600 uppercase tracking-wide">Monto Calculado</div>
+                          <div className="text-2xl sm:text-3xl font-black text-emerald-700">{formatCurrency(calculatedAmount)}</div>
                         </div>
-                        <div className="text-right text-[10px] text-emerald-600 leading-relaxed">
-                          {modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : 0} hrs<br/>
-                          × {formatCurrency(hourlyRate)}/hr
+                        <div className="text-right text-xs sm:text-sm text-emerald-600 leading-relaxed bg-white/60 px-3 py-2 rounded-lg">
+                          <span className="font-mono font-bold">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : 0}</span> hrs<br/>
+                          × <span className="font-semibold">{formatCurrency(hourlyRate)}</span>/hr
                         </div>
                       </div>
                     </div>
                     
                     {/* Monto Pagado */}
                     <div>
-                      <label htmlFor="paidAmountModal" className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">💵 Monto Pagado por Compañía</label>
+                      <label htmlFor="paidAmountModal" className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">💵 Monto Pagado por Compañía</label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">$</span>
+                        <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg sm:text-xl">$</span>
                         <input
                           id="paidAmountModal"
                           type="number"
@@ -554,7 +554,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           value={paidAmount}
                           onChange={(e) => setPaidAmount(e.target.value)}
                           placeholder="0.00"
-                          className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg font-bold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
+                          className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-3 sm:py-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-lg sm:text-xl"
                           style={{ fontSize: '16px' }}
                         />
                       </div>
@@ -562,12 +562,12 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                     
                     {/* Diferencia */}
                     {paidAmount && (
-                      <div className={`rounded-lg p-3 ${isPositive ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                      <div className={`rounded-xl p-4 ${isPositive ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200' : 'bg-gradient-to-r from-red-50 to-rose-50 border border-red-200'}`}>
                         <div className="flex items-center justify-between">
-                          <span className={`text-xs font-semibold ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
+                          <span className={`text-sm sm:text-base font-semibold ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
                             {isPositive ? '✓ A favor' : '✗ En contra'}
                           </span>
-                          <span className={`text-lg font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          <span className={`text-xl sm:text-2xl font-black ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                             {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
                           </span>
                         </div>
@@ -576,31 +576,31 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
                     {/* Observación */}
                     <div>
-                      <label htmlFor="observationModal" className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">📝 Observación</label>
+                      <label htmlFor="observationModal" className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">📝 Observación</label>
                       <textarea
                         id="observationModal"
                         value={observation}
                         onChange={(e) => setObservation(e.target.value)}
                         placeholder="Agregar una nota..."
                         rows={2}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation resize-none"
+                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation resize-none text-sm sm:text-base"
                         style={{ fontSize: '16px' }}
                       />
                     </div>
                   </div>
                   
                   {/* Botones siempre visibles */}
-                  <div className="px-4 py-3 flex gap-3 border-t border-gray-100 bg-white sm:rounded-b-xl pb-safe">
+                  <div className="px-4 sm:px-6 py-4 sm:py-5 flex gap-3 sm:gap-4 border-t border-gray-100 bg-gray-50/50 sm:rounded-b-2xl pb-safe">
                     <button
                       onClick={closeJobModal}
-                      className="flex-1 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98] touch-manipulation"
+                      className="flex-1 py-3 sm:py-4 border-2 border-gray-300 rounded-xl text-sm sm:text-base font-semibold text-gray-600 hover:bg-gray-100 active:bg-gray-200 active:scale-[0.98] touch-manipulation transition-colors"
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={() => handleSaveJobInfo(modalEntry)}
                       disabled={isSavingJob}
-                      className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation"
+                      className="flex-1 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 rounded-xl text-sm sm:text-base font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-all shadow-lg shadow-blue-500/25"
                     >
                       {isSavingJob ? 'Guardando...' : 'Guardar'}
                     </button>
