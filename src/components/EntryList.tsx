@@ -457,7 +457,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center overflow-hidden pointer-events-none" onClick={closeJobModal}>
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-[520px] lg:max-w-[560px] sm:mx-4 bg-white sm:rounded-2xl rounded-t-2xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.08)]"
+                className="w-full sm:max-w-[520px] lg:max-w-[560px] sm:mx-4 bg-white sm:rounded-2xl rounded-t-2xl overflow-hidden max-h-[85vh] sm:max-h-[80vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.08)]"
                 onClick={(e) => e.stopPropagation()}
               >
                   
@@ -592,22 +592,22 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Botones siempre visibles */}
-                  <div className="px-5 sm:px-6 py-5 flex gap-4 border-t border-gray-200 bg-white pb-safe">
+                  <div className="flex-shrink-0 px-5 sm:px-6 py-4 sm:py-5 flex gap-4 border-t border-gray-200 bg-white pb-safe">
                     <button
                       onClick={closeJobModal}
-                      className="flex-1 py-4 border-2 border-gray-300 rounded-xl text-base font-semibold text-gray-600 hover:bg-gray-100 active:bg-gray-200 active:scale-[0.98] touch-manipulation transition-colors"
+                      className="flex-1 py-3.5 border-2 border-gray-300 rounded-xl text-base font-semibold text-gray-600 hover:bg-gray-100 active:bg-gray-200 active:scale-[0.98] touch-manipulation transition-colors"
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={() => handleSaveJobInfo(modalEntry)}
                       disabled={isSavingJob}
-                      className="flex-1 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 rounded-xl text-base font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-colors shadow-lg shadow-blue-500/30"
+                      className="flex-1 py-3.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 rounded-xl text-base font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-colors shadow-lg shadow-blue-500/30"
                     >
                       {isSavingJob ? 'Guardando...' : 'Guardar'}
                     </button>
                   </div>
-              </div>
+                </div>
             </div>
           </>
         )
