@@ -529,15 +529,12 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                     </div>
                     
                     {/* Monto Calculado */}
-                    <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Monto Calculado</div>
-                          <div className="text-3xl font-black text-emerald-600">{formatCurrency(calculatedAmount)}</div>
-                        </div>
-                        <div className="text-right text-sm text-gray-500 bg-emerald-50 px-4 py-2.5 rounded-xl">
-                          <span className="font-mono font-bold text-emerald-700">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : 0}</span> hrs<br/>
-                          × <span className="font-semibold text-emerald-700">{formatCurrency(hourlyRate)}</span>/hr
+                    <div className="bg-white border border-emerald-200 rounded-2xl p-4 shadow-sm">
+                      <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2">Monto Calculado</div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-2xl sm:text-3xl font-black text-emerald-600">{formatCurrency(calculatedAmount)}</div>
+                        <div className="text-xs sm:text-sm text-gray-500 bg-emerald-50 px-3 py-2 rounded-lg text-right whitespace-nowrap">
+                          <span className="font-mono font-bold text-emerald-700">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : 0}</span> hrs × <span className="font-semibold text-emerald-700">{formatCurrency(hourlyRate)}</span>/hr
                         </div>
                       </div>
                     </div>
