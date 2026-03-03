@@ -446,60 +446,50 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         
         return (
           <>
-            {/* Overlay - backdrop oscuro con animación */}
+            {/* Overlay */}
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
             <div 
-              className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm animate-fade-in-backdrop"
-              aria-hidden="true"
+              className="fixed inset-0 z-[9998] bg-black/60"
               onClick={closeJobModal}
             />
-            {/* Modal Container */}
-            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center pointer-events-none p-0 sm:p-4" onClick={closeJobModal}>
+            {/* Modal */}
+            <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-[9999] sm:flex sm:items-center sm:justify-center sm:p-4">
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-3xl max-h-[88vh] sm:max-h-[90vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-2xl"
+                className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl animate-slide-up-modal overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
-                  
-                  {/* Drag handle - solo móvil */}
-                  <div className="sm:hidden flex justify-center pt-3 pb-1">
-                    <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+                  {/* Drag handle móvil */}
+                  <div className="sm:hidden flex justify-center py-2">
+                    <div className="w-10 h-1 bg-gray-300 rounded-full" />
                   </div>
 
-                  {/* Header compacto */}
-                  <div className="flex-shrink-0 px-5 sm:px-6 pt-1 sm:pt-5 pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                          <FileText className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-base font-bold text-gray-900">Detalles</h3>
-                          <p className="text-xs text-gray-500 font-medium">
-                            ⏱️ {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'}
-                          </p>
-                        </div>
+                  {/* Header */}
+                  <div className="px-4 sm:px-5 pb-3 sm:pt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-white" />
                       </div>
-                      <button
-                        onClick={closeJobModal}
-                        className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex items-center justify-center touch-manipulation transition-colors"
-                        aria-label="Cerrar"
-                      >
-                        <X className="h-5 w-5 text-gray-500" />
-                      </button>
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-900">Detalles del Trabajo</h3>
+                        <p className="text-xs text-gray-500">⏱️ {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={closeJobModal}
+                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+                    >
+                      <X className="h-4 w-4 text-gray-500" />
+                    </button>
                   </div>
                   
-                  {/* Contenido scrollable */}
-                  <div 
-                    className="overflow-y-auto flex-1 min-h-0 px-5 sm:px-6 pb-3"
-                    style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-                  >
+                  {/* Scrollable Content */}
+                  <div className="px-4 sm:px-5 pb-4 overflow-y-scroll max-h-[60vh] overscroll-contain">
                     <div className="space-y-3">
-                      {/* Job Number + Vehicle - Diseño más compacto */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-gray-50 rounded-xl p-3">
-                          <label htmlFor="modalJobNumber" className="block text-xs font-semibold text-gray-500 mb-2"># JOB</label>
+                      {/* Job + Vehicle */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-gray-50 rounded-lg p-2.5">
+                          <label htmlFor="modalJobNumber" className="block text-[10px] font-bold text-gray-400 uppercase mb-1"># Job</label>
                           <input
                             id="modalJobNumber"
                             type="text"
@@ -507,18 +497,16 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                             value={jobNumber}
                             onChange={(e) => setJobNumber(e.target.value)}
                             placeholder="000000"
-                            className="w-full bg-transparent text-xl font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
-                            style={{ fontSize: '20px' }}
+                            className="w-full bg-transparent text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
                           />
                         </div>
-                        <div className="bg-gray-50 rounded-xl p-3">
-                          <label htmlFor="modalVehicle" className="block text-xs font-semibold text-gray-500 mb-2">🚐 VEHÍCULO</label>
+                        <div className="bg-gray-50 rounded-lg p-2.5">
+                          <label htmlFor="modalVehicle" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">🚐 Vehículo</label>
                           <select
                             id="modalVehicle"
                             value={vehicleModal}
                             onChange={(e) => setVehicleModal(e.target.value)}
-                            className="w-full bg-transparent text-sm font-semibold text-gray-900 focus:outline-none cursor-pointer appearance-none"
-                            style={{ fontSize: '16px' }}
+                            className="w-full bg-transparent text-sm font-semibold text-gray-900 focus:outline-none"
                           >
                             <option value="">Ninguno</option>
                             <option value="sprinter">Sprinter</option>
@@ -528,24 +516,22 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                         </div>
                       </div>
                       
-                      {/* Monto Calculado - Card destacada */}
-                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 rounded-xl p-3">
+                      {/* Calculated Amount */}
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[10px] font-semibold text-emerald-600 uppercase">Calculado</p>
-                            <p className="text-xl font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase">Calculado</p>
+                            <p className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
                           </div>
-                          <div className="text-right text-[10px] text-gray-500">
-                            <p>{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs × {formatCurrency(hourlyRate)}/hr</p>
-                          </div>
+                          <p className="text-[10px] text-gray-500">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs × {formatCurrency(hourlyRate)}/hr</p>
                         </div>
                       </div>
                       
-                      {/* Monto Pagado - Input prominente */}
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <label htmlFor="modalPaidAmount" className="block text-[10px] font-semibold text-gray-500 uppercase mb-2">💵 Monto Pagado</label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl font-bold text-gray-400">$</span>
+                      {/* Paid Amount */}
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <label htmlFor="modalPaidAmount" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">💵 Pagado</label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-lg font-bold text-gray-400">$</span>
                           <input
                             id="modalPaidAmount"
                             type="number"
@@ -555,64 +541,51 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                             value={paidAmount}
                             onChange={(e) => setPaidAmount(e.target.value)}
                             placeholder="0.00"
-                            className="flex-1 bg-transparent text-xl font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
-                            style={{ fontSize: '20px' }}
+                            className="flex-1 bg-transparent text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
                           />
                         </div>
                       </div>
                       
-                      {/* Diferencia - Solo si hay monto pagado */}
+                      {/* Difference */}
                       {paidAmount && (
-                        <div className={`rounded-xl p-3 ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}>
+                        <div className={`rounded-lg p-3 ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-white/90">
-                              {isPositive ? '✓ Ganancia' : '✗ Pérdida'}
-                            </span>
-                            <span className="text-xl font-black text-white">
-                              {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-                            </span>
+                            <span className="text-xs font-bold text-white">{isPositive ? '✓ Ganancia' : '✗ Pérdida'}</span>
+                            <span className="text-lg font-black text-white">{difference >= 0 ? '+' : ''}{formatCurrency(difference)}</span>
                           </div>
                         </div>
                       )}
 
-                      {/* Observación - Área de texto limpia */}
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <label htmlFor="modalObservation" className="block text-[10px] font-semibold text-gray-500 uppercase mb-2">📝 Observación</label>
+                      {/* Observation */}
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <label htmlFor="modalObservation" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">📝 Nota</label>
                         <textarea
                           id="modalObservation"
                           value={observation}
                           onChange={(e) => setObservation(e.target.value)}
-                          placeholder="Agregar nota..."
+                          placeholder="Agregar observación..."
                           rows={2}
-                          className="w-full bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none resize-none text-sm leading-relaxed"
-                          style={{ fontSize: '16px' }}
+                          className="w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none"
                         />
                       </div>
                     </div>
                   </div>
                   
-                  {/* Footer con botones */}
-                  <div className="flex-shrink-0 px-5 sm:px-6 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-gray-100 bg-white sm:rounded-b-2xl">
-                    <div className="flex gap-3">
-                      <button
-                        onClick={closeJobModal}
-                        className="flex-1 py-3 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 active:bg-gray-300 active:scale-[0.98] touch-manipulation transition-all"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={() => handleSaveJobInfo(modalEntry)}
-                        disabled={isSavingJob}
-                        className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-all shadow-lg shadow-blue-500/25"
-                      >
-                        {isSavingJob ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                            <span>Guardando</span>
-                          </span>
-                        ) : 'Guardar'}
-                      </button>
-                    </div>
+                  {/* Footer */}
+                  <div className="px-4 sm:px-5 py-3 border-t border-gray-100 flex gap-2 pb-safe">
+                    <button
+                      onClick={closeJobModal}
+                      className="flex-1 py-2.5 bg-gray-100 rounded-lg text-sm font-bold text-gray-600 active:bg-gray-200"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleSaveJobInfo(modalEntry)}
+                      disabled={isSavingJob}
+                      className="flex-1 py-2.5 bg-blue-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {isSavingJob ? 'Guardando...' : 'Guardar'}
+                    </button>
                   </div>
                 </div>
             </div>
