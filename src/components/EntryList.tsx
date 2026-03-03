@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, Eye, FileText } from 'lucide-react'
@@ -43,6 +43,32 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [paidAmount, setPaidAmount] = useState('')
   const [observation, setObservation] = useState('')
   const [isSavingJob, setIsSavingJob] = useState(false)
+
+  // Bloquear scroll del body cuando el modal está abierto  
+  useEffect(() => {
+    if (jobModalEntryId) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.width = '100%'
+      document.body.style.top = `-${window.scrollY}px`
+    } else {
+      const scrollY = document.body.style.top
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+      document.body.style.top = ''
+      if (scrollY) {
+        window.scrollTo(0, Number.parseInt(scrollY, 10) * -1)
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+      document.body.style.top = ''
+    }
+  }, [jobModalEntryId])
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta entrada?')) return
@@ -446,18 +472,18 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         
         return (
           <>
-            {/* Overlay - transparent click area */}
+            {/* Overlay - backdrop oscuro */}
             <div 
-              className="fixed inset-0 z-[9998]"
+              className="fixed inset-0 z-[9998] bg-black/50 animate-fade-in-backdrop"
               aria-hidden="true"
               onClick={closeJobModal}
             />
             {/* Modal - Bottom sheet en móvil, centrado en desktop */}
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center overflow-hidden pointer-events-none" onClick={closeJobModal}>
+            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center pointer-events-none" onClick={closeJobModal}>
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-[520px] lg:max-w-[560px] sm:mx-4 bg-white sm:rounded-2xl rounded-t-2xl overflow-hidden max-h-[80vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.08)]"
+                className="w-full sm:max-w-[520px] lg:max-w-[560px] sm:mx-4 bg-white sm:rounded-2xl rounded-t-2xl overflow-hidden max-h-[85vh] sm:max-h-[80vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.08)]"
                 onClick={(e) => e.stopPropagation()}
               >
                   
@@ -492,8 +518,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   {/* Contenido scrollable */}
                   <div 
                     className="overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-4 flex-1 min-h-0 bg-gray-50/50"
-                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as React.CSSProperties}
-                    onTouchMove={(e) => e.stopPropagation()}
+                    style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
                   >
                     
                     {/* Trabajo + Vehículo */}
@@ -511,13 +536,13 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           style={{ fontSize: '16px' }}
                         />
                       </div>
-                      <div>
+                      <div className="relative">
                         <label htmlFor="vehicleModalSelect" className="block text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">🚐 Vehículo</label>
                         <select
                           id="vehicleModalSelect"
                           value={vehicleModal}
                           onChange={(e) => setVehicleModal(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-sm shadow-sm"
+                          className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-sm shadow-sm appearance-none cursor-pointer pr-8"
                           style={{ fontSize: '16px' }}
                         >
                           <option value="">Sin vehículo</option>
@@ -525,6 +550,9 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           <option value="mini-bus">🚌 Mini Bus</option>
                           <option value="motorcoach">🚍 Motorcoach</option>
                         </select>
+                        <div className="absolute right-3 top-[calc(50%+8px)] -translate-y-1/2 pointer-events-none">
+                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                        </div>
                       </div>
                     </div>
                     
@@ -579,8 +607,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                         value={observation}
                         onChange={(e) => setObservation(e.target.value)}
                         placeholder="Agregar una nota..."
-                        rows={2}
-                        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation resize-none text-sm shadow-sm"
+                        rows={3}
+                        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation resize-y text-sm shadow-sm min-h-[80px]"
                         style={{ fontSize: '16px' }}
                       />
                     </div>
