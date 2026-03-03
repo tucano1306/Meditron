@@ -454,35 +454,35 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             />
             {/* Modal Container */}
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center pointer-events-none" onClick={closeJobModal}>
+            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center pointer-events-none p-0 sm:p-4" onClick={closeJobModal}>
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-md sm:mx-4 bg-white sm:rounded-2xl rounded-t-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-2xl"
+                className="w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-3xl max-h-[88vh] sm:max-h-[90vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                   
                   {/* Drag handle - solo móvil */}
-                  <div className="sm:hidden flex justify-center pt-3 pb-2">
+                  <div className="sm:hidden flex justify-center pt-3 pb-1">
                     <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
                   </div>
 
                   {/* Header compacto */}
-                  <div className="flex-shrink-0 px-5 sm:px-6 pt-2 sm:pt-5 pb-4">
+                  <div className="flex-shrink-0 px-5 sm:px-6 pt-1 sm:pt-5 pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
                           <FileText className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900">Detalles</h3>
-                          <p className="text-sm text-gray-500 font-medium">
+                          <h3 className="text-base font-bold text-gray-900">Detalles</h3>
+                          <p className="text-xs text-gray-500 font-medium">
                             ⏱️ {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'}
                           </p>
                         </div>
                       </div>
                       <button
                         onClick={closeJobModal}
-                        className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex items-center justify-center touch-manipulation transition-colors"
+                        className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex items-center justify-center touch-manipulation transition-colors"
                         aria-label="Cerrar"
                       >
                         <X className="h-5 w-5 text-gray-500" />
@@ -492,10 +492,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   
                   {/* Contenido scrollable */}
                   <div 
-                    className="overflow-y-auto flex-1 min-h-0 px-5 sm:px-6 pb-4"
+                    className="overflow-y-auto flex-1 min-h-0 px-5 sm:px-6 pb-3"
                     style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
                   >
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Job Number + Vehicle - Diseño más compacto */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-gray-50 rounded-xl p-3">
@@ -529,28 +529,23 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       </div>
                       
                       {/* Monto Calculado - Card destacada */}
-                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 rounded-2xl p-4">
+                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 rounded-xl p-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Calculado</p>
-                            <p className="text-2xl font-black text-emerald-600 mt-1">{formatCurrency(calculatedAmount)}</p>
+                            <p className="text-[10px] font-semibold text-emerald-600 uppercase">Calculado</p>
+                            <p className="text-xl font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs text-gray-500">
-                              {modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              × {formatCurrency(hourlyRate)}/hr
-                            </p>
+                          <div className="text-right text-[10px] text-gray-500">
+                            <p>{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs × {formatCurrency(hourlyRate)}/hr</p>
                           </div>
                         </div>
                       </div>
                       
                       {/* Monto Pagado - Input prominente */}
-                      <div className="bg-gray-50 rounded-2xl p-4">
-                        <label htmlFor="modalPaidAmount" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">💵 Monto Pagado</label>
+                      <div className="bg-gray-50 rounded-xl p-3">
+                        <label htmlFor="modalPaidAmount" className="block text-[10px] font-semibold text-gray-500 uppercase mb-2">💵 Monto Pagado</label>
                         <div className="flex items-center gap-2">
-                          <span className="text-2xl font-bold text-gray-400">$</span>
+                          <span className="text-xl font-bold text-gray-400">$</span>
                           <input
                             id="modalPaidAmount"
                             type="number"
@@ -560,20 +555,20 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                             value={paidAmount}
                             onChange={(e) => setPaidAmount(e.target.value)}
                             placeholder="0.00"
-                            className="flex-1 bg-transparent text-2xl font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
-                            style={{ fontSize: '24px' }}
+                            className="flex-1 bg-transparent text-xl font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
+                            style={{ fontSize: '20px' }}
                           />
                         </div>
                       </div>
                       
                       {/* Diferencia - Solo si hay monto pagado */}
                       {paidAmount && (
-                        <div className={`rounded-2xl p-4 ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}>
+                        <div className={`rounded-xl p-3 ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-white/90">
+                            <span className="text-xs font-bold text-white/90">
                               {isPositive ? '✓ Ganancia' : '✗ Pérdida'}
                             </span>
-                            <span className="text-2xl font-black text-white">
+                            <span className="text-xl font-black text-white">
                               {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
                             </span>
                           </div>
@@ -581,8 +576,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       )}
 
                       {/* Observación - Área de texto limpia */}
-                      <div className="bg-gray-50 rounded-2xl p-4">
-                        <label htmlFor="modalObservation" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📝 Observación</label>
+                      <div className="bg-gray-50 rounded-xl p-3">
+                        <label htmlFor="modalObservation" className="block text-[10px] font-semibold text-gray-500 uppercase mb-2">📝 Observación</label>
                         <textarea
                           id="modalObservation"
                           value={observation}
@@ -597,18 +592,18 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Footer con botones */}
-                  <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+                  <div className="flex-shrink-0 px-5 sm:px-6 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-gray-100 bg-white sm:rounded-b-2xl">
                     <div className="flex gap-3">
                       <button
                         onClick={closeJobModal}
-                        className="flex-1 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98] touch-manipulation transition-all"
+                        className="flex-1 py-3 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 active:bg-gray-300 active:scale-[0.98] touch-manipulation transition-all"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={() => handleSaveJobInfo(modalEntry)}
                         disabled={isSavingJob}
-                        className="flex-1 py-3.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-all shadow-lg shadow-blue-500/25"
+                        className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-all shadow-lg shadow-blue-500/25"
                       >
                         {isSavingJob ? (
                           <span className="flex items-center justify-center gap-2">
