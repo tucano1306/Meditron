@@ -446,161 +446,178 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         
         return (
           <>
-            {/* Overlay - backdrop oscuro */}
+            {/* Overlay - backdrop oscuro con animación */}
             <div 
-              className="fixed inset-0 z-[9998] bg-black/50"
+              className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm animate-fade-in-backdrop"
               aria-hidden="true"
               onClick={closeJobModal}
             />
-            {/* Modal - Bottom sheet en móvil, centrado en desktop */}
+            {/* Modal Container */}
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center overflow-hidden pointer-events-none" onClick={closeJobModal}>
+            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center sm:justify-center pointer-events-none" onClick={closeJobModal}>
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="w-full sm:max-w-[520px] lg:max-w-[560px] sm:mx-4 bg-white sm:rounded-2xl rounded-t-2xl overflow-hidden max-h-[90vh] sm:max-h-[80vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.08)]"
+                className="w-full sm:max-w-md sm:mx-4 bg-white sm:rounded-2xl rounded-t-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col animate-slide-up-modal pointer-events-auto shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                   
                   {/* Drag handle - solo móvil */}
-                  <div className="sm:hidden flex justify-center pt-2 pb-1">
-                    <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                  <div className="sm:hidden flex justify-center pt-3 pb-2">
+                    <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
                   </div>
 
-                  {/* Header - más compacto */}
-                  <div className="flex-shrink-0 relative bg-gradient-to-r from-blue-500 to-blue-600 px-4 sm:px-6 py-4 sm:py-5">
-                    <button
-                      onClick={closeJobModal}
-                      className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 touch-manipulation z-10 transition-colors"
-                      aria-label="Cerrar"
-                    >
-                      <X className="h-5 w-5 text-white" />
-                    </button>
-                    
-                    <div className="flex items-center gap-3 pr-12">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                        <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base sm:text-lg font-bold text-white">Detalles del Trabajo</h3>
-                        <div className="text-white/80 text-xs sm:text-sm">
-                          Duración: <span className="font-mono font-bold text-white">{modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--:--'}</span>
+                  {/* Header compacto */}
+                  <div className="flex-shrink-0 px-5 sm:px-6 pt-2 sm:pt-5 pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                          <FileText className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">Detalles</h3>
+                          <p className="text-sm text-gray-500 font-medium">
+                            ⏱️ {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'}
+                          </p>
                         </div>
                       </div>
+                      <button
+                        onClick={closeJobModal}
+                        className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex items-center justify-center touch-manipulation transition-colors"
+                        aria-label="Cerrar"
+                      >
+                        <X className="h-5 w-5 text-gray-500" />
+                      </button>
                     </div>
                   </div>
                   
                   {/* Contenido scrollable */}
                   <div 
-                    className="overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-4 flex-1 min-h-0 bg-gray-50/50"
-                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as React.CSSProperties}
-                    onTouchMove={(e) => e.stopPropagation()}
+                    className="overflow-y-auto flex-1 min-h-0 px-5 sm:px-6 pb-4"
+                    style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
                   >
-                    
-                    {/* Trabajo + Vehículo */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="jobNumberModal" className="block text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5"># Trabajo</label>
-                        <input
-                          id="jobNumberModal"
-                          type="text"
-                          inputMode="numeric"
-                          value={jobNumber}
-                          onChange={(e) => setJobNumber(e.target.value)}
-                          placeholder="196088"
-                          className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg font-semibold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-base shadow-sm"
-                          style={{ fontSize: '16px' }}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="vehicleModalSelect" className="block text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">🚐 Vehículo</label>
-                        <select
-                          id="vehicleModalSelect"
-                          value={vehicleModal}
-                          onChange={(e) => setVehicleModal(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-sm shadow-sm"
-                          style={{ fontSize: '16px' }}
-                        >
-                          <option value="">Sin vehículo</option>
-                          <option value="sprinter">🚐 Sprinter</option>
-                          <option value="mini-bus">🚌 Mini Bus</option>
-                          <option value="motorcoach">🚍 Motorcoach</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    {/* Monto Calculado */}
-                    <div className="bg-white border border-emerald-200 rounded-xl p-3 shadow-sm">
-                      <div className="text-[10px] sm:text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Monto Calculado</div>
-                      <div className="text-xl sm:text-2xl font-black text-emerald-600 mb-1">{formatCurrency(calculatedAmount)}</div>
-                      <div className="text-[10px] sm:text-xs text-gray-500">
-                        <span className="font-mono font-bold text-emerald-700">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : 0}</span> hrs × <span className="font-semibold text-emerald-700">{formatCurrency(hourlyRate)}</span>/hr
-                      </div>
-                    </div>
-                    
-                    {/* Monto Pagado */}
-                    <div>
-                      <label htmlFor="paidAmountModal" className="block text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">💵 Monto Pagado</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">$</span>
-                        <input
-                          id="paidAmountModal"
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          value={paidAmount}
-                          onChange={(e) => setPaidAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="w-full pl-8 pr-3 py-3 bg-white border border-gray-200 rounded-lg font-bold text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation text-lg shadow-sm"
-                          style={{ fontSize: '16px' }}
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Diferencia */}
-                    {paidAmount && (
-                      <div className={`rounded-lg p-3 ${isPositive ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                        <div className="flex items-center justify-between">
-                          <span className={`text-sm font-semibold ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
-                            {isPositive ? '✓ A favor' : '✗ En contra'}
-                          </span>
-                          <span className={`text-xl font-black ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                            {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-                          </span>
+                    <div className="space-y-4">
+                      {/* Job Number + Vehicle - Diseño más compacto */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-gray-50 rounded-xl p-3">
+                          <label htmlFor="modalJobNumber" className="block text-xs font-semibold text-gray-500 mb-2"># JOB</label>
+                          <input
+                            id="modalJobNumber"
+                            type="text"
+                            inputMode="numeric"
+                            value={jobNumber}
+                            onChange={(e) => setJobNumber(e.target.value)}
+                            placeholder="000000"
+                            className="w-full bg-transparent text-xl font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
+                            style={{ fontSize: '20px' }}
+                          />
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-3">
+                          <label htmlFor="modalVehicle" className="block text-xs font-semibold text-gray-500 mb-2">🚐 VEHÍCULO</label>
+                          <select
+                            id="modalVehicle"
+                            value={vehicleModal}
+                            onChange={(e) => setVehicleModal(e.target.value)}
+                            className="w-full bg-transparent text-sm font-semibold text-gray-900 focus:outline-none cursor-pointer appearance-none"
+                            style={{ fontSize: '16px' }}
+                          >
+                            <option value="">Ninguno</option>
+                            <option value="sprinter">Sprinter</option>
+                            <option value="mini-bus">Mini Bus</option>
+                            <option value="motorcoach">Motorcoach</option>
+                          </select>
                         </div>
                       </div>
-                    )}
+                      
+                      {/* Monto Calculado - Card destacada */}
+                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 rounded-2xl p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Calculado</p>
+                            <p className="text-2xl font-black text-emerald-600 mt-1">{formatCurrency(calculatedAmount)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">
+                              {modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              × {formatCurrency(hourlyRate)}/hr
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Monto Pagado - Input prominente */}
+                      <div className="bg-gray-50 rounded-2xl p-4">
+                        <label htmlFor="modalPaidAmount" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">💵 Monto Pagado</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-gray-400">$</span>
+                          <input
+                            id="modalPaidAmount"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            value={paidAmount}
+                            onChange={(e) => setPaidAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="flex-1 bg-transparent text-2xl font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
+                            style={{ fontSize: '24px' }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Diferencia - Solo si hay monto pagado */}
+                      {paidAmount && (
+                        <div className={`rounded-2xl p-4 ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-white/90">
+                              {isPositive ? '✓ Ganancia' : '✗ Pérdida'}
+                            </span>
+                            <span className="text-2xl font-black text-white">
+                              {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
-                    {/* Observación */}
-                    <div>
-                      <label htmlFor="observationModal" className="block text-[10px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">📝 Observación</label>
-                      <textarea
-                        id="observationModal"
-                        value={observation}
-                        onChange={(e) => setObservation(e.target.value)}
-                        placeholder="Agregar una nota..."
-                        rows={2}
-                        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation resize-none text-sm shadow-sm"
-                        style={{ fontSize: '16px' }}
-                      />
+                      {/* Observación - Área de texto limpia */}
+                      <div className="bg-gray-50 rounded-2xl p-4">
+                        <label htmlFor="modalObservation" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📝 Observación</label>
+                        <textarea
+                          id="modalObservation"
+                          value={observation}
+                          onChange={(e) => setObservation(e.target.value)}
+                          placeholder="Agregar nota..."
+                          rows={2}
+                          className="w-full bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none resize-none text-sm leading-relaxed"
+                          style={{ fontSize: '16px' }}
+                        />
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Botones siempre visibles */}
-                  <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 flex gap-3 border-t border-gray-200 bg-white pb-safe">
-                    <button
-                      onClick={closeJobModal}
-                      className="flex-1 py-3 border-2 border-gray-300 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100 active:bg-gray-200 active:scale-[0.98] touch-manipulation transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => handleSaveJobInfo(modalEntry)}
-                      disabled={isSavingJob}
-                      className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 rounded-lg text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-colors shadow-lg shadow-blue-500/30"
-                    >
-                      {isSavingJob ? 'Guardando...' : 'Guardar'}
-                    </button>
+                  {/* Footer con botones */}
+                  <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={closeJobModal}
+                        className="flex-1 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98] touch-manipulation transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => handleSaveJobInfo(modalEntry)}
+                        disabled={isSavingJob}
+                        className="flex-1 py-3.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60 touch-manipulation transition-all shadow-lg shadow-blue-500/25"
+                      >
+                        {isSavingJob ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                            <span>Guardando</span>
+                          </span>
+                        ) : 'Guardar'}
+                      </button>
+                    </div>
                   </div>
                 </div>
             </div>
