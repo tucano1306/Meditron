@@ -75,6 +75,7 @@ export async function GET() {
       }, 0)
       
       const companyPaidAmount = week.entries.reduce((sum, e) => sum + (e.companyPaid || 0), 0)
+      const reviewedJobs = week.entries.filter(e => e.companyPaid != null && e.companyPaid > 0).length
       const difference = companyPaidAmount - calculatedAmount
       const differencePercentage = calculatedAmount > 0 
         ? (difference / calculatedAmount) * 100 
@@ -97,6 +98,7 @@ export async function GET() {
         startDate: formatDate(start),
         endDate: formatDate(end),
         totalJobs,
+        reviewedJobs,
         totalHours,
         calculatedAmount,
         companyPaidAmount,

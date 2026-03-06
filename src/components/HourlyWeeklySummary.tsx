@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDateInFlorida } from '@/lib/utils'
-import { Calendar, TrendingUp, TrendingDown, DollarSign, Clock, Briefcase, AlertCircle } from 'lucide-react'
+import { Calendar, TrendingUp, TrendingDown, DollarSign, Clock, Briefcase, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface HourlyWeeklySummaryData {
   weekNumber: number
@@ -11,6 +11,7 @@ interface HourlyWeeklySummaryData {
   startDate: string
   endDate: string
   totalJobs: number
+  reviewedJobs: number
   totalHours: number
   calculatedAmount: number
   companyPaidAmount: number
@@ -86,17 +87,29 @@ export function HourlyWeeklySummary() {
           {weeklyData.map((week) => {
             const hasDifference = week.companyPaidAmount > 0
             const differenceClass = week.difference >= 0 ? 'text-green-600' : 'text-red-600'
+            const allReviewed = week.totalJobs > 0 && week.reviewedJobs === week.totalJobs
             
             // Parsear fechas usando zona horaria de Florida
             
             return (
-              <div key={`${week.year}-${week.weekNumber}`} className="border rounded-lg p-4 space-y-3">
+              <div key={`${week.year}-${week.weekNumber}`} className={`border rounded-lg p-4 space-y-3 transition-all duration-500 ${allReviewed ? 'border-green-400 bg-green-50/30' : ''}`}>
                 {/* Header */}
                 <div className="flex items-center justify-between border-b pb-2">
                   <div>
-                    <h3 className="font-semibold text-sm sm:text-base">
-                      Semana {week.weekNumber} - {week.year}
-                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-sm sm:text-base">
+                        Semana {week.weekNumber} - {week.year}
+                      </h3>
+                      {allReviewed && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-500 text-white shadow-sm animate-pulse"
+                          style={{ animationDuration: '2s' }}
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          REVISADA
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs sm:text-sm text-muted-foreground">
                       {formatDateInFlorida(week.startDate, { 
                         month: 'short', 
