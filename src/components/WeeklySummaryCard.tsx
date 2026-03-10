@@ -163,11 +163,15 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                     <span className="text-[10px] text-gray-400">
                       Sem {week.weekNumber}
                     </span>
-                    {allPaid && (
+                    {allPaid ? (
                       <span className="relative inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow overflow-hidden">
                         <CheckCircle2 className="h-2.5 w-2.5" />
                         REVISADO
                         <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                        SIN REVISAR
                       </span>
                     )}
                   </div>
