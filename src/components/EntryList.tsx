@@ -435,7 +435,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       )}
       
       {/* Modal de información del trabajo */}
-      {/* Modal de Detalles del Trabajo - Rediseñado */}
+      {/* Modal de Detalles del Trabajo */}
       {jobModalEntryId && (() => {
         const modalEntry = entries.find(e => e.id === jobModalEntryId)
         if (!modalEntry) return null
@@ -446,147 +446,145 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         const isPositive = difference >= 0
         
         return (
-          <div className="fixed inset-0 z-50">
-            {/* Backdrop */}
+          // Fullscreen overlay con flexbox para centrar
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+          <div 
+            className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
+            onClick={closeJobModal}
+          >
+            {/* Modal box - max height con scroll interno */}
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
             <div 
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-              onClick={closeJobModal}
-            />
-            
-            {/* Modal posicionado */}
-            <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md">
-              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-              <div 
-                className="bg-white rounded-2xl shadow-2xl overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header con gradiente */}
-                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                        <FileText className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-white">Detalles del Trabajo</h3>
-                        <p className="text-sm text-white/80">{modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'} trabajadas</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={closeJobModal}
-                      className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-                    >
-                      <X className="h-5 w-5 text-white" />
-                    </button>
+              className="bg-white w-full max-w-sm rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header fijo */}
+              <div className="bg-emerald-500 px-4 py-3 rounded-t-2xl flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-white" />
+                    <span className="text-white font-bold">Detalles del Trabajo</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={closeJobModal}
+                    className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center"
+                  >
+                    <X className="h-4 w-4 text-white" />
+                  </button>
                 </div>
-                
-                {/* Contenido */}
-                <div className="p-5 space-y-4">
-                  {/* Job Number y Vehículo en fila */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="modal-job-number" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Job #</label>
-                      <input
-                        id="modal-job-number"
-                        type="text"
-                        inputMode="numeric"
-                        value={jobNumber}
-                        onChange={(e) => setJobNumber(e.target.value)}
-                        placeholder="123456"
-                        className="mt-1 w-full px-3 py-2.5 bg-gray-100 rounded-xl text-gray-900 font-bold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        style={{ fontSize: '16px' }}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="modal-vehicle" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Vehículo</label>
-                      <select
-                        id="modal-vehicle"
-                        value={vehicleModal}
-                        onChange={(e) => setVehicleModal(e.target.value)}
-                        className="mt-1 w-full px-3 py-2.5 bg-gray-100 rounded-xl text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                        style={{ fontSize: '16px' }}
-                      >
-                        <option value="">Sin vehículo</option>
-                        <option value="sprinter">Sprinter</option>
-                        <option value="mini-bus">Mini Bus</option>
-                        <option value="motorcoach">Motorcoach</option>
-                      </select>
-                    </div>
-                  </div>
+              </div>
+              
+              {/* Contenido scrolleable */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Tiempo trabajado */}
+                <div className="text-center py-2 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-500">Tiempo: </span>
+                  <span className="font-bold text-gray-900">{modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'}</span>
+                </div>
 
-                  {/* Montos - Calculado vs Pagado */}
-                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Calculado</span>
-                      <span className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-500 uppercase">Pagado</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400 font-bold">$</span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          value={paidAmount}
-                          onChange={(e) => setPaidAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="w-24 px-2 py-1 bg-white rounded-lg text-right text-lg font-black text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          style={{ fontSize: '16px' }}
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Diferencia */}
-                    {paidAmount && Number.parseFloat(paidAmount) > 0 && (
-                      <div className={`mt-3 pt-3 border-t border-gray-200 flex items-center justify-between`}>
-                        <span className={`text-xs font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                          {isPositive ? '↑ Ganancia' : '↓ Pérdida'}
-                        </span>
-                        <span className={`text-lg font-black ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                          {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                {/* Job Number */}
+                <div>
+                  <label htmlFor="modal-job-number" className="text-xs font-bold text-gray-500 uppercase">Job #</label>
+                  <input
+                    id="modal-job-number"
+                    type="text"
+                    inputMode="numeric"
+                    value={jobNumber}
+                    onChange={(e) => setJobNumber(e.target.value)}
+                    placeholder="123456"
+                    className="mt-1 w-full px-3 py-2 bg-gray-100 rounded-lg text-gray-900 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
 
-                  {/* Nota */}
-                  <div>
-                    <label htmlFor="modal-observation" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nota (opcional)</label>
-                    <textarea
-                      id="modal-observation"
-                      value={observation}
-                      onChange={(e) => setObservation(e.target.value)}
-                      placeholder="Agregar observación..."
-                      rows={2}
-                      className="mt-1 w-full px-3 py-2.5 bg-gray-100 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                {/* Vehículo */}
+                <div>
+                  <label htmlFor="modal-vehicle" className="text-xs font-bold text-gray-500 uppercase">Vehículo</label>
+                  <select
+                    id="modal-vehicle"
+                    value={vehicleModal}
+                    onChange={(e) => setVehicleModal(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 bg-gray-100 rounded-lg text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    style={{ fontSize: '16px' }}
+                  >
+                    <option value="">Sin vehículo</option>
+                    <option value="sprinter">Sprinter</option>
+                    <option value="mini-bus">Mini Bus</option>
+                    <option value="motorcoach">Motorcoach</option>
+                  </select>
+                </div>
+
+                {/* Calculado */}
+                <div className="flex justify-between items-center py-2 px-3 bg-emerald-50 rounded-lg">
+                  <span className="text-xs font-bold text-emerald-700 uppercase">Calculado</span>
+                  <span className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</span>
+                </div>
+
+                {/* Pagado */}
+                <div>
+                  <label htmlFor="modal-paid" className="text-xs font-bold text-gray-500 uppercase">Pagado por Compañía</label>
+                  <div className="mt-1 flex items-center bg-gray-100 rounded-lg px-3">
+                    <span className="text-gray-400 font-bold">$</span>
+                    <input
+                      id="modal-paid"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      value={paidAmount}
+                      onChange={(e) => setPaidAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="flex-1 py-2 bg-transparent text-right font-bold text-gray-900 focus:outline-none"
                       style={{ fontSize: '16px' }}
                     />
                   </div>
                 </div>
                 
-                {/* Footer con botones */}
-                <div className="px-5 py-4 bg-gray-50 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={closeJobModal}
-                    className="flex-1 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 active:bg-gray-100 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveJobInfo(modalEntry)}
-                    disabled={isSavingJob}
-                    className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl text-sm font-bold text-white disabled:opacity-50 active:opacity-90 transition-opacity"
-                  >
-                    {isSavingJob ? 'Guardando...' : 'Guardar'}
-                  </button>
+                {/* Diferencia */}
+                {paidAmount && Number.parseFloat(paidAmount) > 0 && (
+                  <div className={`flex justify-between items-center py-2 px-3 rounded-lg ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <span className={`text-xs font-bold uppercase ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
+                      {isPositive ? 'Ganancia' : 'Pérdida'}
+                    </span>
+                    <span className={`text-lg font-black ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                      {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Nota */}
+                <div>
+                  <label htmlFor="modal-observation" className="text-xs font-bold text-gray-500 uppercase">Nota (opcional)</label>
+                  <textarea
+                    id="modal-observation"
+                    value={observation}
+                    onChange={(e) => setObservation(e.target.value)}
+                    placeholder="Agregar observación..."
+                    rows={2}
+                    className="mt-1 w-full px-3 py-2 bg-gray-100 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                    style={{ fontSize: '16px' }}
+                  />
                 </div>
+              </div>
+              
+              {/* Footer fijo */}
+              <div className="p-4 border-t flex gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={closeJobModal}
+                  className="flex-1 py-2.5 bg-gray-200 rounded-lg text-sm font-bold text-gray-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveJobInfo(modalEntry)}
+                  disabled={isSavingJob}
+                  className="flex-1 py-2.5 bg-emerald-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {isSavingJob ? '...' : 'Guardar'}
+                </button>
               </div>
             </div>
           </div>
