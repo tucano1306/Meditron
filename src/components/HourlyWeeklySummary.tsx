@@ -101,12 +101,11 @@ export function HourlyWeeklySummary() {
                         Semana {week.weekNumber} - {week.year}
                       </h3>
                       {allReviewed && (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-500 text-white shadow-sm animate-pulse"
-                          style={{ animationDuration: '2s' }}
-                        >
-                          <CheckCircle2 className="h-3 w-3" />
-                          REVISADA
+                        <span className="relative inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg overflow-hidden">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          REVISADO
+                          {/* Shimmer effect */}
+                          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                         </span>
                       )}
                     </div>

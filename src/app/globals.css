@@ -97,6 +97,20 @@ button:active {
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
+/* Shimmer animation for badges */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
 /* PWA Standalone Mode Adjustments */
 @media all and (display-mode: standalone) {
   body {
