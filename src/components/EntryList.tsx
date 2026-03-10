@@ -452,16 +452,17 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               className="fixed inset-0 z-[9998] bg-black/60"
               onClick={closeJobModal}
             />
-            {/* Modal */}
-            <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-[9999] sm:flex sm:items-center sm:justify-center sm:p-4">
+            {/* Modal Container */}
+            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 pt-safe">
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl animate-slide-up-modal overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]"
+                className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl animate-slide-up-modal flex flex-col"
+                style={{ maxHeight: 'min(85vh, calc(100dvh - 40px))' }}
                 onClick={(e) => e.stopPropagation()}
               >
                   {/* Drag handle móvil */}
-                  <div className="sm:hidden flex justify-center py-2 flex-shrink-0">
-                    <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                  <div className="sm:hidden flex justify-center pt-3 pb-2 flex-shrink-0">
+                    <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
                   </div>
 
                   {/* Header */}
@@ -484,8 +485,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Scrollable Content */}
-                  <div className="px-4 sm:px-5 pb-4 overflow-y-auto flex-1 min-h-0 overscroll-contain">
-                    <div className="space-y-3">
+                  <div className="px-4 sm:px-5 py-2 overflow-y-auto flex-1 min-h-0 overscroll-contain">
+                    <div className="space-y-3 pb-2">
                       {/* Job + Vehicle */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="bg-gray-50 rounded-lg p-2.5">
