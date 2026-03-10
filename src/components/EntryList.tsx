@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
-import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, Eye, FileText } from 'lucide-react'
+import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Entry {
@@ -36,10 +36,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [isSaving, setIsSaving] = useState(false)
   const [isExpanded, setIsExpanded] = useState(showDate)
   
-  // Estado para el modal de información del trabajo
-  const [jobModalEntryId, setJobModalEntryId] = useState<string | null>(null)
+  // Estado para expansión inline de detalles del trabajo
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const [jobNumber, setJobNumber] = useState('')
-  const [vehicleModal, setVehicleModal] = useState('')
+  const [vehicleValue, setVehicleValue] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
   const [observation, setObservation] = useState('')
   const [isSavingJob, setIsSavingJob] = useState(false)
@@ -82,19 +82,29 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setEditDate('')
   }
 
-  // Funciones para el modal del trabajo
-  const openJobModal = (entry: Entry) => {
-    setJobModalEntryId(entry.id)
-    setJobNumber(entry.jobNumber || '')
-    setVehicleModal(entry.vehicle || '')
-    setPaidAmount(entry.paidAmount?.toString() || '')
-    setObservation(entry.observation || '')
+  // Funciones para expansión inline del trabajo  
+  const toggleJobExpansion = (entry: Entry) => {
+    if (expandedJobId === entry.id) {
+      // Cerrar
+      setExpandedJobId(null)
+      setJobNumber('')
+      setVehicleValue('')
+      setPaidAmount('')
+      setObservation('')
+    } else {
+      // Abrir
+      setExpandedJobId(entry.id)
+      setJobNumber(entry.jobNumber || '')
+      setVehicleValue(entry.vehicle || '')
+      setPaidAmount(entry.paidAmount?.toString() || '')
+      setObservation(entry.observation || '')
+    }
   }
 
-  const closeJobModal = () => {
-    setJobModalEntryId(null)
+  const closeJobExpansion = () => {
+    setExpandedJobId(null)
     setJobNumber('')
-    setVehicleModal('')
+    setVehicleValue('')
     setPaidAmount('')
     setObservation('')
   }
@@ -113,7 +123,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobNumber,
-          vehicle: vehicleModal || null,
+          vehicle: vehicleValue || null,
           observation: observation || null,
           calculatedAmount,
           paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
@@ -125,7 +135,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       const data = await res.json()
       
       if (data.success) {
-        closeJobModal()
+        closeJobExpansion()
         onUpdate?.()
       } else {
         alert(data.error || 'Error al guardar')
@@ -263,17 +273,25 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       {isExpanded && (
         <CardContent className="px-2 sm:px-6 pt-4">
         <div className="space-y-3">
-          {entries.map((entry) => (
-            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-            <div
-              key={entry.id}
-              className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-2 ${entry.endTime && entry.duration !== null && editingId !== entry.id ? 'cursor-pointer active:scale-[0.99]' : ''}`}
-              onClick={() => {
-                if (entry.endTime && entry.duration !== null && editingId !== entry.id) {
-                  openJobModal(entry)
-                }
-              }}
-            >
+          {entries.map((entry) => {
+            const isJobExpanded = expandedJobId === entry.id
+            const calculatedAmount = getCalculatedAmount(entry)
+            const paid = paidAmount ? Number.parseFloat(paidAmount) : 0
+            const difference = paid - calculatedAmount
+            const isPositive = difference >= 0
+            
+            return (
+            <div key={entry.id} className="space-y-0">
+              {/* Entry row */}
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+              <div
+                className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 ${isJobExpanded ? 'rounded-t-xl' : 'rounded-xl'} border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-2 ${entry.endTime && entry.duration !== null && editingId !== entry.id ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+                onClick={() => {
+                  if (entry.endTime && entry.duration !== null && editingId !== entry.id) {
+                    toggleJobExpansion(entry)
+                  }
+                }}
+              >
               <div className="flex-1 min-w-0">
                 {showDate && (
                   <div className="text-xs text-gray-500 mb-1">
@@ -429,167 +447,117 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                 )}
               </div>
             </div>
-          ))}
+              
+              {/* Panel expandido inline - NO MODAL */}
+              {isJobExpanded && (
+                <div className="bg-emerald-50 border border-t-0 border-emerald-200 rounded-b-xl p-4 space-y-3">
+                  {/* Grid de campos */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor={`job-${entry.id}`} className="text-xs font-bold text-gray-600">Job #</label>
+                      <input
+                        id={`job-${entry.id}`}
+                        type="text"
+                        inputMode="numeric"
+                        value={jobNumber}
+                        onChange={(e) => setJobNumber(e.target.value)}
+                        placeholder="123456"
+                        className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        style={{ fontSize: '16px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={`vehicle-${entry.id}`} className="text-xs font-bold text-gray-600">Vehículo</label>
+                      <select
+                        id={`vehicle-${entry.id}`}
+                        value={vehicleValue}
+                        onChange={(e) => setVehicleValue(e.target.value)}
+                        className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        style={{ fontSize: '16px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <option value="">Ninguno</option>
+                        <option value="sprinter">Sprinter</option>
+                        <option value="mini-bus">Mini Bus</option>
+                        <option value="motorcoach">Motorcoach</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Montos */}
+                  <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200">
+                    <div>
+                      <span className="text-xs text-gray-500">Calculado</span>
+                      <p className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
+                    </div>
+                    <div className="text-right">
+                      <label htmlFor={`paid-${entry.id}`} className="text-xs text-gray-500">Pagado</label>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-400">$</span>
+                        <input
+                          id={`paid-${entry.id}`}
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          value={paidAmount}
+                          onChange={(e) => setPaidAmount(e.target.value)}
+                          placeholder="0.00"
+                          className="w-24 px-2 py-1 bg-gray-100 rounded text-right font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          style={{ fontSize: '16px' }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Diferencia */}
+                  {paidAmount && Number.parseFloat(paidAmount) > 0 && (
+                    <div className={`text-center py-2 rounded-lg font-bold ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {isPositive ? '✓' : '✗'} {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
+                    </div>
+                  )}
+                  
+                  {/* Nota */}
+                  <div>
+                    <label htmlFor={`note-${entry.id}`} className="text-xs font-bold text-gray-600">Nota</label>
+                    <textarea
+                      id={`note-${entry.id}`}
+                      value={observation}
+                      onChange={(e) => setObservation(e.target.value)}
+                      placeholder="Agregar nota..."
+                      rows={2}
+                      className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none"
+                      style={{ fontSize: '16px' }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  
+                  {/* Botones */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); closeJobExpansion(); }}
+                      className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-bold text-gray-700"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleSaveJobInfo(entry); }}
+                      disabled={isSavingJob}
+                      className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {isSavingJob ? 'Guardando...' : 'Guardar'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )})}
         </div>
         </CardContent>
       )}
-      
-      {/* Modal de información del trabajo */}
-      {/* Modal de Detalles del Trabajo */}
-      {jobModalEntryId && (() => {
-        const modalEntry = entries.find(e => e.id === jobModalEntryId)
-        if (!modalEntry) return null
-        
-        const calculatedAmount = getCalculatedAmount(modalEntry)
-        const paid = paidAmount ? Number.parseFloat(paidAmount) : 0
-        const difference = paid - calculatedAmount
-        const isPositive = difference >= 0
-        
-        return (
-          // Fullscreen overlay con flexbox para centrar
-          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-          <div 
-            className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
-            onClick={closeJobModal}
-          >
-            {/* Modal box - max height con scroll interno */}
-            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div 
-              className="bg-white w-full max-w-sm rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header fijo */}
-              <div className="bg-emerald-500 px-4 py-3 rounded-t-2xl flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-white" />
-                    <span className="text-white font-bold">Detalles del Trabajo</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeJobModal}
-                    className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center"
-                  >
-                    <X className="h-4 w-4 text-white" />
-                  </button>
-                </div>
-              </div>
-              
-              {/* Contenido scrolleable */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {/* Tiempo trabajado */}
-                <div className="text-center py-2 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-gray-500">Tiempo: </span>
-                  <span className="font-bold text-gray-900">{modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'}</span>
-                </div>
-
-                {/* Job Number */}
-                <div>
-                  <label htmlFor="modal-job-number" className="text-xs font-bold text-gray-500 uppercase">Job #</label>
-                  <input
-                    id="modal-job-number"
-                    type="text"
-                    inputMode="numeric"
-                    value={jobNumber}
-                    onChange={(e) => setJobNumber(e.target.value)}
-                    placeholder="123456"
-                    className="mt-1 w-full px-3 py-2 bg-gray-100 rounded-lg text-gray-900 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    style={{ fontSize: '16px' }}
-                  />
-                </div>
-
-                {/* Vehículo */}
-                <div>
-                  <label htmlFor="modal-vehicle" className="text-xs font-bold text-gray-500 uppercase">Vehículo</label>
-                  <select
-                    id="modal-vehicle"
-                    value={vehicleModal}
-                    onChange={(e) => setVehicleModal(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 bg-gray-100 rounded-lg text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    style={{ fontSize: '16px' }}
-                  >
-                    <option value="">Sin vehículo</option>
-                    <option value="sprinter">Sprinter</option>
-                    <option value="mini-bus">Mini Bus</option>
-                    <option value="motorcoach">Motorcoach</option>
-                  </select>
-                </div>
-
-                {/* Calculado */}
-                <div className="flex justify-between items-center py-2 px-3 bg-emerald-50 rounded-lg">
-                  <span className="text-xs font-bold text-emerald-700 uppercase">Calculado</span>
-                  <span className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</span>
-                </div>
-
-                {/* Pagado */}
-                <div>
-                  <label htmlFor="modal-paid" className="text-xs font-bold text-gray-500 uppercase">Pagado por Compañía</label>
-                  <div className="mt-1 flex items-center bg-gray-100 rounded-lg px-3">
-                    <span className="text-gray-400 font-bold">$</span>
-                    <input
-                      id="modal-paid"
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      value={paidAmount}
-                      onChange={(e) => setPaidAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="flex-1 py-2 bg-transparent text-right font-bold text-gray-900 focus:outline-none"
-                      style={{ fontSize: '16px' }}
-                    />
-                  </div>
-                </div>
-                
-                {/* Diferencia */}
-                {paidAmount && Number.parseFloat(paidAmount) > 0 && (
-                  <div className={`flex justify-between items-center py-2 px-3 rounded-lg ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}>
-                    <span className={`text-xs font-bold uppercase ${isPositive ? 'text-green-700' : 'text-red-700'}`}>
-                      {isPositive ? 'Ganancia' : 'Pérdida'}
-                    </span>
-                    <span className={`text-lg font-black ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                      {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-                    </span>
-                  </div>
-                )}
-
-                {/* Nota */}
-                <div>
-                  <label htmlFor="modal-observation" className="text-xs font-bold text-gray-500 uppercase">Nota (opcional)</label>
-                  <textarea
-                    id="modal-observation"
-                    value={observation}
-                    onChange={(e) => setObservation(e.target.value)}
-                    placeholder="Agregar observación..."
-                    rows={2}
-                    className="mt-1 w-full px-3 py-2 bg-gray-100 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                    style={{ fontSize: '16px' }}
-                  />
-                </div>
-              </div>
-              
-              {/* Footer fijo */}
-              <div className="p-4 border-t flex gap-2 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={closeJobModal}
-                  className="flex-1 py-2.5 bg-gray-200 rounded-lg text-sm font-bold text-gray-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveJobInfo(modalEntry)}
-                  disabled={isSavingJob}
-                  className="flex-1 py-2.5 bg-emerald-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
-                >
-                  {isSavingJob ? '...' : 'Guardar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
     </Card>
   )
 }
