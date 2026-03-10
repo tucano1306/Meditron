@@ -149,16 +149,12 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
       const now = new Date()
       const clientTime = now.toISOString()
       
-      console.log('handleConfirmAmount - sending:', { amount: numAmount, jobNumber, vehicle: vehicleType })
-      
       const res = await fetch('/api/payment', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: numAmount, clientTime, jobNumber, vehicle: vehicleType })
       })
       const data = await res.json()
-      
-      console.log('handleConfirmAmount - response:', data)
 
       if (data.success) {
         // Guardar jobNumber y vehicle antes de limpiar
@@ -235,7 +231,6 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
   }
 
   const handleSelectVehicle = async (selectedVehicle: string) => {
-    console.log('handleSelectVehicle called with:', selectedVehicle)
     setVehicleType(selectedVehicle)
     setIsSelectingVehicle(false)
     
@@ -246,10 +241,10 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vehicle: selectedVehicle })
       })
-      const data = await res.json()
-      console.log('PATCH vehicle response:', data)
-    } catch (err) {
-      console.error('Error saving vehicle:', err)
+      await res.json()
+    } catch {
+      // Error saving vehicle - silently fails, vehicle selection still works locally
+      void 0
     }
   }
 

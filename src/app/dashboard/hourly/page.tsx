@@ -254,6 +254,7 @@ export default function HourlyDashboardPage() {
               title="Entradas de Hoy"
               onDelete={handleEntryDelete}
               onUpdate={handleEntryUpdate}
+              hourlyRate={data.hourlyRate}
             />
           </TabsContent>
 

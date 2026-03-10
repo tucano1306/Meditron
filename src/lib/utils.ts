@@ -82,9 +82,11 @@ export function formatHoursDecimal(seconds: number): string {
 }
 
 // Caché para formatCurrency (evita crear Intl.NumberFormat repetidamente)
-const currencyFormatter = new Intl.NumberFormat('es-ES', {
+const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
-  currency: 'USD'
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
 })
 
 export function formatCurrency(amount: number): string {

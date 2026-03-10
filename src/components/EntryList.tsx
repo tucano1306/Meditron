@@ -484,7 +484,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Scrollable Content */}
-                  <div className="px-4 sm:px-5 pb-4 overflow-y-scroll max-h-[60vh] overscroll-contain">
+                  <div className="px-4 sm:px-5 pb-4 overflow-y-auto max-h-[60vh] overscroll-contain">
                     <div className="space-y-3">
                       {/* Job + Vehicle */}
                       <div className="grid grid-cols-2 gap-2">
@@ -496,8 +496,9 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                             inputMode="numeric"
                             value={jobNumber}
                             onChange={(e) => setJobNumber(e.target.value)}
-                            placeholder="000000"
+                            placeholder="Ej: 123456"
                             className="w-full bg-transparent text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
+                            style={{ fontSize: '16px' }}
                           />
                         </div>
                         <div className="bg-gray-50 rounded-lg p-2.5">
@@ -506,7 +507,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                             id="modalVehicle"
                             value={vehicleModal}
                             onChange={(e) => setVehicleModal(e.target.value)}
-                            className="w-full bg-transparent text-sm font-semibold text-gray-900 focus:outline-none"
+                            className="w-full bg-transparent text-sm font-semibold text-gray-900 focus:outline-none appearance-none cursor-pointer"
+                            style={{ fontSize: '16px' }}
                           >
                             <option value="">Ninguno</option>
                             <option value="sprinter">Sprinter</option>
@@ -523,13 +525,13 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                             <p className="text-[10px] font-bold text-emerald-600 uppercase">Calculado</p>
                             <p className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
                           </div>
-                          <p className="text-[10px] text-gray-500">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs × {formatCurrency(hourlyRate)}/hr</p>
+                          <p className="text-[10px] text-gray-500 text-right">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs<br/>× {formatCurrency(hourlyRate)}/hr</p>
                         </div>
                       </div>
                       
                       {/* Paid Amount */}
                       <div className="bg-gray-50 rounded-lg p-3">
-                        <label htmlFor="modalPaidAmount" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">💵 Pagado</label>
+                        <label htmlFor="modalPaidAmount" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">💵 Pagado por Compañía</label>
                         <div className="flex items-center gap-1">
                           <span className="text-lg font-bold text-gray-400">$</span>
                           <input
@@ -542,12 +544,13 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                             onChange={(e) => setPaidAmount(e.target.value)}
                             placeholder="0.00"
                             className="flex-1 bg-transparent text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
+                            style={{ fontSize: '16px' }}
                           />
                         </div>
                       </div>
                       
-                      {/* Difference */}
-                      {paidAmount && (
+                      {/* Difference - Solo mostrar si hay un monto pagado válido */}
+                      {paidAmount && Number.parseFloat(paidAmount) > 0 && (
                         <div className={`rounded-lg p-3 ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}>
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-white">{isPositive ? '✓ Ganancia' : '✗ Pérdida'}</span>
@@ -566,6 +569,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                           placeholder="Agregar observación..."
                           rows={2}
                           className="w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none"
+                          style={{ fontSize: '16px' }}
                         />
                       </div>
                     </div>
@@ -574,15 +578,17 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   {/* Footer */}
                   <div className="px-4 sm:px-5 py-3 border-t border-gray-100 flex gap-2 pb-safe">
                     <button
+                      type="button"
                       onClick={closeJobModal}
-                      className="flex-1 py-2.5 bg-gray-100 rounded-lg text-sm font-bold text-gray-600 active:bg-gray-200"
+                      className="flex-1 py-2.5 bg-gray-100 rounded-lg text-sm font-bold text-gray-600 active:bg-gray-200 touch-manipulation"
                     >
                       Cancelar
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleSaveJobInfo(modalEntry)}
                       disabled={isSavingJob}
-                      className="flex-1 py-2.5 bg-blue-500 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                      className="flex-1 py-2.5 bg-blue-500 rounded-lg text-sm font-bold text-white disabled:opacity-50 active:bg-blue-600 touch-manipulation"
                     >
                       {isSavingJob ? 'Guardando...' : 'Guardar'}
                     </button>
