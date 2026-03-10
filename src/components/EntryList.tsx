@@ -456,16 +456,16 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-[9999] sm:flex sm:items-center sm:justify-center sm:p-4">
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl animate-slide-up-modal overflow-hidden"
+                className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl animate-slide-up-modal overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
               >
                   {/* Drag handle móvil */}
-                  <div className="sm:hidden flex justify-center py-2">
+                  <div className="sm:hidden flex justify-center py-2 flex-shrink-0">
                     <div className="w-10 h-1 bg-gray-300 rounded-full" />
                   </div>
 
                   {/* Header */}
-                  <div className="px-4 sm:px-5 pb-3 sm:pt-4 flex items-center justify-between">
+                  <div className="px-4 sm:px-5 pb-3 sm:pt-4 flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
                         <FileText className="h-4 w-4 text-white" />
@@ -484,7 +484,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Scrollable Content */}
-                  <div className="px-4 sm:px-5 pb-4 overflow-y-auto max-h-[60vh] overscroll-contain">
+                  <div className="px-4 sm:px-5 pb-4 overflow-y-auto flex-1 min-h-0 overscroll-contain">
                     <div className="space-y-3">
                       {/* Job + Vehicle */}
                       <div className="grid grid-cols-2 gap-2">
@@ -576,7 +576,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                   
                   {/* Footer */}
-                  <div className="px-4 sm:px-5 py-3 border-t border-gray-100 flex gap-2 pb-safe">
+                  <div className="px-4 sm:px-5 py-3 border-t border-gray-100 flex gap-2 pb-safe flex-shrink-0">
                     <button
                       type="button"
                       onClick={closeJobModal}
