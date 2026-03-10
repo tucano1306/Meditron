@@ -435,6 +435,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       )}
       
       {/* Modal de información del trabajo */}
+      {/* Modal de Detalles del Trabajo - Rediseñado */}
       {jobModalEntryId && (() => {
         const modalEntry = entries.find(e => e.id === jobModalEntryId)
         if (!modalEntry) return null
@@ -445,158 +446,150 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         const isPositive = difference >= 0
         
         return (
-          <>
-            {/* Overlay */}
+          <div className="fixed inset-0 z-50">
+            {/* Backdrop */}
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
             <div 
-              className="fixed inset-0 z-[9998] bg-black/60"
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={closeJobModal}
             />
-            {/* Modal Container */}
-            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 pt-safe">
+            
+            {/* Modal posicionado */}
+            <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md">
               {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div 
-                className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl animate-slide-up-modal flex flex-col"
-                style={{ maxHeight: 'min(85vh, calc(100dvh - 40px))' }}
+                className="bg-white rounded-2xl shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
-                  {/* Drag handle móvil */}
-                  <div className="sm:hidden flex justify-center pt-3 pb-2 flex-shrink-0">
-                    <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-                  </div>
-
-                  {/* Header */}
-                  <div className="px-4 sm:px-5 pb-3 sm:pt-4 flex items-center justify-between flex-shrink-0">
+                {/* Header con gradiente */}
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
-                        <FileText className="h-4 w-4 text-white" />
+                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-gray-900">Detalles del Trabajo</h3>
-                        <p className="text-xs text-gray-500">⏱️ {modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'}</p>
+                        <h3 className="text-base font-bold text-white">Detalles del Trabajo</h3>
+                        <p className="text-sm text-white/80">{modalEntry.duration ? formatDuration(modalEntry.duration) : '--:--'} trabajadas</p>
                       </div>
                     </div>
                     <button
+                      type="button"
                       onClick={closeJobModal}
-                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+                      className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
                     >
-                      <X className="h-4 w-4 text-gray-500" />
+                      <X className="h-5 w-5 text-white" />
                     </button>
                   </div>
-                  
-                  {/* Scrollable Content */}
-                  <div className="px-4 sm:px-5 py-2 overflow-y-auto flex-1 min-h-0 overscroll-contain">
-                    <div className="space-y-3 pb-2">
-                      {/* Job + Vehicle */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-gray-50 rounded-lg p-2.5">
-                          <label htmlFor="modalJobNumber" className="block text-[10px] font-bold text-gray-400 uppercase mb-1"># Job</label>
-                          <input
-                            id="modalJobNumber"
-                            type="text"
-                            inputMode="numeric"
-                            value={jobNumber}
-                            onChange={(e) => setJobNumber(e.target.value)}
-                            placeholder="Ej: 123456"
-                            className="w-full bg-transparent text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
-                            style={{ fontSize: '16px' }}
-                          />
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-2.5">
-                          <label htmlFor="modalVehicle" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">🚐 Vehículo</label>
-                          <select
-                            id="modalVehicle"
-                            value={vehicleModal}
-                            onChange={(e) => setVehicleModal(e.target.value)}
-                            className="w-full bg-transparent text-sm font-semibold text-gray-900 focus:outline-none appearance-none cursor-pointer"
-                            style={{ fontSize: '16px' }}
-                          >
-                            <option value="">Ninguno</option>
-                            <option value="sprinter">Sprinter</option>
-                            <option value="mini-bus">Mini Bus</option>
-                            <option value="motorcoach">Motorcoach</option>
-                          </select>
-                        </div>
-                      </div>
-                      
-                      {/* Calculated Amount */}
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-[10px] font-bold text-emerald-600 uppercase">Calculado</p>
-                            <p className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
-                          </div>
-                          <p className="text-[10px] text-gray-500 text-right">{modalEntry.duration ? (modalEntry.duration / 3600).toFixed(2) : '0'} hrs<br/>× {formatCurrency(hourlyRate)}/hr</p>
-                        </div>
-                      </div>
-                      
-                      {/* Paid Amount */}
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <label htmlFor="modalPaidAmount" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">💵 Pagado por Compañía</label>
-                        <div className="flex items-center gap-1">
-                          <span className="text-lg font-bold text-gray-400">$</span>
-                          <input
-                            id="modalPaidAmount"
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            min="0"
-                            value={paidAmount}
-                            onChange={(e) => setPaidAmount(e.target.value)}
-                            placeholder="0.00"
-                            className="flex-1 bg-transparent text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none"
-                            style={{ fontSize: '16px' }}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Difference - Solo mostrar si hay un monto pagado válido */}
-                      {paidAmount && Number.parseFloat(paidAmount) > 0 && (
-                        <div className={`rounded-lg p-3 ${isPositive ? 'bg-green-500' : 'bg-red-500'}`}>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-white">{isPositive ? '✓ Ganancia' : '✗ Pérdida'}</span>
-                            <span className="text-lg font-black text-white">{difference >= 0 ? '+' : ''}{formatCurrency(difference)}</span>
-                          </div>
-                        </div>
-                      )}
+                </div>
+                
+                {/* Contenido */}
+                <div className="p-5 space-y-4">
+                  {/* Job Number y Vehículo en fila */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="modal-job-number" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Job #</label>
+                      <input
+                        id="modal-job-number"
+                        type="text"
+                        inputMode="numeric"
+                        value={jobNumber}
+                        onChange={(e) => setJobNumber(e.target.value)}
+                        placeholder="123456"
+                        className="mt-1 w-full px-3 py-2.5 bg-gray-100 rounded-xl text-gray-900 font-bold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        style={{ fontSize: '16px' }}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="modal-vehicle" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Vehículo</label>
+                      <select
+                        id="modal-vehicle"
+                        value={vehicleModal}
+                        onChange={(e) => setVehicleModal(e.target.value)}
+                        className="mt-1 w-full px-3 py-2.5 bg-gray-100 rounded-xl text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                        style={{ fontSize: '16px' }}
+                      >
+                        <option value="">Sin vehículo</option>
+                        <option value="sprinter">Sprinter</option>
+                        <option value="mini-bus">Mini Bus</option>
+                        <option value="motorcoach">Motorcoach</option>
+                      </select>
+                    </div>
+                  </div>
 
-                      {/* Observation */}
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <label htmlFor="modalObservation" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">📝 Nota</label>
-                        <textarea
-                          id="modalObservation"
-                          value={observation}
-                          onChange={(e) => setObservation(e.target.value)}
-                          placeholder="Agregar observación..."
-                          rows={2}
-                          className="w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none"
+                  {/* Montos - Calculado vs Pagado */}
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Calculado</span>
+                      <span className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-500 uppercase">Pagado</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-400 font-bold">$</span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          value={paidAmount}
+                          onChange={(e) => setPaidAmount(e.target.value)}
+                          placeholder="0.00"
+                          className="w-24 px-2 py-1 bg-white rounded-lg text-right text-lg font-black text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                           style={{ fontSize: '16px' }}
                         />
                       </div>
                     </div>
+                    
+                    {/* Diferencia */}
+                    {paidAmount && Number.parseFloat(paidAmount) > 0 && (
+                      <div className={`mt-3 pt-3 border-t border-gray-200 flex items-center justify-between`}>
+                        <span className={`text-xs font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          {isPositive ? '↑ Ganancia' : '↓ Pérdida'}
+                        </span>
+                        <span className={`text-lg font-black ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  
-                  {/* Footer */}
-                  <div className="px-4 sm:px-5 py-3 border-t border-gray-100 flex gap-2 pb-safe flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={closeJobModal}
-                      className="flex-1 py-2.5 bg-gray-100 rounded-lg text-sm font-bold text-gray-600 active:bg-gray-200 touch-manipulation"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveJobInfo(modalEntry)}
-                      disabled={isSavingJob}
-                      className="flex-1 py-2.5 bg-blue-500 rounded-lg text-sm font-bold text-white disabled:opacity-50 active:bg-blue-600 touch-manipulation"
-                    >
-                      {isSavingJob ? 'Guardando...' : 'Guardar'}
-                    </button>
+
+                  {/* Nota */}
+                  <div>
+                    <label htmlFor="modal-observation" className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nota (opcional)</label>
+                    <textarea
+                      id="modal-observation"
+                      value={observation}
+                      onChange={(e) => setObservation(e.target.value)}
+                      placeholder="Agregar observación..."
+                      rows={2}
+                      className="mt-1 w-full px-3 py-2.5 bg-gray-100 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                      style={{ fontSize: '16px' }}
+                    />
                   </div>
                 </div>
+                
+                {/* Footer con botones */}
+                <div className="px-5 py-4 bg-gray-50 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeJobModal}
+                    className="flex-1 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 active:bg-gray-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveJobInfo(modalEntry)}
+                    disabled={isSavingJob}
+                    className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl text-sm font-bold text-white disabled:opacity-50 active:opacity-90 transition-opacity"
+                  >
+                    {isSavingJob ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
             </div>
-          </>
+          </div>
         )
       })()}
     </Card>
