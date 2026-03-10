@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
 const ITEMS_PER_PAGE = 5
@@ -155,7 +155,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
               <div key={week.id} className="p-2.5 bg-gray-50 rounded-lg space-y-2">
                 {/* Header: Fecha y horas */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <Calendar className="h-3.5 w-3.5 text-gray-400" />
                     <span className="font-medium text-sm">
                       {formatDateRange(week.startDate, week.endDate)}
@@ -163,6 +163,13 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                     <span className="text-[10px] text-gray-400">
                       Sem {week.weekNumber}
                     </span>
+                    {allPaid && (
+                      <span className="relative inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow overflow-hidden">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
+                        REVISADO
+                        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                      </span>
+                    )}
                   </div>
                   <span className="font-bold text-sm text-gray-700">
                     {week.totalHours.toFixed(1)}h
