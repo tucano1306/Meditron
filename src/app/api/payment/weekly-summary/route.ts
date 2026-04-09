@@ -94,7 +94,17 @@ export async function GET() {
         calculatedAmount,
         companyPaidAmount,
         difference,
-        differencePercentage
+        differencePercentage,
+        entries: week.entries.map(e => ({
+          id: e.id,
+          date: e.date,
+          jobNumber: e.jobNumber,
+          vehicle: e.vehicle,
+          duration: e.duration,
+          amount: e.amount,
+          hourlyRate: e.hourlyRate,
+          companyPaid: e.companyPaid,
+        }))
       }
     })
 

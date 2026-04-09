@@ -1,3 +1,4 @@
 {
-    "liveServer.settings.multiRootWorkspaceName": "meditron"
+    "liveServer.settings.multiRootWorkspaceName": "meditron",
+    "prisma.pinToPrisma6": true
 }
