@@ -3,17 +3,21 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatCurrency } from '@/lib/utils'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
+import { formatCurrency, formatShortDateFlorida, formatDuration } from '@/lib/utils'
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
 const ITEMS_PER_PAGE = 5
 
 interface TimeEntry {
   id: string
+  date: string
+  jobNumber: string | null
+  vehicle: string | null
   duration: number | null
   companyPaid: number | null
   calculatedAmount: number | null
+  paidAmount: number | null
 }
 
 interface WeekData {
@@ -55,6 +59,9 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
+  const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
+
+  const toggleWeek = (id: string) => setExpandedWeek(prev => (prev === id ? null : id))
 
   const fetchWeeks = useCallback(async () => {
     try {
@@ -151,8 +158,16 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
 
+            const isExpanded = expandedWeek === week.id
+            const completedEntries = week.entries.filter(e => e.duration !== null)
+
             return (
-              <div key={week.id} className="p-2.5 bg-gray-50 rounded-lg space-y-2">
+              <div key={week.id} className="bg-gray-50 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  className="w-full p-2.5 space-y-2 text-left"
+                  onClick={() => toggleWeek(week.id)}
+                >
                 {/* Header: Fecha y horas */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -175,9 +190,16 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                       </span>
                     )}
                   </div>
-                  <span className="font-bold text-sm text-gray-700">
-                    {week.totalHours.toFixed(1)}h
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-sm text-gray-700">
+                      {week.totalHours.toFixed(1)}h
+                    </span>
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
                 </div>
 
                 {/* Fila: Calculado vs Pagado */}
@@ -218,6 +240,109 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
 
                 {/* Barra de progreso */}
                 <Progress value={(week.totalHours / maxHours) * 100} className="h-1.5" />
+                </button>
+
+                {/* Panel expandido: detalle por trabajo */}
+                {isExpanded && completedEntries.length > 0 && (
+                  <div className="border-t border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 overflow-hidden">
+                    <div className="px-3 py-2 bg-emerald-600 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-white" />
+                      <span className="text-white text-sm font-bold">Detalle de trabajos</span>
+                    </div>
+
+                    {/* Métricas resumen */}
+                    <div className="grid grid-cols-3 gap-0 divide-x divide-emerald-200 border-b border-emerald-200">
+                      <div className="flex flex-col items-center py-2 px-1">
+                        <Clock className="h-3.5 w-3.5 text-emerald-600 mb-0.5" />
+                        <span className="text-[11px] text-gray-500">Horas</span>
+                        <span className="text-base font-black text-gray-800">
+                          {(completedEntries.reduce((s, e) => s + (e.duration ?? 0), 0) / 3600).toFixed(2)}h
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center py-2 px-1">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600 mb-0.5" />
+                        <span className="text-[11px] text-gray-500">Calculado</span>
+                        <span className="text-base font-black text-emerald-600">
+                          {formatCurrency(completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? 0), 0))}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center py-2 px-1">
+                        <TrendingUp className="h-3.5 w-3.5 text-blue-500 mb-0.5" />
+                        <span className="text-[11px] text-gray-500">Pagado empresa</span>
+                        <span className="text-base font-black text-blue-600">
+                          {week.totalCompanyPaid > 0 ? formatCurrency(week.totalCompanyPaid) : '—'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Lista de entradas */}
+                    <div className="divide-y divide-emerald-100">
+                      {completedEntries.map((entry) => {
+                        const calc = entry.calculatedAmount ?? 0
+                        const paid = entry.paidAmount ?? null
+                        const companyPaid = entry.companyPaid ?? null
+                        const diff = companyPaid == null ? null : companyPaid - calc
+                        return (
+                          <div key={entry.id} className="flex items-center justify-between px-3 py-2 gap-2">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs text-gray-500">{formatShortDateFlorida(entry.date)}</span>
+                              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                {entry.jobNumber && (
+                                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
+                                    #{entry.jobNumber}
+                                  </span>
+                                )}
+                                {entry.vehicle && (
+                                  <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded">
+                                    🚗 {entry.vehicle}
+                                  </span>
+                                )}
+                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
+                                  {formatDuration(entry.duration ?? 0)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end flex-shrink-0 text-right">
+                              <span className="text-xs text-gray-400">calc: {formatCurrency(calc)}</span>
+                              {paid != null && (
+                                <span className="text-xs text-gray-600">pagado: {formatCurrency(paid)}</span>
+                              )}
+                              {companyPaid == null ? (
+                                <span className="text-xs text-gray-400 italic">sin pago empresa</span>
+                              ) : (
+                                <>
+                                  <span className="text-sm font-bold text-gray-800">empresa: {formatCurrency(companyPaid)}</span>
+                                  {diff != null && (
+                                    <span className={`text-[11px] font-semibold ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                      {diff >= 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Footer */}
+                    {week.totalCompanyPaid > 0 && (
+                      <div className="flex items-center justify-between px-3 py-2 bg-emerald-100 border-t border-emerald-200">
+                        <span className="text-xs font-bold text-emerald-800">
+                          Total empresa ({week.paidEntryCount} trabajo{week.paidEntryCount === 1 ? '' : 's'})
+                        </span>
+                        <div className="text-right">
+                          <span className="text-base font-black text-emerald-700">{formatCurrency(week.totalCompanyPaid)}</span>
+                          {week.totalHours > 0 && (
+                            <div className="text-[11px] text-emerald-600">
+                              ≈ {formatCurrency(week.totalCompanyPaid / week.totalHours)}/h efectivos
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
