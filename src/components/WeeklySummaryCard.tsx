@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration } from '@/lib/utils'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock } from 'lucide-react'
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
 const ITEMS_PER_PAGE = 5
@@ -18,6 +18,8 @@ interface TimeEntry {
   companyPaid: number | null
   calculatedAmount: number | null
   paidAmount: number | null
+  correctionPending: boolean
+  correctionNote: string | null
 }
 
 interface WeekData {
@@ -60,8 +62,46 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
+  const [correctionEntryId, setCorrectionEntryId] = useState<string | null>(null)
+  const [correctionNote, setCorrectionNote] = useState('')
+  const [savingCorrection, setSavingCorrection] = useState(false)
 
   const toggleWeek = (id: string) => setExpandedWeek(prev => (prev === id ? null : id))
+
+  const handleToggleCorrection = async (entry: TimeEntry) => {
+    // Si ya tiene corrección pendiente, la quitamos directamente
+    if (entry.correctionPending) {
+      await saveCorrection(entry.id, false, null)
+      return
+    }
+    // Si no tiene, abrimos el modal de nota
+    setCorrectionEntryId(entry.id)
+    setCorrectionNote('')
+  }
+
+  const saveCorrection = async (entryId: string, pending: boolean, note: string | null) => {
+    setSavingCorrection(true)
+    try {
+      await fetch('/api/entries/correction', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note }),
+      })
+      // Actualizar estado local sin refetch completo
+      setWeeks(prev => prev.map(week => ({
+        ...week,
+        entries: week.entries.map(e =>
+          e.id === entryId
+            ? { ...e, correctionPending: pending, correctionNote: pending ? note : null }
+            : e
+        )
+      })))
+    } finally {
+      setSavingCorrection(false)
+      setCorrectionEntryId(null)
+      setCorrectionNote('')
+    }
+  }
 
   const fetchWeeks = useCallback(async () => {
     try {
@@ -157,6 +197,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
             const difference = week.totalCompanyPaid - week.earnings
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
+            const hasPendingCorrections = week.entries.some(e => e.correctionPending)
 
             const isExpanded = expandedWeek === week.id
             const completedEntries = week.entries.filter(e => e.duration !== null)
@@ -178,7 +219,12 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                     <span className="text-[10px] text-gray-400">
                       Sem {week.weekNumber}
                     </span>
-                    {allPaid ? (
+                    {hasPendingCorrections ? (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300">
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        CORRECCIÓN PENDIENTE
+                      </span>
+                    ) : allPaid ? (
                       <span className="relative inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow overflow-hidden">
                         <CheckCircle2 className="h-2.5 w-2.5" />
                         REVISADO
@@ -283,43 +329,105 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                         const companyPaid = entry.companyPaid ?? null
                         const diff = companyPaid == null ? null : companyPaid - calc
                         return (
-                          <div key={entry.id} className="flex items-center justify-between px-3 py-2 gap-2">
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-xs text-gray-500">{formatShortDateFlorida(entry.date)}</span>
-                              <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                {entry.jobNumber && (
-                                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
-                                    #{entry.jobNumber}
-                                  </span>
-                                )}
-                                {entry.vehicle && (
-                                  <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded">
-                                    🚗 {entry.vehicle}
-                                  </span>
-                                )}
-                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
-                                  {formatDuration(entry.duration ?? 0)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end flex-shrink-0 text-right">
-                              <span className="text-xs text-gray-400">calc: {formatCurrency(calc)}</span>
-                              {paid != null && (
-                                <span className="text-xs text-gray-600">pagado: {formatCurrency(paid)}</span>
-                              )}
-                              {companyPaid == null ? (
-                                <span className="text-xs text-gray-400 italic">sin pago empresa</span>
-                              ) : (
-                                <>
-                                  <span className="text-sm font-bold text-gray-800">empresa: {formatCurrency(companyPaid)}</span>
-                                  {diff != null && (
-                                    <span className={`text-[11px] font-semibold ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                      {diff >= 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
+                          <div key={entry.id} className={`px-3 py-2 ${entry.correctionPending ? 'bg-orange-50 border-l-4 border-orange-400' : ''}`}>
+                            {/* Fila principal */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs text-gray-500">{formatShortDateFlorida(entry.date)}</span>
+                                <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                  {entry.jobNumber && (
+                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
+                                      #{entry.jobNumber}
                                     </span>
                                   )}
-                                </>
-                              )}
+                                  {entry.vehicle && (
+                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded">
+                                      🚗 {entry.vehicle}
+                                    </span>
+                                  )}
+                                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
+                                    {formatDuration(entry.duration ?? 0)}
+                                  </span>
+                                  {entry.correctionPending && (
+                                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded flex items-center gap-0.5">
+                                      <AlertTriangle className="h-2.5 w-2.5" />
+                                      PENDIENTE
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end flex-shrink-0 text-right gap-0.5">
+                                <span className="text-xs text-gray-400">calc: {formatCurrency(calc)}</span>
+                                {paid != null && (
+                                  <span className="text-xs text-gray-600">pagado: {formatCurrency(paid)}</span>
+                                )}
+                                {companyPaid == null ? (
+                                  <span className="text-xs text-gray-400 italic">sin pago empresa</span>
+                                ) : (
+                                  <>
+                                    <span className="text-sm font-bold text-gray-800">empresa: {formatCurrency(companyPaid)}</span>
+                                    {diff != null && (
+                                      <span className={`text-[11px] font-semibold ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                        {diff >= 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+                                {/* Botón de corrección */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleCorrection(entry)}
+                                  disabled={savingCorrection}
+                                  className={`mt-1 text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 ${
+                                    entry.correctionPending
+                                      ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
+                                      : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-700'
+                                  }`}
+                                >
+                                  {entry.correctionPending ? (
+                                    <><X className="h-2.5 w-2.5" /> Quitar pendiente</>
+                                  ) : (
+                                    <><AlertTriangle className="h-2.5 w-2.5" /> Marcar corrección</>
+                                  )}
+                                </button>
+                              </div>
                             </div>
+                            {/* Nota de corrección */}
+                            {entry.correctionPending && entry.correctionNote && (
+                              <div className="mt-1.5 text-[11px] text-orange-700 bg-orange-100 rounded px-2 py-1 italic">
+                                📝 {entry.correctionNote}
+                              </div>
+                            )}
+                            {/* Modal de nota (inline) */}
+                            {correctionEntryId === entry.id && (
+                              <div className="mt-2 bg-orange-50 border border-orange-300 rounded-lg p-3 space-y-2">
+                                <p className="text-xs font-semibold text-orange-800">¿Por qué necesita corrección?</p>
+                                <textarea
+                                  className="w-full text-xs border border-orange-300 rounded p-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                  rows={2}
+                                  placeholder="Ej: El monto recibido no coincide, falta $X..."
+                                  value={correctionNote}
+                                  onChange={e => setCorrectionNote(e.target.value)}
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setCorrectionEntryId(null); setCorrectionNote('') }}
+                                    className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={savingCorrection}
+                                    onClick={() => saveCorrection(entry.id, true, correctionNote.trim() || null)}
+                                    className="text-xs px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600 font-semibold"
+                                  >
+                                    {savingCorrection ? 'Guardando...' : 'Marcar pendiente'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )
                       })}
