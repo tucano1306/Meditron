@@ -1,0 +1,33 @@
+{
+  "version": "0.2",
+  "language": "en,es",
+  "import": ["@cspell/dict-es-es/cspell-ext.json"],
+  "words": [
+    "motorcoach",
+    "Motorcoach",
+    "sprinter",
+    "Sprinter",
+    "desfases",
+    "prisma",
+    "nextauth",
+    "Meditron",
+    "meditron",
+    "geist",
+    "Parsear",
+    "parsear",
+    "Parsea",
+    "parsearlo",
+    "Recalcular",
+    "recalcular",
+    "recalculados",
+    "thursday",
+    "beforeinstallprompt",
+    "Paginación"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    ".next",
+    "prisma/migrations",
+    "scripts/**"
+  ]
+}

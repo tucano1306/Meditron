@@ -17,18 +17,16 @@ interface BeforeInstallPromptEvent extends Event {
 export function InstallPWA() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallBanner, setShowInstallBanner] = useState(false)
-  const [isIOS, setIsIOS] = useState(false)
-  const [isStandalone, setIsStandalone] = useState(false)
+  const [isIOS] = useState(() => {
+    if (typeof navigator === 'undefined') return false
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(globalThis as unknown as { MSStream?: unknown }).MSStream
+  })
+  const [isStandalone] = useState(() => {
+    if (typeof globalThis.matchMedia !== 'function') return false
+    return globalThis.matchMedia('(display-mode: standalone)').matches
+  })
 
   useEffect(() => {
-    // Check if already installed
-    const isInstalled = globalThis.matchMedia('(display-mode: standalone)').matches
-    setIsStandalone(isInstalled)
-
-    // Check if iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(globalThis as unknown as { MSStream?: unknown }).MSStream
-    setIsIOS(iOS)
-
     // Listen for the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
@@ -39,7 +37,7 @@ export function InstallPWA() {
     globalThis.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
     // Show iOS instructions after a delay
-    if (iOS && !isInstalled) {
+    if (isIOS && !isStandalone) {
       const timer = setTimeout(() => {
         setShowInstallBanner(true)
       }, 3000)
@@ -49,7 +47,7 @@ export function InstallPWA() {
     return () => {
       globalThis.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
-  }, [])
+  }, [isIOS, isStandalone])
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return

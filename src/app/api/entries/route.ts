@@ -133,7 +133,6 @@ export async function POST(request: NextRequest) {
     const totalSeconds = (Number(hours) * 3600) + (Number(minutes) * 60)
     
     // Si se proporciona una fecha, usarla; si no, usar hoy en Florida
-    let targetDate: Date
     let targetYear: number
     let targetMonth: number
     let targetDay: number
@@ -151,7 +150,7 @@ export async function POST(request: NextRequest) {
       targetDay = floridaNow.day
     }
     // Crear fecha como UTC midnight para almacenamiento @db.Date correcto
-    targetDate = new Date(Date.UTC(targetYear, targetMonth - 1, targetDay))
+    const targetDate = new Date(Date.UTC(targetYear, targetMonth - 1, targetDay))
     
     // Crear tiempos de inicio y fin para la fecha seleccionada
     // Ponemos el fin a las 18:00 de ese día y el inicio según la duración

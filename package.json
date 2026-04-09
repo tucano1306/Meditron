@@ -7,7 +7,7 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --ext .ts,.tsx,.js,.mjs",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy"
   },
@@ -31,6 +31,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@cspell/dict-es-es": "^3.0.8",
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.57.0",
     "@testing-library/jest-dom": "^6.9.1",

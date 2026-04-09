@@ -221,6 +221,7 @@ export async function GET() {
           currentEntryId: activeEntry.id,
           jobNumber: activeEntry.jobNumber,
           vehicle: activeEntry.vehicle,
+          observation: activeEntry.observation,
           elapsedSeconds: Math.max(0, elapsedSeconds)
         }
       })
@@ -254,7 +255,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { jobNumber, vehicle } = body
+    const { jobNumber, vehicle, observation } = body
 
     // Buscar timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -271,10 +272,11 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Actualizar jobNumber y/o vehicle
-    const updateData: { jobNumber?: string; vehicle?: string } = {}
+    // Actualizar jobNumber, vehicle y/o observation
+    const updateData: { jobNumber?: string; vehicle?: string; observation?: string } = {}
     if (jobNumber !== undefined) updateData.jobNumber = jobNumber
     if (vehicle !== undefined) updateData.vehicle = vehicle
+    if (observation !== undefined) updateData.observation = observation
     
     const updatedEntry = await prisma.timeEntry.update({
       where: { id: activeEntry.id },

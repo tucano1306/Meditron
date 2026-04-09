@@ -3,13 +3,11 @@
 import { useEffect, useState } from 'react'
 
 export function useServiceWorker() {
-  const [isSupported, setIsSupported] = useState(false)
+  const isSupported = typeof navigator !== 'undefined' && 'serviceWorker' in navigator
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null)
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      setIsSupported(true)
-      
+    if (isSupported) {
       navigator.serviceWorker.register('/sw.js')
         .then((reg) => {
           setRegistration(reg)
@@ -20,7 +18,7 @@ export function useServiceWorker() {
         })
 
       // Listen for messages from service worker
-      navigator.serviceWorker.addEventListener('message', (event) => {
+      const handleMessage = (event: MessageEvent) => {
         if (event.data?.type === 'TIMER_SYNC') {
           // Handle timer sync from background
           globalThis.dispatchEvent(new CustomEvent('timer-sync', { detail: event.data.data }))
@@ -29,9 +27,15 @@ export function useServiceWorker() {
           // Respond to keep alive
           console.log('Keep alive ping received')
         }
-      })
+      }
+
+      navigator.serviceWorker.addEventListener('message', handleMessage)
+
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleMessage)
+      }
     }
-  }, [])
+  }, [isSupported])
 
   const sendMessage = (message: object) => {
     if (navigator.serviceWorker.controller) {

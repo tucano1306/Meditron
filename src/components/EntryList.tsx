@@ -273,291 +273,289 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       {isExpanded && (
         <CardContent className="px-2 sm:px-6 pt-4">
         <div className="space-y-3">
-          {entries.map((entry) => {
-            const isJobExpanded = expandedJobId === entry.id
-            const calculatedAmount = getCalculatedAmount(entry)
-            const paid = paidAmount ? Number.parseFloat(paidAmount) : 0
-            const difference = paid - calculatedAmount
-            const isPositive = difference >= 0
-            
-            return (
-            <div key={entry.id} className="space-y-0">
-              {/* Entry row */}
-              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-              <div
-                className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 ${isJobExpanded ? 'rounded-t-xl' : 'rounded-xl'} border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-2 ${entry.endTime && entry.duration !== null && editingId !== entry.id ? 'cursor-pointer active:scale-[0.99]' : ''}`}
-                onClick={() => {
-                  if (entry.endTime && entry.duration !== null && editingId !== entry.id) {
-                    toggleJobExpansion(entry)
-                  }
-                }}
-              >
-              <div className="flex-1 min-w-0">
-                {showDate && (
-                  <div className="text-xs text-gray-500 mb-1">
-                    {formatShortDateFlorida(entry.date)}
-                  </div>
-                )}
-                {editingId === entry.id ? (
-                  // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-                  <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    <input
-                      type="date"
-                      value={editDate}
-                      onChange={(e) => setEditDate(e.target.value)}
-                      className="px-2 py-1.5 text-sm border rounded w-full sm:w-36"
-                      style={{ fontSize: '16px' }}
-                    />
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]{2}:[0-9]{2}"
-                        placeholder="HH:MM"
-                        value={editStartTime}
-                        onChange={(e) => {
-                          let val = e.target.value.replaceAll(/[^0-9:]/g, '')
-                          if (val.length === 2 && !val.includes(':')) val += ':'
-                          if (val.length <= 5) setEditStartTime(val)
-                        }}
-                        className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
-                        style={{ fontSize: '16px' }}
-                      />
-                      <span className="text-gray-400 text-xs flex-shrink-0">-</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]{2}:[0-9]{2}"
-                        placeholder="HH:MM"
-                        value={editEndTime}
-                        onChange={(e) => {
-                          let val = e.target.value.replaceAll(/[^0-9:]/g, '')
-                          if (val.length === 2 && !val.includes(':')) val += ':'
-                          if (val.length <= 5) setEditEndTime(val)
-                        }}
-                        className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
-                        style={{ fontSize: '16px' }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 sm:gap-4">
-                    <span className="text-xs sm:text-sm font-medium text-gray-700 px-2 py-1 bg-white rounded-lg shadow-sm border border-gray-100">
-                      {formatTimeInFlorida(entry.startTime)}
-                      <span className="text-gray-400 mx-1">→</span>
-                      {entry.endTime
-                        ? formatTimeInFlorida(entry.endTime)
-                        : <span className="text-amber-500 animate-pulse">En progreso...</span>}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
-                <div className="text-right flex-1 min-w-0">
-                  {entry.duration === null || entry.endTime === null ? (
-                    <div className="px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-xs sm:text-sm shadow-md inline-block">
-                      ⏱️ En curso
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-end gap-0.5">
-                      <div className="font-mono font-bold text-sm sm:text-lg text-gray-800 bg-white px-1.5 sm:px-2 py-0.5 rounded-lg shadow-sm">
-                        {formatDuration(entry.duration)}
-                      </div>
-                      <div className="text-sm sm:text-base text-emerald-600 font-black">
-                        {formatCurrency((entry.duration / 3600) * hourlyRate)}
-                      </div>
-                      {/* Mostrar info del trabajo si existe */}
-                      {(entry.jobNumber || entry.vehicle) && (
-                        <div className="flex items-center gap-1 mt-1 pt-1 border-t border-gray-200 flex-wrap">
-                          {entry.jobNumber && (
-                            <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[70px] sm:max-w-none">
-                              #{entry.jobNumber}
-                            </span>
-                          )}
-                          {entry.vehicle && (
-                            <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-slate-500 to-gray-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm">
-                              🚗 {entry.vehicle}
-                            </span>
-                          )}
-                          {entry.paidAmount !== null && entry.paidAmount !== undefined && (
-                            <div className="flex items-center gap-1">
-                              {(() => {
-                                const calculated = (entry.duration / 3600) * hourlyRate
-                                const diff = entry.paidAmount - calculated
-                                const isPositive = diff >= 0
-                                return (
-                                  <span className={`text-[10px] sm:text-xs font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                                    {isPositive ? '😊' : '😢'} {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
-                                  </span>
-                                )
-                              })()}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {/* Action buttons - only show when entry is completed */}
-                {entry.endTime && entry.duration !== null && (
-                  <div className="flex items-center flex-shrink-0 ml-1">
-                    {editingId === entry.id ? (
-                      <div className="flex items-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleSaveEdit(entry)}
-                          disabled={isSaving}
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-8 sm:w-8"
-                        >
-                          <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={cancelEditing}
-                          disabled={isSaving}
-                          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-7 w-7 sm:h-8 sm:w-8"
-                        >
-                          <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-                      <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => startEditing(entry)}
-                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-7 w-7 sm:h-8 sm:w-8"
-                        >
-                          <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(entry.id)}
-                          className="text-red-400 hover:text-red-600 hover:bg-red-50 h-7 w-7 sm:h-8 sm:w-8"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-              
-              {/* Panel expandido inline - NO MODAL */}
-              {isJobExpanded && (
-                <div className="bg-emerald-50 border border-t-0 border-emerald-200 rounded-b-xl p-4 space-y-3">
-                  {/* Grid de campos */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor={`job-${entry.id}`} className="text-xs font-bold text-gray-600">Job #</label>
-                      <input
-                        id={`job-${entry.id}`}
-                        type="text"
-                        inputMode="numeric"
-                        value={jobNumber}
-                        onChange={(e) => setJobNumber(e.target.value)}
-                        placeholder="123456"
-                        className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        style={{ fontSize: '16px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor={`vehicle-${entry.id}`} className="text-xs font-bold text-gray-600">Vehículo</label>
-                      <select
-                        id={`vehicle-${entry.id}`}
-                        value={vehicleValue}
-                        onChange={(e) => setVehicleValue(e.target.value)}
-                        className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        style={{ fontSize: '16px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <option value="">Ninguno</option>
-                        <option value="sprinter">Sprinter</option>
-                        <option value="mini-bus">Mini Bus</option>
-                        <option value="motorcoach">Motorcoach</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  {/* Montos */}
-                  <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200">
-                    <div>
-                      <span className="text-xs text-gray-500">Calculado</span>
-                      <p className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
-                    </div>
-                    <div className="text-right">
-                      <label htmlFor={`paid-${entry.id}`} className="text-xs text-gray-500">Pagado</label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">$</span>
-                        <input
-                          id={`paid-${entry.id}`}
-                          type="number"
-                          inputMode="decimal"
-                          step="0.01"
-                          value={paidAmount}
-                          onChange={(e) => setPaidAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="w-24 px-2 py-1 bg-gray-100 rounded text-right font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          style={{ fontSize: '16px' }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Diferencia */}
-                  {paidAmount && Number.parseFloat(paidAmount) > 0 && (
-                    <div className={`text-center py-2 rounded-lg font-bold ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {isPositive ? '✓' : '✗'} {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-                    </div>
-                  )}
-                  
-                  {/* Nota */}
-                  <div>
-                    <label htmlFor={`note-${entry.id}`} className="text-xs font-bold text-gray-600">Nota</label>
-                    <textarea
-                      id={`note-${entry.id}`}
-                      value={observation}
-                      onChange={(e) => setObservation(e.target.value)}
-                      placeholder="Agregar nota..."
-                      rows={2}
-                      className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none"
-                      style={{ fontSize: '16px' }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  
-                  {/* Botones */}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); closeJobExpansion(); }}
-                      className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-bold text-gray-700"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleSaveJobInfo(entry); }}
-                      disabled={isSavingJob}
-                      className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-bold text-white disabled:opacity-50"
-                    >
-                      {isSavingJob ? 'Guardando...' : 'Guardar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )})}
+          {entries.map((entry) => renderEntryRow(entry))}
         </div>
         </CardContent>
       )}
     </Card>
   )
+
+  function renderEntryRow(entry: Entry) {
+    const isJobExpanded = expandedJobId === entry.id
+    const calculatedAmount = getCalculatedAmount(entry)
+    const paid = paidAmount ? Number.parseFloat(paidAmount) : 0
+    const difference = paid - calculatedAmount
+    const isPositive = difference >= 0
+    const isClickable = !!(entry.endTime && entry.duration !== null && editingId !== entry.id)
+    const rowBaseClass = `flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 ${isJobExpanded ? 'rounded-t-xl' : 'rounded-xl'} border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-2`
+
+    const rowContent = (
+      <>
+        <div className="flex-1 min-w-0">
+          {showDate && (
+            <div className="text-xs text-gray-500 mb-1">
+              {formatShortDateFlorida(entry.date)}
+            </div>
+          )}
+          {editingId === entry.id ? (
+            <div className="flex flex-col gap-2">
+              <input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="px-2 py-1.5 text-sm border rounded w-full sm:w-36"
+                style={{ fontSize: '16px' }}
+              />
+              <div className="flex items-center gap-1 sm:gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{2}:[0-9]{2}"
+                  placeholder="HH:MM"
+                  value={editStartTime}
+                  onChange={(e) => {
+                    let val = e.target.value.replaceAll(/[^0-9:]/g, '')
+                    if (val.length === 2 && !val.includes(':')) val += ':'
+                    if (val.length <= 5) setEditStartTime(val)
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
+                  style={{ fontSize: '16px' }}
+                />
+                <span className="text-gray-400 text-xs flex-shrink-0">-</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{2}:[0-9]{2}"
+                  placeholder="HH:MM"
+                  value={editEndTime}
+                  onChange={(e) => {
+                    let val = e.target.value.replaceAll(/[^0-9:]/g, '')
+                    if (val.length === 2 && !val.includes(':')) val += ':'
+                    if (val.length <= 5) setEditEndTime(val)
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
+                  style={{ fontSize: '16px' }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 sm:gap-4">
+              <span className="text-xs sm:text-sm font-medium text-gray-700 px-2 py-1 bg-white rounded-lg shadow-sm border border-gray-100">
+                {formatTimeInFlorida(entry.startTime)}
+                <span className="text-gray-400 mx-1">→</span>
+                {entry.endTime
+                  ? formatTimeInFlorida(entry.endTime)
+                  : <span className="text-amber-500 animate-pulse">En progreso...</span>}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
+          <div className="text-right flex-1 min-w-0">
+            {entry.duration === null || entry.endTime === null ? (
+              <div className="px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-xs sm:text-sm shadow-md inline-block">
+                ⏱️ En curso
+              </div>
+            ) : (
+              <div className="flex flex-col items-end gap-0.5">
+                <div className="font-mono font-bold text-sm sm:text-lg text-gray-800 bg-white px-1.5 sm:px-2 py-0.5 rounded-lg shadow-sm">
+                  {formatDuration(entry.duration)}
+                </div>
+                <div className="text-sm sm:text-base text-emerald-600 font-black">
+                  {formatCurrency((entry.duration / 3600) * hourlyRate)}
+                </div>
+                {(entry.jobNumber || entry.vehicle) && (
+                  <div className="flex items-center gap-1 mt-1 pt-1 border-t border-gray-200 flex-wrap">
+                    {entry.jobNumber && (
+                      <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[70px] sm:max-w-none">
+                        #{entry.jobNumber}
+                      </span>
+                    )}
+                    {entry.vehicle && (
+                      <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-slate-500 to-gray-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm">
+                        🚗 {entry.vehicle}
+                      </span>
+                    )}
+                    {entry.paidAmount !== null && entry.paidAmount !== undefined && (() => {
+                      const calculated = (entry.duration / 3600) * hourlyRate
+                      const diff = entry.paidAmount - calculated
+                      const diffPositive = diff >= 0
+                      return (
+                        <span className={`text-[10px] sm:text-xs font-medium ${diffPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          {diffPositive ? '😊' : '😢'} {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {entry.endTime && entry.duration !== null && (
+            <div className="flex items-center flex-shrink-0 ml-1">
+              {editingId === entry.id ? (
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleSaveEdit(entry)}
+                    disabled={isSaving}
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-8 sm:w-8"
+                  >
+                    <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={cancelEditing}
+                    disabled={isSaving}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-7 w-7 sm:h-8 sm:w-8"
+                  >
+                    <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => { e.stopPropagation(); startEditing(entry) }}
+                    className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-7 w-7 sm:h-8 sm:w-8"
+                  >
+                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => { e.stopPropagation(); handleDelete(entry.id) }}
+                    className="text-red-400 hover:text-red-600 hover:bg-red-50 h-7 w-7 sm:h-8 sm:w-8"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </>
+    )
+
+    return (
+      <div key={entry.id} className="space-y-0">
+        {isClickable ? (
+          <button
+            type="button"
+            className={`${rowBaseClass} w-full text-left active:scale-[0.99]`}
+            onClick={() => toggleJobExpansion(entry)}
+          >
+            {rowContent}
+          </button>
+        ) : (
+          <div className={rowBaseClass}>
+            {rowContent}
+          </div>
+        )}
+
+        {/* Panel expandido inline */}
+        {isJobExpanded && (
+          <div className="bg-emerald-50 border border-t-0 border-emerald-200 rounded-b-xl p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor={`job-${entry.id}`} className="text-xs font-bold text-gray-600">Job #</label>
+                <input
+                  id={`job-${entry.id}`}
+                  type="text"
+                  inputMode="numeric"
+                  value={jobNumber}
+                  onChange={(e) => setJobNumber(e.target.value)}
+                  placeholder="123456"
+                  className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  style={{ fontSize: '16px' }}
+                />
+              </div>
+              <div>
+                <label htmlFor={`vehicle-${entry.id}`} className="text-xs font-bold text-gray-600">Vehículo</label>
+                <select
+                  id={`vehicle-${entry.id}`}
+                  value={vehicleValue}
+                  onChange={(e) => setVehicleValue(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  style={{ fontSize: '16px' }}
+                >
+                  <option value="">Ninguno</option>
+                  <option value="sprinter">Sprinter</option>
+                  <option value="mini-bus">Mini Bus</option>
+                  <option value="motorcoach">Motorcoach</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200">
+              <div>
+                <span className="text-xs text-gray-500">Calculado</span>
+                <p className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
+              </div>
+              <div className="text-right">
+                <label htmlFor={`paid-${entry.id}`} className="text-xs text-gray-500">Pagado</label>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400">$</span>
+                  <input
+                    id={`paid-${entry.id}`}
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-24 px-2 py-1 bg-gray-100 rounded text-right font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {paidAmount && Number.parseFloat(paidAmount) > 0 && (
+              <div className={`text-center py-2 rounded-lg font-bold ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {isPositive ? '✓' : '✗'} {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor={`note-${entry.id}`} className="text-xs font-bold text-gray-600">Nota</label>
+              <textarea
+                id={`note-${entry.id}`}
+                value={observation}
+                onChange={(e) => setObservation(e.target.value)}
+                placeholder="Agregar nota..."
+                rows={2}
+                className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none"
+                style={{ fontSize: '16px' }}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={closeJobExpansion}
+                className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-bold text-gray-700"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveJobInfo(entry)}
+                disabled={isSavingJob}
+                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+              >
+                {isSavingJob ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 }

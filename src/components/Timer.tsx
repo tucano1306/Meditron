@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil, Bus } from 'lucide-react'
+import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida } from '@/lib/utils'
@@ -41,6 +41,9 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
   const [jobNumberInput, setJobNumberInput] = useState('')
   const [vehicleType, setVehicleType] = useState('')
+  const [observation, setObservation] = useState('')
+  const [isEditingObservation, setIsEditingObservation] = useState(false)
+  const [observationInput, setObservationInput] = useState('')
   const [result, setResult] = useState<{ duration: number; earnings: number; jobNumber?: string; vehicle?: string } | null>(null)
   
   // PWA and background support
@@ -68,6 +71,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         
         if (job) setJobNumber(job)
         if (vehicle) setVehicleType(vehicle)
+        if (data.data.observation) setObservation(data.data.observation)
       } catch (err) {
         console.error('Error loading timer state:', err)
       }
@@ -94,6 +98,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setElapsedSeconds(0)
     setJobNumber('')
     setVehicleType('')
+    setObservation('')
   }, [])
 
   const handleStart = useCallback(async () => {
@@ -122,6 +127,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       setElapsedSeconds(0)
       setJobNumber('')
       setVehicleType('')
+      setObservation('')
       startBackgroundTimer(newStartTime.toISOString())
     } catch (err) {
       setError('Error de conexión')
@@ -203,6 +209,36 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const handleCancelEditJobNumber = useCallback(() => {
     setIsEditingJobNumber(false)
     setJobNumberInput('')
+  }, [])
+
+  const handleSaveObservation = useCallback(async () => {
+    try {
+      const res = await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ observation: observationInput })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setObservation(observationInput)
+        setIsEditingObservation(false)
+      } else {
+        setError(data.error || 'Error al guardar comentario')
+      }
+    } catch (err) {
+      console.error('Error saving observation:', err)
+      setError('Error de conexión')
+    }
+  }, [observationInput])
+
+  const handleEditObservation = useCallback(() => {
+    setObservationInput(observation)
+    setIsEditingObservation(true)
+  }, [observation])
+
+  const handleCancelEditObservation = useCallback(() => {
+    setIsEditingObservation(false)
+    setObservationInput('')
   }, [])
 
   const handleSelectVehicle = async (selectedVehicle: string) => {
@@ -315,6 +351,46 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     )
   }
 
+  const renderObservationSection = () => {
+    if (!isRunning) return null
+    return (
+      <div className="bg-gradient-to-r from-gray-50 to-amber-50/30 rounded-2xl p-3 sm:p-4 border border-amber-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2 text-gray-600">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <MessageSquare className="h-4 w-4 text-amber-600" />
+            </div>
+            <span className="text-sm font-semibold">Comentario</span>
+          </div>
+          {isEditingObservation ? (
+            <div className="flex flex-col gap-2 w-full">
+              <textarea
+                value={observationInput}
+                onChange={(e) => setObservationInput(e.target.value)}
+                placeholder="Ej: Pasajero especial, retraso en aeropuerto..."
+                className="w-full px-3 py-2 text-sm rounded-xl border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none resize-none"
+                rows={3}
+                style={{ fontSize: '16px' }}
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" onClick={handleSaveObservation} className="h-9 px-3 bg-amber-500 hover:bg-amber-600 rounded-xl touch-manipulation active:scale-[0.96]">Guardar</Button>
+                <Button size="sm" variant="ghost" onClick={handleCancelEditObservation} className="h-9 px-2 touch-manipulation">✕</Button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={handleEditObservation} className="flex items-start gap-2 px-4 py-2.5 bg-white rounded-xl border-2 border-dashed border-amber-200 hover:border-amber-400 transition-all w-full text-left touch-manipulation active:scale-[0.98]">
+              <span className={observation ? 'text-sm text-gray-700 whitespace-pre-wrap' : 'text-gray-400 text-sm'}>
+                {observation || 'Toca para agregar un comentario'}
+              </span>
+              <Pencil className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const renderVehicleSection = () => {
     if (!isRunning) return null
     return (
@@ -415,6 +491,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
         {renderJobNumberSection()}
         {renderVehicleSection()}
+        {renderObservationSection()}
         {renderResultSection()}
 
         {/* Error Message */}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDuration, getMonthName, parseLocalDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida } from '@/lib/utils'
-import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer, TrendingUp, Clock, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
 
@@ -36,6 +36,109 @@ interface WeekData {
 interface WeekHistoryProps {
   readonly onRefresh?: () => void
   readonly refreshTrigger?: number
+}
+
+// ─── Resumen de trabajos por semana ──────────────────────────────────────────
+function WeekJobSummary({ entries, hourlyRate }: Readonly<{ entries: Entry[]; hourlyRate: number }>) {
+  const completedEntries = entries.filter(e => e.duration !== null && e.endTime !== null)
+
+  if (completedEntries.length === 0) return null
+
+  const totalSeconds = completedEntries.reduce((s, e) => s + (e.duration ?? 0), 0)
+  const totalHours = totalSeconds / 3600
+  const calculatedTotal = totalHours * hourlyRate
+
+  const entriesWithPay = completedEntries.filter(e => e.paidAmount != null && e.paidAmount > 0)
+  const totalPaid = entriesWithPay.reduce((s, e) => s + (e.paidAmount ?? 0), 0)
+  const paidHours = entriesWithPay.reduce((s, e) => s + (e.duration ?? 0), 0) / 3600
+  const effectiveRate = paidHours > 0 ? totalPaid / paidHours : null
+
+  return (
+    <div className="mt-3 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 overflow-hidden">
+      <div className="px-3 py-2 bg-emerald-600 flex items-center gap-2">
+        <TrendingUp className="h-4 w-4 text-white" />
+        <span className="text-white text-sm font-bold">Resumen de trabajos</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-0 divide-x divide-emerald-200 border-b border-emerald-200">
+        <div className="flex flex-col items-center py-2.5 px-1">
+          <Clock className="h-3.5 w-3.5 text-emerald-600 mb-0.5" />
+          <span className="text-[11px] text-gray-500">Horas</span>
+          <span className="text-base font-black text-gray-800">{totalHours.toFixed(2)}h</span>
+        </div>
+        <div className="flex flex-col items-center py-2.5 px-1">
+          <DollarSign className="h-3.5 w-3.5 text-emerald-600 mb-0.5" />
+          <span className="text-[11px] text-gray-500">Calculado</span>
+          <span className="text-base font-black text-emerald-600">{formatCurrency(calculatedTotal)}</span>
+        </div>
+        <div className="flex flex-col items-center py-2.5 px-1">
+          <TrendingUp className="h-3.5 w-3.5 text-blue-500 mb-0.5" />
+          <span className="text-[11px] text-gray-500">Tarifa real</span>
+          <span className="text-base font-black text-blue-600">
+            {effectiveRate == null ? '—' : `${formatCurrency(effectiveRate)}/h`}
+          </span>
+        </div>
+      </div>
+
+      <div className="divide-y divide-emerald-100">
+        {completedEntries.map((entry) => {
+          const hours = (entry.duration ?? 0) / 3600
+          const calc = hours * hourlyRate
+          const paid = entry.paidAmount ?? null
+          const diff = paid == null ? null : paid - calc
+          return (
+            <div key={entry.id} className="flex items-center justify-between px-3 py-2 gap-2">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs text-gray-500">{formatShortDateFlorida(entry.date)}</span>
+                <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                  {entry.jobNumber && (
+                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
+                      #{entry.jobNumber}
+                    </span>
+                  )}
+                  {entry.vehicle && (
+                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded">
+                      🚗 {entry.vehicle}
+                    </span>
+                  )}
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
+                    {formatDuration(entry.duration ?? 0)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end flex-shrink-0 text-right">
+                <span className="text-xs text-gray-400">calc: {formatCurrency(calc)}</span>
+                {paid == null ? (
+                  <span className="text-xs text-gray-400 italic">sin pago</span>
+                ) : (
+                  <>
+                    <span className="text-sm font-bold text-gray-800">pagado: {formatCurrency(paid)}</span>
+                    <span className={`text-[11px] font-semibold ${(diff ?? 0) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {(diff ?? 0) >= 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff ?? 0))}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {entriesWithPay.length > 0 && (
+        <div className="flex items-center justify-between px-3 py-2 bg-emerald-100 border-t border-emerald-200">
+          <span className="text-xs font-bold text-emerald-800">
+            Total pagado ({entriesWithPay.length} trabajo{entriesWithPay.length === 1 ? '' : 's'})
+          </span>
+          <div className="text-right">
+            <span className="text-base font-black text-emerald-700">{formatCurrency(totalPaid)}</span>
+            {effectiveRate != null && (
+              <div className="text-[11px] text-emerald-600">≈ {formatCurrency(effectiveRate)}/h efectivos</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHistoryProps>) {
@@ -280,14 +383,17 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
               
               {expandedWeek === week.id && week.entries.length > 0 && (
                 <div className="p-3 sm:p-4 pt-0 border-t bg-gray-50">
-                  <EntryList
-                    entries={week.entries}
-                    title={`Entradas de la Semana ${week.weekNumber}`}
-                    showDate
-                    onDelete={handleEntryDelete}
-                    onUpdate={() => { fetchWeeks(); onRefresh?.(); }}
-                    hourlyRate={hourlyRate}
-                  />
+                  <WeekJobSummary entries={week.entries} hourlyRate={hourlyRate} />
+                  <div className="mt-3">
+                    <EntryList
+                      entries={week.entries}
+                      title={`Entradas de la Semana ${week.weekNumber}`}
+                      showDate
+                      onDelete={handleEntryDelete}
+                      onUpdate={() => { fetchWeeks(); onRefresh?.(); }}
+                      hourlyRate={hourlyRate}
+                    />
+                  </div>
                 </div>
               )}
             </div>

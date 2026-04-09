@@ -191,7 +191,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
     } finally {
       setIsLoading(false)
     }
-  }, [amount, onComplete, stopBackgroundTimer, releaseWakeLock])
+  }, [amount, onComplete, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType])
 
   const handleCancelModal = () => {
     setShowAmountModal(false)
@@ -461,10 +461,13 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
 
       {/* Amount Modal */}
       {showAmountModal && (
-        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in-backdrop" onClick={handleCancelModal}>
-          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto animate-slide-up-modal" onClick={(e) => e.stopPropagation()}>
+        // Backdrop — not interactive, just visual
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-fade-in-backdrop">
+          <dialog
+            open
+            className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto animate-slide-up-modal m-0 border-0"
+            aria-label="Ingresa el monto del trabajo"
+          >
             {/* Drag handle - solo móvil */}
             <div className="sm:hidden flex justify-center -mt-2 mb-3">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
@@ -522,7 +525,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
             </div>
             {/* Safe area padding for iOS */}
             <div className="sm:hidden pb-safe" />
-          </div>
+          </dialog>
         </div>
       )}
     </>
