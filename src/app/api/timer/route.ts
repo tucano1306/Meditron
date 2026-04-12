@@ -89,11 +89,13 @@ export async function PUT(request: NextRequest) {
     let now: Date
     let jobNumber: string | undefined
     let vehicle: string | undefined
+    let observation: string | undefined
     try {
       const body = await request.json()
       now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
       jobNumber = body.jobNumber
       vehicle = body.vehicle
+      observation = body.observation
     } catch {
       now = new Date()
     }
@@ -143,6 +145,7 @@ export async function PUT(request: NextRequest) {
         calculatedAmount,
         jobNumber: jobNumber || activeEntry.jobNumber,
         vehicle: vehicle || activeEntry.vehicle,
+        observation: observation ?? activeEntry.observation,
         date: correctDate,
         weekId: correctWeek.id
       }

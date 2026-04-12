@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration } from '@/lib/utils'
@@ -88,14 +88,12 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
         body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note }),
       })
       // Actualizar estado local sin refetch completo
-      setWeeks(prev => prev.map(week => ({
-        ...week,
-        entries: week.entries.map(e =>
-          e.id === entryId
-            ? { ...e, correctionPending: pending, correctionNote: pending ? note : null }
-            : e
-        )
-      })))
+      const updateEntry = (e: TimeEntry) =>
+        e.id === entryId
+          ? { ...e, correctionPending: pending, correctionNote: pending ? note : null }
+          : e
+      const updateWeek = (week: WeekData) => ({ ...week, entries: week.entries.map(updateEntry) })
+      setWeeks(prev => prev.map(updateWeek))
     } finally {
       setSavingCorrection(false)
       setCorrectionEntryId(null)
@@ -202,6 +200,30 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
             const isExpanded = expandedWeek === week.id
             const completedEntries = week.entries.filter(e => e.duration !== null)
 
+            let statusBadge: React.ReactNode
+            if (hasPendingCorrections) {
+              statusBadge = (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  CORRECCIÓN PENDIENTE
+                </span>
+              )
+            } else if (allPaid) {
+              statusBadge = (
+                <span className="relative inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow overflow-hidden">
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                  REVISADO
+                  <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                </span>
+              )
+            } else {
+              statusBadge = (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                  SIN REVISAR
+                </span>
+              )
+            }
+
             return (
               <div key={week.id} className="bg-gray-50 rounded-lg overflow-hidden">
                 <button
@@ -219,22 +241,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                     <span className="text-[10px] text-gray-400">
                       Sem {week.weekNumber}
                     </span>
-                    {hasPendingCorrections ? (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300">
-                        <AlertTriangle className="h-2.5 w-2.5" />
-                        CORRECCIÓN PENDIENTE
-                      </span>
-                    ) : allPaid ? (
-                      <span className="relative inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow overflow-hidden">
-                        <CheckCircle2 className="h-2.5 w-2.5" />
-                        REVISADO
-                        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300">
-                        SIN REVISAR
-                      </span>
-                    )}
+                    {statusBadge}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-sm text-gray-700">
