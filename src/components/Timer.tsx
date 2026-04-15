@@ -176,7 +176,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     } finally {
       setIsLoading(false)
     }
-  }, [onTimerStop, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType, elapsedSeconds, hourlyRate, resetTimerState])
+  }, [onTimerStop, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType, observation, elapsedSeconds, hourlyRate, resetTimerState])
 
   const currentEarnings = (elapsedSeconds / 3600) * hourlyRate
 
