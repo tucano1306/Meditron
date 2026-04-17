@@ -262,6 +262,16 @@ function EntryCard({
   )
 }
 
+function weekCardClassName(expanded: boolean): string {
+  return expanded ? 'bg-white shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'
+}
+function weekButtonClassName(expanded: boolean): string {
+  return expanded ? 'bg-emerald-50' : 'hover:bg-gray-100'
+}
+function hoursTextClassName(expanded: boolean): string {
+  return expanded ? 'font-bold text-sm text-emerald-700' : 'font-bold text-sm text-gray-700'
+}
+
 interface DifferenceRowProps {
   difference: number
   allPaid: boolean
@@ -563,12 +573,15 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
             const isExpanded = expandedWeek === week.id
             const hasPendingCorrections = week.entries.some(e => e.correctionPending)
             const hasResolvedCorrections = week.entries.some(e => e.correctionResolved)
+            const weekCardClass = weekCardClassName(isExpanded)
+            const weekButtonClass = weekButtonClassName(isExpanded)
+            const hoursTextClass = hoursTextClassName(isExpanded)
 
             return (
-              <div key={week.id} className="bg-gray-50 rounded-lg overflow-hidden">
+              <div key={week.id} className={`rounded-xl overflow-hidden transition-all duration-200 ${weekCardClass}`}>
                 <button
                   type="button"
-                  className="w-full p-2.5 space-y-2 text-left"
+                  className={`w-full p-2.5 space-y-2 text-left transition-colors ${weekButtonClass}`}
                   onClick={() => toggleWeek(week.id)}
                 >
                 {/* Header: Fecha y horas */}
@@ -588,11 +601,11 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                     />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-sm text-gray-700">
+                    <span className={hoursTextClass}>
                       {week.totalHours.toFixed(1)}h
                     </span>
                     {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                      <ChevronDown className="h-4 w-4 text-emerald-500" />
                     ) : (
                       <ChevronRight className="h-4 w-4 text-gray-400" />
                     )}
