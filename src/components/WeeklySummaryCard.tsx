@@ -42,6 +42,7 @@ interface WeekData {
 
 interface WeeklySummaryCardProps {
   readonly refreshTrigger?: number
+  readonly onRefresh?: () => void
 }
 
 function formatDateRange(startDate: string, endDate: string): string {
@@ -98,7 +99,7 @@ function WeekStatusBadge({ hasPendingCorrections, hasResolvedCorrections, allPai
   )
 }
 
-export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummaryCardProps>) {
+export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<WeeklySummaryCardProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -188,6 +189,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
         setAddEntryForm({ date: '', hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '' })
         setLastAddedWeekId(weekId)
         setLocalRefreshKey(prev => prev + 1)
+        onRefresh?.()
       } else {
         setSaveError(data.error ?? 'Error al guardar')
       }
