@@ -110,7 +110,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
   const [resolveNote, setResolveNote] = useState('')
   const [savingCorrection, setSavingCorrection] = useState(false)
   const [addEntryWeekId, setAddEntryWeekId] = useState<string | null>(null)
-  const [addEntryForm, setAddEntryForm] = useState({ date: '', hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '' })
+  const [addEntryForm, setAddEntryForm] = useState({ date: '', hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '', paidAmount: '' })
   const [savingEntry, setSavingEntry] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [lastAddedWeekId, setLastAddedWeekId] = useState<string | null>(null)
@@ -160,7 +160,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
   }
 
   const handleAddEntry = async (weekId: string) => {
-    const { date, hours, minutes, jobNumber, vehicle, calculatedAmount } = addEntryForm
+    const { date, hours, minutes, jobNumber, vehicle, calculatedAmount, paidAmount } = addEntryForm
     if (!date || (hours === '' && minutes === '')) return
     setSavingEntry(true)
     setSaveError(null)
@@ -168,6 +168,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
       const h = Number(hours) || 0
       const m = Number(minutes) || 0
       const calc = calculatedAmount === '' ? undefined : Number(calculatedAmount)
+      const paid = paidAmount === '' ? undefined : Number(paidAmount)
       const body: Record<string, unknown> = {
         hours: h,
         minutes: m,
@@ -178,6 +179,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
       if (jobNumber.trim()) body.jobNumber = jobNumber.trim()
       if (vehicle.trim()) body.vehicle = vehicle.trim()
       if (calc !== undefined) body.calculatedAmount = calc
+      if (paid !== undefined) body.paidAmount = paid
       const res = await fetch('/api/entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -186,7 +188,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
       const data = await res.json()
       if (data.success) {
         setAddEntryWeekId(null)
-        setAddEntryForm({ date: '', hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '' })
+        setAddEntryForm({ date: '', hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '', paidAmount: '' })
         setLastAddedWeekId(weekId)
         setLocalRefreshKey(prev => prev + 1)
         onRefresh?.()
@@ -390,7 +392,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                         type="button"
                         onClick={() => {
                           setAddEntryWeekId(prev => prev === week.id ? null : week.id)
-                          setAddEntryForm({ date: week.startDate.slice(0, 10), hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '' })
+                          setAddEntryForm({ date: week.startDate.slice(0, 10), hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '', paidAmount: '' })
                           setSaveError(null)
                         }}
                         className="flex items-center gap-1 px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors"
@@ -674,6 +676,19 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                               className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                               value={addEntryForm.calculatedAmount}
                               onChange={e => setAddEntryForm(f => ({ ...f, calculatedAmount: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor="ae-paid" className="text-[10px] text-gray-500 uppercase tracking-wide">$ Pagado empresa</label>
+                            <input
+                              id="ae-paid"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Opcional"
+                              className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                              value={addEntryForm.paidAmount}
+                              onChange={e => setAddEntryForm(f => ({ ...f, paidAmount: e.target.value }))}
                             />
                           </div>
                           <div>

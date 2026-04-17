@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { hours, minutes, payment, hourlyRate, date, jobNumber, vehicle, calculatedAmount } = body
+    const { hours, minutes, payment, hourlyRate, date, jobNumber, vehicle, calculatedAmount, paidAmount } = body
 
     if (hours === undefined || minutes === undefined || payment === undefined) {
       return NextResponse.json(
@@ -166,6 +166,10 @@ export async function POST(request: NextRequest) {
     if (jobNumber) entryExtraData.jobNumber = String(jobNumber)
     if (vehicle) entryExtraData.vehicle = String(vehicle)
     if (calculatedAmount !== undefined) entryExtraData.calculatedAmount = Number(calculatedAmount)
+    if (paidAmount !== undefined) {
+      entryExtraData.paidAmount = Number(paidAmount)
+      entryExtraData.companyPaid = Number(paidAmount)
+    }
 
     const entry = await prisma.timeEntry.create({
       data: {
