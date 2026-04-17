@@ -291,6 +291,8 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
           {paginatedWeeks.map((week) => {
             const completedEntries = week.entries.filter(e => e.duration !== null)
             const totalCalculated = completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? 0), 0)
+            // Best-estimate total: use companyPaid when available, fall back to calculatedAmount
+            const totalBestEstimate = completedEntries.reduce((s, e) => s + (e.companyPaid ?? e.calculatedAmount ?? 0), 0)
             const difference = week.totalCompanyPaid - totalCalculated
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
@@ -719,16 +721,16 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                     )}
 
                     {/* Footer */}
-                    {week.totalCompanyPaid > 0 && (
+                    {(week.totalCompanyPaid > 0 || completedEntries.length > 0) && (
                       <div className="flex items-center justify-between px-3 py-2 bg-emerald-100 border-t border-emerald-200">
                         <span className="text-xs font-bold text-emerald-800">
-                          Total empresa ({week.paidEntryCount} trabajo{week.paidEntryCount === 1 ? '' : 's'})
+                          Total ({week.entryCount} trabajo{week.entryCount === 1 ? '' : 's'})
                         </span>
                         <div className="text-right">
-                          <span className="text-base font-black text-emerald-700">{formatCurrency(week.totalCompanyPaid)}</span>
+                          <span className="text-base font-black text-emerald-700">{formatCurrency(totalBestEstimate)}</span>
                           {week.totalHours > 0 && (
                             <div className="text-[11px] text-emerald-600">
-                              ≈ {formatCurrency(week.totalCompanyPaid / week.totalHours)}/h efectivos
+                              ≈ {formatCurrency(totalBestEstimate / week.totalHours)}/h efectivos
                             </div>
                           )}
                         </div>
