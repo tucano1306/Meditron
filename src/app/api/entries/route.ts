@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { hours, minutes, payment, hourlyRate, date } = body
+    const { hours, minutes, payment, hourlyRate, date, jobNumber, vehicle, calculatedAmount } = body
 
     if (hours === undefined || minutes === undefined || payment === undefined) {
       return NextResponse.json(
@@ -162,6 +162,11 @@ export async function POST(request: NextRequest) {
     const week = await getOrCreateWeekFromCalendarDate(targetYear, targetMonth, targetDay, userId)
 
     // Crear la entrada
+    const entryExtraData: Record<string, unknown> = {}
+    if (jobNumber) entryExtraData.jobNumber = String(jobNumber)
+    if (vehicle) entryExtraData.vehicle = String(vehicle)
+    if (calculatedAmount !== undefined) entryExtraData.calculatedAmount = Number(calculatedAmount)
+
     const entry = await prisma.timeEntry.create({
       data: {
         startTime,
@@ -169,7 +174,8 @@ export async function POST(request: NextRequest) {
         duration: totalSeconds,
         date: targetDate,
         weekId: week.id,
-        userId
+        userId,
+        ...entryExtraData,
       }
     })
 
