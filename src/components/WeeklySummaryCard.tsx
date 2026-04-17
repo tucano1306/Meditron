@@ -60,6 +60,26 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${startDay} ${startMonth} - ${endDay} ${endMonth}`
 }
 
+interface DifferenceRowProps {
+  difference: number
+  allPaid: boolean
+}
+
+function DifferenceRow({ difference, allPaid }: Readonly<DifferenceRowProps>) {
+  const isPositive = difference >= 0
+  return (
+    <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded-md ${
+      isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+    }`}>
+      <span className="font-medium">
+        {isPositive ? '✓ A favor' : '✗ En contra'}
+        {!allPaid && <span className="text-[10px] opacity-75 ml-1">(parcial)</span>}
+      </span>
+      <span className="font-bold">{isPositive ? '+' : ''}{formatCurrency(difference)}</span>
+    </div>
+  )
+}
+
 interface EntryDeleteButtonProps {
   isConfirming: boolean
   onInitiate: () => void
@@ -400,17 +420,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
 
                 {/* Diferencia - solo si hay pagos */}
                 {hasPayments && (
-                  <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded-md ${
-                    difference >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                  }`}>
-                    <span className="font-medium">
-                      {difference >= 0 ? '✓ A favor' : '✗ En contra'}
-                      {!allPaid && <span className="text-[10px] opacity-75 ml-1">(parcial)</span>}
-                    </span>
-                    <span className="font-bold">
-                      {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-                    </span>
-                  </div>
+                  <DifferenceRow difference={difference} allPaid={allPaid} />
                 )}
 
                 {/* Barra de progreso */}
