@@ -232,10 +232,10 @@ export function PaymentMonthSummary({ onRefresh }: Readonly<PaymentMonthSummaryP
           {paginatedMonths.map((monthData) => {
             const monthKey = `${monthData.year}-${monthData.month}`
             return (
-              <div key={monthKey} className="border rounded-lg overflow-hidden">
+              <div key={monthKey} className={`rounded-xl overflow-hidden transition-all duration-200 ${expandedMonth === monthKey ? 'bg-white shadow-md ring-2 ring-blue-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
                 <Button
                   variant="ghost"
-                  className="w-full justify-between p-3 sm:p-4 h-auto"
+                  className={`w-full justify-between p-3 sm:p-4 h-auto transition-colors ${expandedMonth === monthKey ? 'bg-blue-50 hover:bg-blue-50' : 'hover:bg-gray-100'}`}
                   onClick={() => setExpandedMonth(expandedMonth === monthKey ? null : monthKey)}
                 >
                   <div className="flex items-center gap-2 sm:gap-3">

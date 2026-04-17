@@ -369,10 +369,10 @@ export function PaymentWeekHistory({ onRefresh }: Readonly<PaymentWeekHistoryPro
           {paginatedWeeks.map((week) => {
             const weekKey = `${week.year}-${week.weekNumber}`
             return (
-              <div key={weekKey} className="border rounded-lg overflow-hidden">
+              <div key={weekKey} className={`rounded-xl overflow-hidden transition-all duration-200 ${expandedWeek === weekKey ? 'bg-white shadow-md ring-2 ring-blue-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
                 <Button
                   variant="ghost"
-                  className="w-full justify-between p-3 sm:p-4 h-auto"
+                  className={`w-full justify-between p-3 sm:p-4 h-auto transition-colors ${expandedWeek === weekKey ? 'bg-blue-50 hover:bg-blue-50' : 'hover:bg-gray-100'}`}
                   onClick={() => setExpandedWeek(expandedWeek === weekKey ? null : weekKey)}
                 >
                   <div className="flex items-center gap-2 sm:gap-3">

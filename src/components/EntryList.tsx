@@ -207,10 +207,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const totalDuration = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
 
   return (
-    <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white overflow-hidden">
+    <div className={`overflow-hidden rounded-[6px] transition-all duration-200 ${isExpanded ? 'bg-white shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
       <button
         type="button"
-        className="w-full flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+        className={`w-full flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] transition-colors ${isExpanded ? 'bg-emerald-50 hover:bg-emerald-50' : 'hover:bg-gray-100'}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2">
