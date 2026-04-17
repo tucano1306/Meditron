@@ -60,6 +60,208 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${startDay} ${startMonth} - ${endDay} ${endMonth}`
 }
 
+interface EntryCardProps {
+  entry: TimeEntry
+  deletingEntryId: string | null
+  resolveEntryId: string | null
+  correctionEntryId: string | null
+  resolveNote: string
+  correctionNote: string
+  savingCorrection: boolean
+  onToggleCorrection: (entry: TimeEntry) => void
+  onMarkResolved: (entry: TimeEntry) => void
+  onSaveCorrection: (entryId: string, pending: boolean, note: string | null, resolved: boolean, resolvedNote?: string | null) => void
+  onSetDeletingEntryId: (id: string | null) => void
+  onDeleteEntry: (id: string) => void
+  onSetResolveNote: (v: string) => void
+  onSetCorrectionNote: (v: string) => void
+  onCancelResolve: () => void
+  onCancelCorrection: () => void
+}
+
+function entryBorderClass(pending: boolean, resolved: boolean): string {
+  if (pending) return 'border-orange-300 ring-1 ring-orange-200'
+  if (resolved) return 'border-blue-200 ring-1 ring-blue-100'
+  return 'border-gray-100'
+}
+
+function entryHeaderBg(pending: boolean, resolved: boolean): string {
+  if (pending) return 'bg-orange-50'
+  if (resolved) return 'bg-blue-50'
+  return 'bg-gray-50'
+}
+
+function EntryCard({
+  entry, deletingEntryId, resolveEntryId, correctionEntryId,
+  resolveNote, correctionNote, savingCorrection,
+  onToggleCorrection, onMarkResolved, onSaveCorrection,
+  onSetDeletingEntryId, onDeleteEntry,
+  onSetResolveNote, onSetCorrectionNote,
+  onCancelResolve, onCancelCorrection,
+}: Readonly<EntryCardProps>) {
+  const calc = entry.calculatedAmount ?? 0
+  const paid = entry.paidAmount ?? null
+  const companyPaid = entry.companyPaid ?? null
+  const diff = companyPaid === null ? null : companyPaid - calc
+  const isPending = entry.correctionPending
+  const isResolved = entry.correctionResolved
+
+  return (
+    <div className={`bg-white rounded-xl shadow-sm overflow-hidden border ${entryBorderClass(isPending, isResolved)}`}>
+      {/* Cabecera: fecha + estado */}
+      <div className={`flex items-center justify-between px-3 py-2 ${entryHeaderBg(isPending, isResolved)}`}>
+        <span className="text-xs font-semibold text-gray-700">{formatShortDateFlorida(entry.date)}</span>
+        <div className="flex items-center gap-1">
+          {isPending && (
+            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full flex items-center gap-0.5">
+              <AlertTriangle className="h-2.5 w-2.5" /> PENDIENTE
+            </span>
+          )}
+          {isResolved && (
+            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full flex items-center gap-0.5">
+              <BadgeCheck className="h-2.5 w-2.5" /> CORREGIDO
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div className="flex items-center gap-1.5 flex-wrap px-3 py-2 border-b border-gray-100">
+        {entry.jobNumber && (
+          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">#{entry.jobNumber}</span>
+        )}
+        {entry.vehicle && (
+          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-full">🚗 {entry.vehicle}</span>
+        )}
+        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-medium rounded-full flex items-center gap-0.5">
+          <Clock className="h-2.5 w-2.5" /> {formatDuration(entry.duration ?? 0)}
+        </span>
+      </div>
+
+      {/* Financiero */}
+      <div className="grid grid-cols-2 divide-x divide-gray-100">
+        <div className="px-3 py-2">
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Calculado</div>
+          <div className="text-sm font-bold text-gray-700">{formatCurrency(calc)}</div>
+          {paid !== null && <div className="text-[10px] text-gray-400 mt-0.5">pago: {formatCurrency(paid)}</div>}
+        </div>
+        <div className={`px-3 py-2 ${companyPaid === null ? '' : 'bg-emerald-50'}`}>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Empresa</div>
+          {companyPaid === null ? (
+            <span className="text-xs text-gray-400 italic">sin pago</span>
+          ) : (
+            <div>
+              <div className="text-sm font-bold text-emerald-700">{formatCurrency(companyPaid)}</div>
+              {diff !== null && diff !== 0 && (
+                <div className={`text-[10px] font-semibold mt-0.5 ${diff > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {diff > 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Acciones */}
+      <div className="flex gap-1 flex-wrap px-3 py-1.5 border-t border-gray-100 bg-gray-50">
+        {!isResolved && (
+          <button
+            type="button"
+            onClick={() => onToggleCorrection(entry)}
+            disabled={savingCorrection}
+            className={`text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 ${
+              isPending
+                ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
+                : 'bg-white border border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-700'
+            }`}
+          >
+            {isPending ? <><X className="h-2.5 w-2.5" /> Quitar pendiente</> : <><AlertTriangle className="h-2.5 w-2.5" /> Corrección</>}
+          </button>
+        )}
+        {isPending && !isResolved && (
+          <button
+            type="button"
+            onClick={() => onMarkResolved(entry)}
+            disabled={savingCorrection}
+            className="text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 bg-blue-500 text-white hover:bg-blue-600"
+          >
+            <BadgeCheck className="h-2.5 w-2.5" /> Corregido
+          </button>
+        )}
+        {isResolved && (
+          <button
+            type="button"
+            onClick={() => onSaveCorrection(entry.id, false, null, false, null)}
+            disabled={savingCorrection}
+            className="text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 bg-white border border-gray-200 text-gray-500 hover:bg-gray-100"
+          >
+            <X className="h-2.5 w-2.5" /> Deshacer
+          </button>
+        )}
+        <EntryDeleteButton
+          isConfirming={deletingEntryId === entry.id}
+          onInitiate={() => onSetDeletingEntryId(entry.id)}
+          onConfirm={() => onDeleteEntry(entry.id)}
+          onCancel={() => onSetDeletingEntryId(null)}
+        />
+      </div>
+
+      {/* Notas */}
+      {isPending && entry.correctionNote && (
+        <div className="mx-3 mb-2 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1.5 italic">
+          📝 {entry.correctionNote}
+        </div>
+      )}
+      {isResolved && entry.correctionResolvedNote && (
+        <div className="mx-3 mb-2 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 italic flex items-start gap-1">
+          <BadgeCheck className="h-3 w-3 mt-0.5 flex-shrink-0" />
+          {entry.correctionResolvedNote}
+        </div>
+      )}
+
+      {/* Modal resolución */}
+      {resolveEntryId === entry.id && (
+        <div className="mx-3 mb-2 bg-blue-50 border border-blue-300 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-semibold text-blue-800">¿En qué semana/pago pusieron el dinero faltante?</p>
+          <textarea
+            className="w-full text-xs border border-blue-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+            rows={2}
+            placeholder="Ej: Lo pusieron en la semana 18, pago del viernes..."
+            value={resolveNote}
+            onChange={e => onSetResolveNote(e.target.value)}
+          />
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={onCancelResolve} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
+            <button type="button" disabled={savingCorrection} onClick={() => onSaveCorrection(entry.id, false, null, true, resolveNote.trim() || null)} className="text-xs px-3 py-1 rounded-full bg-blue-500 text-white hover:bg-blue-600 font-semibold">
+              {savingCorrection ? 'Guardando...' : 'Confirmar corregido'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal corrección */}
+      {correctionEntryId === entry.id && (
+        <div className="mx-3 mb-2 bg-orange-50 border border-orange-300 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-semibold text-orange-800">¿Por qué necesita corrección?</p>
+          <textarea
+            className="w-full text-xs border border-orange-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400"
+            rows={2}
+            placeholder="Ej: El monto recibido no coincide, falta $X..."
+            value={correctionNote}
+            onChange={e => onSetCorrectionNote(e.target.value)}
+          />
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={onCancelCorrection} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
+            <button type="button" disabled={savingCorrection} onClick={() => onSaveCorrection(entry.id, true, correctionNote.trim() || null, false)} className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-600 font-semibold">
+              {savingCorrection ? 'Guardando...' : 'Marcar pendiente'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface DifferenceRowProps {
   difference: number
   allPaid: boolean
@@ -491,189 +693,28 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
 
                     {/* Lista de entradas */}
                     {completedEntries.length > 0 ? (
-                      <div className="divide-y divide-emerald-100">
-                        {completedEntries.map((entry) => {
-                          const calc = entry.calculatedAmount ?? 0
-                          const paid = entry.paidAmount ?? null
-                          const companyPaid = entry.companyPaid ?? null
-                          const diff = companyPaid == null ? null : companyPaid - calc
-                          return (
-                            <div key={entry.id} className={`px-3 py-2 ${entry.correctionPending ? 'bg-orange-50 border-l-4 border-orange-400' : ''}${entry.correctionResolved && !entry.correctionPending ? 'bg-blue-50 border-l-4 border-blue-400' : ''}`}>
-                              {/* Fila principal */}
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-xs text-gray-500">{formatShortDateFlorida(entry.date)}</span>
-                                  <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                    {entry.jobNumber && (
-                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
-                                        #{entry.jobNumber}
-                                      </span>
-                                    )}
-                                    {entry.vehicle && (
-                                      <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded">
-                                        🚗 {entry.vehicle}
-                                      </span>
-                                    )}
-                                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
-                                      {formatDuration(entry.duration ?? 0)}
-                                    </span>
-                                    {entry.correctionPending && (
-                                      <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded flex items-center gap-0.5">
-                                        <AlertTriangle className="h-2.5 w-2.5" />
-                                        PENDIENTE
-                                      </span>
-                                    )}
-                                    {entry.correctionResolved && (
-                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded flex items-center gap-0.5">
-                                        <BadgeCheck className="h-2.5 w-2.5" />
-                                        CORREGIDO
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex flex-col items-end flex-shrink-0 text-right gap-0.5">
-                                  <span className="text-xs text-gray-400">calc: {formatCurrency(calc)}</span>
-                                  {paid != null && (
-                                    <span className="text-xs text-gray-600">pagado: {formatCurrency(paid)}</span>
-                                  )}
-                                  {companyPaid == null ? (
-                                    <span className="text-xs text-gray-400 italic">sin pago empresa</span>
-                                  ) : (
-                                    <>
-                                      <span className="text-sm font-bold text-gray-800">empresa: {formatCurrency(companyPaid)}</span>
-                                      {diff != null && (
-                                        <span className={`text-[11px] font-semibold ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                          {diff >= 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
-                                        </span>
-                                      )}
-                                    </>
-                                  )}
-                                  {/* Botones de corrección */}
-                                  <div className="mt-1 flex gap-1 flex-wrap justify-end">
-                                    {!entry.correctionResolved && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleToggleCorrection(entry)}
-                                        disabled={savingCorrection}
-                                        className={`text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 ${
-                                          entry.correctionPending
-                                            ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
-                                            : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-700'
-                                        }`}
-                                      >
-                                        {entry.correctionPending ? (
-                                          <><X className="h-2.5 w-2.5" /> Quitar pendiente</>
-                                        ) : (
-                                          <><AlertTriangle className="h-2.5 w-2.5" /> Marcar corrección</>
-                                        )}
-                                      </button>
-                                    )}
-                                    {entry.correctionPending && !entry.correctionResolved && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleMarkResolved(entry)}
-                                        disabled={savingCorrection}
-                                        className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-blue-500 text-white hover:bg-blue-600"
-                                      >
-                                        <BadgeCheck className="h-2.5 w-2.5" /> Marcar corregido
-                                      </button>
-                                    )}
-                                    {entry.correctionResolved && (
-                                      <button
-                                        type="button"
-                                        onClick={() => saveCorrection(entry.id, false, null, false, null)}
-                                        disabled={savingCorrection}
-                                        className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200"
-                                      >
-                                        <X className="h-2.5 w-2.5" /> Deshacer corrección
-                                      </button>
-                                    )}
-                                    {/* Borrar trabajo */}
-                                    <EntryDeleteButton
-                                      isConfirming={deletingEntryId === entry.id}
-                                      onInitiate={() => setDeletingEntryId(entry.id)}
-                                      onConfirm={() => handleDeleteEntry(entry.id)}
-                                      onCancel={() => setDeletingEntryId(null)}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                              {/* Nota de corrección pendiente */}
-                              {entry.correctionPending && entry.correctionNote && (
-                                <div className="mt-1.5 text-[11px] text-orange-700 bg-orange-100 rounded px-2 py-1 italic">
-                                  📝 {entry.correctionNote}
-                                </div>
-                              )}
-                              {/* Nota de resolución */}
-                              {entry.correctionResolved && entry.correctionResolvedNote && (
-                                <div className="mt-1.5 text-[11px] text-blue-700 bg-blue-100 rounded px-2 py-1 italic flex items-start gap-1">
-                                  <BadgeCheck className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                                  {entry.correctionResolvedNote}
-                                </div>
-                              )}
-                              {/* Modal de nota de resolución (inline) */}
-                              {resolveEntryId === entry.id && (
-                                <div className="mt-2 bg-blue-50 border border-blue-300 rounded-lg p-3 space-y-2">
-                                  <p className="text-xs font-semibold text-blue-800">¿En qué semana/pago pusieron el dinero faltante?</p>
-                                  <textarea
-                                    className="w-full text-xs border border-blue-300 rounded p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                    rows={2}
-                                    placeholder="Ej: Lo pusieron en la semana 18, pago del viernes..."
-                                    value={resolveNote}
-                                    onChange={e => setResolveNote(e.target.value)}
-                                  />
-                                  <div className="flex gap-2 justify-end">
-                                    <button
-                                      type="button"
-                                      onClick={() => { setResolveEntryId(null); setResolveNote('') }}
-                                      className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                    >
-                                      Cancelar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={savingCorrection}
-                                      onClick={() => saveCorrection(entry.id, false, null, true, resolveNote.trim() || null)}
-                                      className="text-xs px-2 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 font-semibold"
-                                    >
-                                      {savingCorrection ? 'Guardando...' : 'Confirmar corregido'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                              {/* Modal de nota de corrección pendiente (inline) */}
-                              {correctionEntryId === entry.id && (
-                                <div className="mt-2 bg-orange-50 border border-orange-300 rounded-lg p-3 space-y-2">
-                                  <p className="text-xs font-semibold text-orange-800">¿Por qué necesita corrección?</p>
-                                  <textarea
-                                    className="w-full text-xs border border-orange-300 rounded p-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400"
-                                    rows={2}
-                                    placeholder="Ej: El monto recibido no coincide, falta $X..."
-                                    value={correctionNote}
-                                    onChange={e => setCorrectionNote(e.target.value)}
-                                  />
-                                  <div className="flex gap-2 justify-end">
-                                    <button
-                                      type="button"
-                                      onClick={() => { setCorrectionEntryId(null); setCorrectionNote('') }}
-                                      className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                    >
-                                      Cancelar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={savingCorrection}
-                                      onClick={() => saveCorrection(entry.id, true, correctionNote.trim() || null, false)}
-                                      className="text-xs px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600 font-semibold"
-                                    >
-                                      {savingCorrection ? 'Guardando...' : 'Marcar pendiente'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
+                      <div className="px-2 py-2 space-y-2">
+                        {completedEntries.map((entry) => (
+                          <EntryCard
+                            key={entry.id}
+                            entry={entry}
+                            deletingEntryId={deletingEntryId}
+                            resolveEntryId={resolveEntryId}
+                            correctionEntryId={correctionEntryId}
+                            resolveNote={resolveNote}
+                            correctionNote={correctionNote}
+                            savingCorrection={savingCorrection}
+                            onToggleCorrection={handleToggleCorrection}
+                            onMarkResolved={handleMarkResolved}
+                            onSaveCorrection={saveCorrection}
+                            onSetDeletingEntryId={setDeletingEntryId}
+                            onDeleteEntry={handleDeleteEntry}
+                            onSetResolveNote={setResolveNote}
+                            onSetCorrectionNote={setCorrectionNote}
+                            onCancelResolve={() => { setResolveEntryId(null); setResolveNote('') }}
+                            onCancelCorrection={() => { setCorrectionEntryId(null); setCorrectionNote('') }}
+                          />
+                        ))}
                       </div>
                     ) : (
                       <div className="px-3 py-4 text-center text-xs text-gray-400">
