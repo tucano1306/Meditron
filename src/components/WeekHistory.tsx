@@ -284,10 +284,10 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
             }
 
             return (
-            <div key={week.id} className="border rounded-lg overflow-hidden">
+            <div key={week.id} className={`rounded-xl overflow-hidden transition-all duration-200 ${expandedWeek === week.id ? 'bg-white shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
               <Button
                 variant="ghost"
-                className="w-full justify-between p-3 sm:p-4 h-auto"
+                className={`w-full justify-between p-3 sm:p-4 h-auto transition-colors ${expandedWeek === week.id ? 'bg-emerald-50 hover:bg-emerald-50' : 'hover:bg-gray-100'}`}
                 onClick={() => setExpandedWeek(expandedWeek === week.id ? null : week.id)}
               >
                 <div className="flex items-center gap-2 sm:gap-3">
