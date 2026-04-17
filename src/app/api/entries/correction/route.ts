@@ -14,7 +14,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const userId = authResult.user.id
-    const { entryId, correctionPending, correctionNote, correctionResolved } = await request.json()
+    const { entryId, correctionPending, correctionNote, correctionResolved, correctionResolvedNote } = await request.json()
 
     if (!entryId || typeof correctionPending !== 'boolean') {
       return NextResponse.json(
@@ -40,9 +40,12 @@ export async function PATCH(request: NextRequest) {
       correctionNote: correctionPending ? (correctionNote ?? null) : null,
     }
 
-    // Si se marca como corregido, guardar ese estado
+    // Si se marca como corregido, guardar ese estado y su nota
     if (typeof correctionResolved === 'boolean') {
       updateData.correctionResolved = correctionResolved
+      updateData.correctionResolvedNote = correctionResolved
+        ? (correctionResolvedNote ?? null)
+        : null
     }
 
     const updated = await prisma.timeEntry.update({

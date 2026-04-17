@@ -21,6 +21,7 @@ interface TimeEntry {
   correctionPending: boolean
   correctionNote: string | null
   correctionResolved: boolean
+  correctionResolvedNote: string | null
 }
 
 interface WeekData {
@@ -65,6 +66,8 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [correctionEntryId, setCorrectionEntryId] = useState<string | null>(null)
   const [correctionNote, setCorrectionNote] = useState('')
+  const [resolveEntryId, setResolveEntryId] = useState<string | null>(null)
+  const [resolveNote, setResolveNote] = useState('')
   const [savingCorrection, setSavingCorrection] = useState(false)
 
   const toggleWeek = (id: string) => setExpandedWeek(prev => (prev === id ? null : id))
@@ -80,23 +83,24 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
     setCorrectionNote('')
   }
 
-  const handleMarkResolved = async (entry: TimeEntry) => {
-    // Marcar corrección como resuelta: quitar pendiente y poner corregido
-    await saveCorrection(entry.id, false, null, true)
+  const handleMarkResolved = (entry: TimeEntry) => {
+    // Abrir formulario inline para capturar la nota de resolución
+    setResolveEntryId(entry.id)
+    setResolveNote('')
   }
 
-  const saveCorrection = async (entryId: string, pending: boolean, note: string | null, resolved: boolean) => {
+  const saveCorrection = async (entryId: string, pending: boolean, note: string | null, resolved: boolean, resolvedNote?: string | null) => {
     setSavingCorrection(true)
     try {
       await fetch('/api/entries/correction', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note, correctionResolved: resolved }),
+        body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note, correctionResolved: resolved, correctionResolvedNote: resolvedNote ?? null }),
       })
       // Actualizar estado local sin refetch completo
       const updateEntry = (e: TimeEntry) =>
         e.id === entryId
-          ? { ...e, correctionPending: pending, correctionNote: pending ? note : null, correctionResolved: resolved }
+          ? { ...e, correctionPending: pending, correctionNote: pending ? note : null, correctionResolved: resolved, correctionResolvedNote: resolved ? (resolvedNote ?? null) : null }
           : e
       const updateWeek = (week: WeekData) => ({ ...week, entries: week.entries.map(updateEntry) })
       setWeeks(prev => prev.map(updateWeek))
@@ -104,6 +108,8 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
       setSavingCorrection(false)
       setCorrectionEntryId(null)
       setCorrectionNote('')
+      setResolveEntryId(null)
+      setResolveNote('')
     }
   }
 
@@ -433,7 +439,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                                   {entry.correctionResolved && (
                                     <button
                                       type="button"
-                                      onClick={() => saveCorrection(entry.id, false, null, false)}
+                                      onClick={() => saveCorrection(entry.id, false, null, false, null)}
                                       disabled={savingCorrection}
                                       className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200"
                                     >
@@ -443,13 +449,50 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                                 </div>
                               </div>
                             </div>
-                            {/* Nota de corrección */}
+                            {/* Nota de corrección pendiente */}
                             {entry.correctionPending && entry.correctionNote && (
                               <div className="mt-1.5 text-[11px] text-orange-700 bg-orange-100 rounded px-2 py-1 italic">
                                 📝 {entry.correctionNote}
                               </div>
                             )}
-                            {/* Modal de nota (inline) */}
+                            {/* Nota de resolución */}
+                            {entry.correctionResolved && entry.correctionResolvedNote && (
+                              <div className="mt-1.5 text-[11px] text-blue-700 bg-blue-100 rounded px-2 py-1 italic flex items-start gap-1">
+                                <BadgeCheck className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                {entry.correctionResolvedNote}
+                              </div>
+                            )}
+                            {/* Modal de nota de resolución (inline) */}
+                            {resolveEntryId === entry.id && (
+                              <div className="mt-2 bg-blue-50 border border-blue-300 rounded-lg p-3 space-y-2">
+                                <p className="text-xs font-semibold text-blue-800">¿En qué semana/pago pusieron el dinero faltante?</p>
+                                <textarea
+                                  className="w-full text-xs border border-blue-300 rounded p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                  rows={2}
+                                  placeholder="Ej: Lo pusieron en la semana 18, pago del viernes..."
+                                  value={resolveNote}
+                                  onChange={e => setResolveNote(e.target.value)}
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setResolveEntryId(null); setResolveNote('') }}
+                                    className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={savingCorrection}
+                                    onClick={() => saveCorrection(entry.id, false, null, true, resolveNote.trim() || null)}
+                                    className="text-xs px-2 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 font-semibold"
+                                  >
+                                    {savingCorrection ? 'Guardando...' : 'Confirmar corregido'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {/* Modal de nota de corrección pendiente (inline) */}
                             {correctionEntryId === entry.id && (
                               <div className="mt-2 bg-orange-50 border border-orange-300 rounded-lg p-3 space-y-2">
                                 <p className="text-xs font-semibold text-orange-800">¿Por qué necesita corrección?</p>
