@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration } from '@/lib/utils'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus } from 'lucide-react'
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2 } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
 const ITEMS_PER_PAGE = 5
@@ -115,6 +115,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
   const [saveError, setSaveError] = useState<string | null>(null)
   const [lastAddedWeekId, setLastAddedWeekId] = useState<string | null>(null)
   const [localRefreshKey, setLocalRefreshKey] = useState(0)
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
 
   const toggleWeek = (id: string) => setExpandedWeek(prev => (prev === id ? null : id))
 
@@ -156,6 +157,21 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
       setCorrectionNote('')
       setResolveEntryId(null)
       setResolveNote('')
+    }
+  }
+
+  const handleDeleteEntry = async (entryId: string) => {
+    try {
+      const res = await fetch(`/api/entries?id=${entryId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        const removeEntry = (week: WeekData) => ({ ...week, entries: week.entries.filter(e => e.id !== entryId) })
+        setWeeks(prev => prev.map(removeEntry))
+        setLocalRefreshKey(prev => prev + 1)
+        onRefresh?.()
+      }
+    } finally {
+      setDeletingEntryId(null)
     }
   }
 
@@ -534,6 +550,33 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                                         className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200"
                                       >
                                         <X className="h-2.5 w-2.5" /> Deshacer corrección
+                                      </button>
+                                    )}
+                                    {/* Borrar trabajo */}
+                                    {deletingEntryId === entry.id ? (
+                                      <span className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteEntry(entry.id)}
+                                          className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-red-500 text-white hover:bg-red-600"
+                                        >
+                                          Sí, borrar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setDeletingEntryId(null)}
+                                          className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                        >
+                                          Cancelar
+                                        </button>
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeletingEntryId(entry.id)}
+                                        className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                                      >
+                                        <Trash2 className="h-2.5 w-2.5" /> Borrar
                                       </button>
                                     )}
                                   </div>
