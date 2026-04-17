@@ -111,6 +111,9 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
   const [addEntryWeekId, setAddEntryWeekId] = useState<string | null>(null)
   const [addEntryForm, setAddEntryForm] = useState({ date: '', hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '' })
   const [savingEntry, setSavingEntry] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [lastAddedWeekId, setLastAddedWeekId] = useState<string | null>(null)
+  const [localRefreshKey, setLocalRefreshKey] = useState(0)
 
   const toggleWeek = (id: string) => setExpandedWeek(prev => (prev === id ? null : id))
 
@@ -155,10 +158,11 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
     }
   }
 
-  const handleAddEntry = async () => {
+  const handleAddEntry = async (weekId: string) => {
     const { date, hours, minutes, jobNumber, vehicle, calculatedAmount } = addEntryForm
     if (!date || (hours === '' && minutes === '')) return
     setSavingEntry(true)
+    setSaveError(null)
     try {
       const h = Number(hours) || 0
       const m = Number(minutes) || 0
@@ -180,10 +184,15 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
       })
       const data = await res.json()
       if (data.success) {
-        await fetchWeeks()
         setAddEntryWeekId(null)
         setAddEntryForm({ date: '', hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '' })
+        setLastAddedWeekId(weekId)
+        setLocalRefreshKey(prev => prev + 1)
+      } else {
+        setSaveError(data.error ?? 'Error al guardar')
       }
+    } catch {
+      setSaveError('Error de conexión')
     } finally {
       setSavingEntry(false)
     }
@@ -222,7 +231,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
 
   useEffect(() => {
     fetchWeeks()
-  }, [refreshTrigger, fetchWeeks])
+  }, [refreshTrigger, fetchWeeks, localRefreshKey])
 
   // Paginación
   const totalPages = Math.ceil(weeks.length / ITEMS_PER_PAGE)
@@ -378,6 +387,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                         onClick={() => {
                           setAddEntryWeekId(prev => prev === week.id ? null : week.id)
                           setAddEntryForm({ date: week.startDate.slice(0, 10), hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '' })
+                          setSaveError(null)
                         }}
                         className="flex items-center gap-1 px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors"
                       >
@@ -385,6 +395,14 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                         Agregar
                       </button>
                     </div>
+
+                    {/* Success badge */}
+                    {lastAddedWeekId === week.id && addEntryWeekId !== week.id && (
+                      <div className="px-3 py-1.5 bg-emerald-100 border-b border-emerald-200 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="text-xs text-emerald-700 font-semibold">Trabajo agregado correctamente</span>
+                      </div>
+                    )}
 
                     {/* Métricas resumen — solo si hay entradas */}
                     {completedEntries.length > 0 && (
@@ -678,9 +696,12 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                           </div>
                         </div>
                         <div className="flex gap-2 justify-end pt-1">
+                          {saveError && (
+                            <p className="text-xs text-red-600 self-center mr-auto">{saveError}</p>
+                          )}
                           <button
                             type="button"
-                            onClick={() => setAddEntryWeekId(null)}
+                            onClick={() => { setAddEntryWeekId(null); setSaveError(null) }}
                             className="text-xs px-3 py-1.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
                           >
                             Cancelar
@@ -688,7 +709,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                           <button
                             type="button"
                             disabled={savingEntry || !addEntryForm.date || (addEntryForm.hours === '' && addEntryForm.minutes === '')}
-                            onClick={handleAddEntry}
+                            onClick={() => handleAddEntry(week.id)}
                             className="text-xs px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 font-semibold disabled:opacity-50"
                           >
                             {savingEntry ? 'Guardando...' : 'Guardar trabajo'}
