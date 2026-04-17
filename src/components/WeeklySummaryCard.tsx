@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration } from '@/lib/utils'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X } from 'lucide-react'
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X, BadgeCheck } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
 const ITEMS_PER_PAGE = 5
@@ -20,6 +20,7 @@ interface TimeEntry {
   paidAmount: number | null
   correctionPending: boolean
   correctionNote: string | null
+  correctionResolved: boolean
 }
 
 interface WeekData {
@@ -71,7 +72,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
   const handleToggleCorrection = async (entry: TimeEntry) => {
     // Si ya tiene corrección pendiente, la quitamos directamente
     if (entry.correctionPending) {
-      await saveCorrection(entry.id, false, null)
+      await saveCorrection(entry.id, false, null, false)
       return
     }
     // Si no tiene, abrimos el modal de nota
@@ -79,18 +80,23 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
     setCorrectionNote('')
   }
 
-  const saveCorrection = async (entryId: string, pending: boolean, note: string | null) => {
+  const handleMarkResolved = async (entry: TimeEntry) => {
+    // Marcar corrección como resuelta: quitar pendiente y poner corregido
+    await saveCorrection(entry.id, false, null, true)
+  }
+
+  const saveCorrection = async (entryId: string, pending: boolean, note: string | null, resolved: boolean) => {
     setSavingCorrection(true)
     try {
       await fetch('/api/entries/correction', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note }),
+        body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note, correctionResolved: resolved }),
       })
       // Actualizar estado local sin refetch completo
       const updateEntry = (e: TimeEntry) =>
         e.id === entryId
-          ? { ...e, correctionPending: pending, correctionNote: pending ? note : null }
+          ? { ...e, correctionPending: pending, correctionNote: pending ? note : null, correctionResolved: resolved }
           : e
       const updateWeek = (week: WeekData) => ({ ...week, entries: week.entries.map(updateEntry) })
       setWeeks(prev => prev.map(updateWeek))
@@ -195,10 +201,11 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
             const difference = week.totalCompanyPaid - week.earnings
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
-            const hasPendingCorrections = week.entries.some(e => e.correctionPending)
 
             const isExpanded = expandedWeek === week.id
             const completedEntries = week.entries.filter(e => e.duration !== null)
+            const hasPendingCorrections = week.entries.some(e => e.correctionPending)
+            const hasResolvedCorrections = week.entries.some(e => e.correctionResolved)
 
             let statusBadge: React.ReactNode
             if (hasPendingCorrections) {
@@ -206,6 +213,13 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300">
                   <AlertTriangle className="h-2.5 w-2.5" />
                   CORRECCIÓN PENDIENTE
+                </span>
+              )
+            } else if (hasResolvedCorrections && !hasPendingCorrections) {
+              statusBadge = (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-300">
+                  <BadgeCheck className="h-2.5 w-2.5" />
+                  CORREGIDO
                 </span>
               )
             } else if (allPaid) {
@@ -336,7 +350,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                         const companyPaid = entry.companyPaid ?? null
                         const diff = companyPaid == null ? null : companyPaid - calc
                         return (
-                          <div key={entry.id} className={`px-3 py-2 ${entry.correctionPending ? 'bg-orange-50 border-l-4 border-orange-400' : ''}`}>
+                          <div key={entry.id} className={`px-3 py-2 ${entry.correctionPending ? 'bg-orange-50 border-l-4 border-orange-400' : ''}${entry.correctionResolved && !entry.correctionPending ? 'bg-blue-50 border-l-4 border-blue-400' : ''}`}>
                             {/* Fila principal */}
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex flex-col min-w-0">
@@ -361,6 +375,12 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                                       PENDIENTE
                                     </span>
                                   )}
+                                  {entry.correctionResolved && (
+                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded flex items-center gap-0.5">
+                                      <BadgeCheck className="h-2.5 w-2.5" />
+                                      CORREGIDO
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex flex-col items-end flex-shrink-0 text-right gap-0.5">
@@ -380,23 +400,47 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                                     )}
                                   </>
                                 )}
-                                {/* Botón de corrección */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleCorrection(entry)}
-                                  disabled={savingCorrection}
-                                  className={`mt-1 text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 ${
-                                    entry.correctionPending
-                                      ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
-                                      : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-700'
-                                  }`}
-                                >
-                                  {entry.correctionPending ? (
-                                    <><X className="h-2.5 w-2.5" /> Quitar pendiente</>
-                                  ) : (
-                                    <><AlertTriangle className="h-2.5 w-2.5" /> Marcar corrección</>
+                                {/* Botones de corrección */}
+                                <div className="mt-1 flex gap-1 flex-wrap justify-end">
+                                  {!entry.correctionResolved && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleCorrection(entry)}
+                                      disabled={savingCorrection}
+                                      className={`text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 ${
+                                        entry.correctionPending
+                                          ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
+                                          : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-700'
+                                      }`}
+                                    >
+                                      {entry.correctionPending ? (
+                                        <><X className="h-2.5 w-2.5" /> Quitar pendiente</>
+                                      ) : (
+                                        <><AlertTriangle className="h-2.5 w-2.5" /> Marcar corrección</>
+                                      )}
+                                    </button>
                                   )}
-                                </button>
+                                  {entry.correctionPending && !entry.correctionResolved && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkResolved(entry)}
+                                      disabled={savingCorrection}
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-blue-500 text-white hover:bg-blue-600"
+                                    >
+                                      <BadgeCheck className="h-2.5 w-2.5" /> Marcar corregido
+                                    </button>
+                                  )}
+                                  {entry.correctionResolved && (
+                                    <button
+                                      type="button"
+                                      onClick={() => saveCorrection(entry.id, false, null, false)}
+                                      disabled={savingCorrection}
+                                      className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                    >
+                                      <X className="h-2.5 w-2.5" /> Deshacer corrección
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             {/* Nota de corrección */}
@@ -427,7 +471,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                                   <button
                                     type="button"
                                     disabled={savingCorrection}
-                                    onClick={() => saveCorrection(entry.id, true, correctionNote.trim() || null)}
+                                    onClick={() => saveCorrection(entry.id, true, correctionNote.trim() || null, false)}
                                     className="text-xs px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600 font-semibold"
                                   >
                                     {savingCorrection ? 'Guardando...' : 'Marcar pendiente'}

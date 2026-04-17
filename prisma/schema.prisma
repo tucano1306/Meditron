@@ -35,9 +35,10 @@ model TimeEntry {
   paidAmount       Float?
   companyPaid      Float?
   companyPaidDate  DateTime?
-  correctionPending Boolean  @default(false)
-  correctionNote   String?
-  createdAt        DateTime @default(now())
+  correctionPending  Boolean  @default(false)
+  correctionNote     String?
+  correctionResolved Boolean  @default(false)
+  createdAt          DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   userId    String

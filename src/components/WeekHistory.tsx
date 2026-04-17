@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDuration, getMonthName, parseLocalDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida } from '@/lib/utils'
-import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer, CheckCircle2, AlertTriangle, BadgeCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
 
@@ -19,6 +19,9 @@ interface Entry {
   vehicle?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
+  companyPaid?: number | null
+  correctionPending?: boolean
+  correctionResolved?: boolean
 }
 
 interface WeekData {
@@ -242,7 +245,45 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
         <div className="space-y-2">
-          {paginatedWeeks.map((week) => (
+          {paginatedWeeks.map((week) => {
+            const completedEntries = week.entries.filter(e => e.duration !== null)
+            const paidEntryCount = completedEntries.filter(e => e.companyPaid != null && e.companyPaid > 0).length
+            const allPaid = paidEntryCount === completedEntries.length && completedEntries.length > 0
+            const hasPendingCorrections = completedEntries.some(e => e.correctionPending)
+            const hasResolvedCorrections = completedEntries.some(e => e.correctionResolved)
+
+            let statusBadge: React.ReactNode
+            if (hasPendingCorrections) {
+              statusBadge = (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  CORRECCIÓN
+                </span>
+              )
+            } else if (hasResolvedCorrections) {
+              statusBadge = (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-300">
+                  <BadgeCheck className="h-2.5 w-2.5" />
+                  CORREGIDO
+                </span>
+              )
+            } else if (allPaid) {
+              statusBadge = (
+                <span className="relative inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow overflow-hidden">
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                  REVISADO
+                  <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                </span>
+              )
+            } else {
+              statusBadge = (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                  SIN REVISAR
+                </span>
+              )
+            }
+
+            return (
             <div key={week.id} className="border rounded-lg overflow-hidden">
               <Button
                 variant="ghost"
@@ -256,8 +297,9 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                     <ChevronRight className="h-4 w-4 flex-shrink-0" />
                   )}
                   <div className="text-left min-w-0">
-                    <div className="font-semibold text-sm sm:text-base truncate">
+                    <div className="font-semibold text-sm sm:text-base truncate flex items-center gap-1.5 flex-wrap">
                       Sem {week.weekNumber} - {getMonthName(week.month)}
+                      {statusBadge}
                     </div>
                     <div className="text-[10px] sm:text-xs text-gray-500 flex flex-wrap items-center gap-1">
                       <span className="bg-blue-100 text-blue-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
@@ -293,7 +335,8 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Paginación */}
