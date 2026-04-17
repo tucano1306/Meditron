@@ -3,9 +3,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatCurrency, formatShortDateFlorida, formatDuration } from '@/lib/utils'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2 } from 'lucide-react'
-import { Progress } from '@/components/ui/progress'
+import { formatCurrency, formatShortDateFlorida, formatDuration, getMonthName, parseLocalDate } from '@/lib/utils'
+import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2 } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 5
 
@@ -43,21 +42,6 @@ interface WeekData {
 interface WeeklySummaryCardProps {
   readonly refreshTrigger?: number
   readonly onRefresh?: () => void
-}
-
-function formatDateRange(startDate: string, endDate: string): string {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  
-  const startDay = start.getUTCDate()
-  const endDay = end.getUTCDate()
-  const startMonth = start.toLocaleDateString('es-ES', { month: 'short', timeZone: 'UTC' })
-  const endMonth = end.toLocaleDateString('es-ES', { month: 'short', timeZone: 'UTC' })
-  
-  if (startMonth === endMonth) {
-    return `${startDay} - ${endDay} ${startMonth}`
-  }
-  return `${startDay} ${startMonth} - ${endDay} ${endMonth}`
 }
 
 interface EntryCardProps {
@@ -267,29 +251,6 @@ function weekCardClassName(expanded: boolean): string {
 }
 function weekButtonClassName(expanded: boolean): string {
   return expanded ? 'bg-emerald-50' : 'hover:bg-gray-100'
-}
-function hoursTextClassName(expanded: boolean): string {
-  return expanded ? 'font-bold text-sm text-emerald-700' : 'font-bold text-sm text-gray-700'
-}
-
-interface DifferenceRowProps {
-  difference: number
-  allPaid: boolean
-}
-
-function DifferenceRow({ difference, allPaid }: Readonly<DifferenceRowProps>) {
-  const isPositive = difference >= 0
-  return (
-    <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded-md ${
-      isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-    }`}>
-      <span className="font-medium">
-        {isPositive ? '✓ A favor' : '✗ En contra'}
-        {!allPaid && <span className="text-[10px] opacity-75 ml-1">(parcial)</span>}
-      </span>
-      <span className="font-bold">{isPositive ? '+' : ''}{formatCurrency(difference)}</span>
-    </div>
-  )
 }
 
 interface EntryDeleteButtonProps {
@@ -550,7 +511,6 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
   }
 
   // Calcular el máximo para las barras de progreso
-  const maxHours = Math.max(...weeks.map(w => w.totalHours), 1)
 
   return (
     <Card>
@@ -566,7 +526,6 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
           {paginatedWeeks.map((week) => {
             const completedEntries = week.entries.filter(e => e.duration !== null)
             const totalCalculated = completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? 0), 0)
-            const difference = week.totalCompanyPaid - totalCalculated
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
 
@@ -575,83 +534,62 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
             const hasResolvedCorrections = week.entries.some(e => e.correctionResolved)
             const weekCardClass = weekCardClassName(isExpanded)
             const weekButtonClass = weekButtonClassName(isExpanded)
-            const hoursTextClass = hoursTextClassName(isExpanded)
 
             return (
               <div key={week.id} className={`rounded-xl overflow-hidden transition-all duration-200 ${weekCardClass}`}>
-                <button
-                  type="button"
-                  className={`w-full p-2.5 space-y-2 text-left transition-colors ${weekButtonClass}`}
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-between p-3 sm:p-4 h-auto transition-colors ${weekButtonClass}`}
                   onClick={() => toggleWeek(week.id)}
                 >
-                {/* Header: Fecha y horas */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                    <span className="font-medium text-sm">
-                      {formatDateRange(week.startDate, week.endDate)}
-                    </span>
-                    <span className="text-[10px] text-gray-400">
-                      Sem {week.weekNumber}
-                    </span>
-                    <WeekStatusBadge
-                      hasPendingCorrections={hasPendingCorrections}
-                      hasResolvedCorrections={hasResolvedCorrections}
-                      allPaid={allPaid}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className={hoursTextClass}>
-                      {week.totalHours.toFixed(1)}h
-                    </span>
+                  <div className="flex items-center gap-2 sm:gap-3">
                     {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-emerald-500" />
+                      <ChevronDown className="h-4 w-4 flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                      <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                    )}
+                    <div className="text-left min-w-0">
+                      <div className="font-semibold text-sm sm:text-base truncate flex items-center gap-1.5 flex-wrap">
+                        Sem {week.weekNumber} - {getMonthName(week.month)}
+                        <WeekStatusBadge
+                          hasPendingCorrections={hasPendingCorrections}
+                          hasResolvedCorrections={hasResolvedCorrections}
+                          allPaid={allPaid}
+                        />
+                      </div>
+                      <div className="text-[10px] sm:text-xs text-gray-500 flex flex-wrap items-center gap-1 mt-0.5">
+                        <span className="bg-blue-100 text-blue-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
+                          {parseLocalDate(week.startDate).getDate()}
+                        </span>
+                        <span>→</span>
+                        <span className="bg-green-100 text-green-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
+                          {parseLocalDate(week.endDate).getDate()}
+                        </span>
+                        {hasPayments && (
+                          <span className="text-gray-400">· {week.paidEntryCount}/{week.entryCount} pagados</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-semibold text-sm sm:text-base">{week.totalHours.toFixed(1)}h</div>
+                    <div className="text-blue-600 font-semibold text-sm">{formatCurrency(totalCalculated)}</div>
+                    {hasPayments && (
+                      <div className="text-green-600 font-semibold text-sm">{formatCurrency(week.totalCompanyPaid)}</div>
                     )}
                   </div>
-                </div>
-
-                {/* Fila: Calculado vs Pagado */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-white rounded-md p-2 border border-gray-100">
-                    <div className="text-gray-500 text-[10px] uppercase tracking-wide">Calculado</div>
-                    <div className="font-bold text-blue-600">{formatCurrency(totalCalculated)}</div>
-                  </div>
-                  <div className={`rounded-md p-2 border ${hasPayments ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
-                    <div className="text-gray-500 text-[10px] uppercase tracking-wide flex items-center gap-1">
-                      Pagado
-                      {hasPayments && (
-                        <span className="text-[9px] text-gray-400">
-                          ({week.paidEntryCount}/{week.entryCount})
-                        </span>
-                      )}
-                    </div>
-                    <div className={`font-bold ${hasPayments ? 'text-green-600' : 'text-gray-400'}`}>
-                      {hasPayments ? formatCurrency(week.totalCompanyPaid) : 'Sin registrar'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Diferencia - solo si hay pagos */}
-                {hasPayments && (
-                  <DifferenceRow difference={difference} allPaid={allPaid} />
-                )}
-
-                {/* Barra de progreso */}
-                <Progress value={(week.totalHours / maxHours) * 100} className="h-1.5" />
-                </button>
+                </Button>
 
                 {/* Panel expandido: detalle por trabajo */}
                 {isExpanded && (
-                  <div className="border-t border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 overflow-hidden">
-                    <div className="px-3 py-2 bg-emerald-600 flex items-center justify-between gap-2">
+                  <div className="border-t bg-gray-50 overflow-hidden">
+                    <div className="px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2 border-b border-gray-200">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-white" />
+                        <TrendingUp className="h-4 w-4 text-gray-500" />
                         <div className="flex flex-col">
-                          <span className="text-white text-sm font-bold leading-tight">Detalle de trabajos</span>
-                          <span className="text-emerald-200 text-[11px] leading-tight">
-                            {formatDateRange(week.startDate, week.endDate)} · Sem {week.weekNumber}
+                          <span className="text-gray-700 text-sm font-semibold leading-tight">Detalle de trabajos</span>
+                          <span className="text-gray-400 text-[11px] leading-tight">
+                            Sem {week.weekNumber} · {getMonthName(week.month)}
                           </span>
                         </div>
                       </div>
@@ -662,7 +600,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                           setAddEntryForm({ date: week.startDate.slice(0, 10), hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '', paidAmount: '' })
                           setSaveError(null)
                         }}
-                        className="flex items-center gap-1 px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         Agregar
