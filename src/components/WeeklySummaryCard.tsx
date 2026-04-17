@@ -433,7 +433,12 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                     <div className="px-3 py-2 bg-emerald-600 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-white" />
-                        <span className="text-white text-sm font-bold">Detalle de trabajos</span>
+                        <div className="flex flex-col">
+                          <span className="text-white text-sm font-bold leading-tight">Detalle de trabajos</span>
+                          <span className="text-emerald-200 text-[11px] leading-tight">
+                            {formatDateRange(week.startDate, week.endDate)} · Sem {week.weekNumber}
+                          </span>
+                        </div>
                       </div>
                       <button
                         type="button"
