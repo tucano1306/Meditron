@@ -5,6 +5,33 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+
+  /* Notion design tokens – light */
+  --notion-bg: #ffffff;
+  --notion-sidebar: #f7f7f5;
+  --notion-hover: rgba(55, 53, 47, 0.08);
+  --notion-selected: rgba(55, 53, 47, 0.16);
+  --notion-text: #37352f;
+  --notion-text-2: #787774;
+  --notion-text-3: rgba(55, 53, 47, 0.4);
+  --notion-border: rgba(55, 53, 47, 0.09);
+  --notion-border-2: rgba(55, 53, 47, 0.16);
+}
+
+.dark {
+  --background: #191919;
+  --foreground: #cfcfcc;
+
+  /* Notion design tokens – dark */
+  --notion-bg: #191919;
+  --notion-sidebar: #1f1f1f;
+  --notion-hover: rgba(255, 255, 255, 0.08);
+  --notion-selected: rgba(255, 255, 255, 0.14);
+  --notion-text: #cfcfcc;
+  --notion-text-2: #787774;
+  --notion-text-3: rgba(255, 255, 255, 0.3);
+  --notion-border: rgba(255, 255, 255, 0.09);
+  --notion-border-2: rgba(255, 255, 255, 0.14);
 }
 
 body {
@@ -253,4 +280,59 @@ html, body {
   position: fixed;
   top: 0;
   left: 0;
+}
+
+/* ─────────────────────────────────────────
+   Notion UI System
+───────────────────────────────────────── */
+
+/* ContentEditable empty placeholder */
+.notion-block[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--notion-text-3);
+  pointer-events: none;
+  cursor: text;
+}
+
+/* Notion block selection highlight */
+.notion-block[contenteditable]:focus {
+  outline: none;
+}
+
+/* Notion sidebar scrollbar */
+.notion-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.notion-sidebar::-webkit-scrollbar-thumb {
+  background: var(--notion-border-2);
+  border-radius: 2px;
+}
+
+/* Notion page scrollbar */
+.notion-content::-webkit-scrollbar {
+  width: 6px;
+}
+.notion-content::-webkit-scrollbar-thumb {
+  background: var(--notion-border-2);
+  border-radius: 3px;
+}
+
+/* Notion toggle animation */
+.notion-toggle-content {
+  overflow: hidden;
+  transition: max-height 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+/* Notion dark mode transition */
+.notion-root {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Block hover gutter: hide handles by default */
+.notion-block-row .notion-handles {
+  opacity: 0;
+  transition: opacity 0.07s ease;
+}
+.notion-block-row:hover .notion-handles {
+  opacity: 1;
 }
