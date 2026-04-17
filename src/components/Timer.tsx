@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida } from '@/lib/utils'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
@@ -293,11 +291,10 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setIsEditingRate(true)
   }, [hourlyRate])
 
-  // Sub-componentes extraídos para reducir complejidad cognitiva
   const renderBackgroundIndicator = () => {
     if (!isRunning || !wakeLockActive) return null
     return (
-      <div className="flex items-center justify-center gap-1 text-xs text-emerald-600 mt-2">
+      <div className="flex items-center justify-center gap-1 text-[12px] text-[#787774] mt-1">
         <Smartphone className="h-3 w-3 animate-pulse" />
         <span>Modo background activo</span>
       </div>
@@ -307,8 +304,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderStartTimeIndicator = () => {
     if (!isRunning || !startTime) return null
     return (
-      <div className="text-xs sm:text-sm text-gray-400 mt-2 font-medium">
-        ⏱️ Iniciado: {formatTimeInFlorida(startTime)}
+      <div className="text-[12px] text-[#787774] mt-1">
+        Iniciado: {formatTimeInFlorida(startTime)}
       </div>
     )
   }
@@ -316,34 +313,32 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderJobNumberSection = () => {
     if (!isRunning) return null
     return (
-      <div className="bg-gradient-to-r from-gray-50 to-emerald-50/30 rounded-2xl p-3 sm:p-4 border border-emerald-100">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2 text-gray-600">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <Hash className="h-4 w-4 text-emerald-600" />
-            </div>
-            <span className="text-sm font-semibold">Trabajo #</span>
+      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[#787774]">
+            <Hash className="h-3.5 w-3.5" />
+            <span className="text-[13px]">Trabajo #</span>
           </div>
           {isEditingJobNumber ? (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={jobNumberInput}
                 onChange={(e) => setJobNumberInput(e.target.value)}
                 placeholder="Ej: 12345"
-                className="flex-1 sm:w-28 sm:flex-none px-3 py-2 text-lg font-mono font-bold rounded-xl border-2 border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-center"
+                className="w-24 px-2 py-1.5 text-[13px] font-mono rounded-[4px] border border-[rgba(55,53,47,0.16)] focus:border-[#37352f] focus:outline-none text-center text-[#37352f]"
                 style={{ fontSize: '16px' }}
                 autoFocus
               />
-              <Button size="sm" onClick={handleSaveJobNumber} className="h-9 px-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl flex-shrink-0 touch-manipulation active:scale-[0.96]">OK</Button>
-              <Button size="sm" variant="ghost" onClick={handleCancelEditJobNumber} className="h-9 px-2 flex-shrink-0 touch-manipulation">✕</Button>
+              <button type="button" onClick={handleSaveJobNumber} className="px-2.5 py-1.5 text-[12px] bg-[#37352f] text-white rounded-[4px] hover:bg-[#2f2d28] transition-colors">OK</button>
+              <button type="button" onClick={handleCancelEditJobNumber} className="px-2 py-1.5 text-[12px] text-[#787774] hover:text-[#37352f] rounded-[4px] hover:bg-[rgba(55,53,47,0.08)] transition-colors">✕</button>
             </div>
           ) : (
-            <button onClick={handleEditJobNumber} className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-all w-full sm:w-auto justify-center sm:justify-start touch-manipulation active:scale-[0.98]">
-              <span className={jobNumber ? "font-mono text-xl font-black text-emerald-700" : "text-gray-400 text-sm"}>
-                {jobNumber || 'Toca para asignar'}
+            <button type="button" onClick={handleEditJobNumber} className="flex items-center gap-1.5 text-[13px] text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] px-2 py-1 rounded-[4px] transition-colors">
+              <span className={jobNumber ? "font-mono font-semibold" : "text-[#787774]"}>
+                {jobNumber || 'Asignar número'}
               </span>
-              <Pencil className="h-4 w-4 text-emerald-500" />
+              <Pencil className="h-3 w-3 text-[#787774]" />
             </button>
           )}
         </div>
@@ -354,36 +349,34 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderObservationSection = () => {
     if (!isRunning) return null
     return (
-      <div className="bg-gradient-to-r from-gray-50 to-amber-50/30 rounded-2xl p-3 sm:p-4 border border-amber-100">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2 text-gray-600">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <MessageSquare className="h-4 w-4 text-amber-600" />
-            </div>
-            <span className="text-sm font-semibold">Comentario</span>
+      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 text-[#787774] pt-0.5">
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="text-[13px]">Comentario</span>
           </div>
           {isEditingObservation ? (
-            <div className="flex flex-col gap-2 w-full">
+            <div className="flex flex-col gap-2 flex-1">
               <textarea
                 value={observationInput}
                 onChange={(e) => setObservationInput(e.target.value)}
-                placeholder="Ej: Pasajero especial, retraso en aeropuerto..."
-                className="w-full px-3 py-2 text-sm rounded-xl border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none resize-none"
-                rows={3}
+                placeholder="Ej: Pasajero especial, retraso..."
+                className="w-full px-2 py-1.5 text-[13px] rounded-[4px] border border-[rgba(55,53,47,0.16)] focus:border-[#37352f] focus:outline-none resize-none text-[#37352f]"
+                rows={2}
                 style={{ fontSize: '16px' }}
                 autoFocus
               />
               <div className="flex gap-2 justify-end">
-                <Button size="sm" onClick={handleSaveObservation} className="h-9 px-3 bg-amber-500 hover:bg-amber-600 rounded-xl touch-manipulation active:scale-[0.96]">Guardar</Button>
-                <Button size="sm" variant="ghost" onClick={handleCancelEditObservation} className="h-9 px-2 touch-manipulation">✕</Button>
+                <button type="button" onClick={handleSaveObservation} className="px-2.5 py-1.5 text-[12px] bg-[#37352f] text-white rounded-[4px] hover:bg-[#2f2d28] transition-colors">Guardar</button>
+                <button type="button" onClick={handleCancelEditObservation} className="px-2 py-1.5 text-[12px] text-[#787774] hover:text-[#37352f] rounded-[4px] hover:bg-[rgba(55,53,47,0.08)] transition-colors">✕</button>
               </div>
             </div>
           ) : (
-            <button onClick={handleEditObservation} className="flex items-start gap-2 px-4 py-2.5 bg-white rounded-xl border-2 border-dashed border-amber-200 hover:border-amber-400 transition-all w-full text-left touch-manipulation active:scale-[0.98]">
-              <span className={observation ? 'text-sm text-gray-700 whitespace-pre-wrap' : 'text-gray-400 text-sm'}>
-                {observation || 'Toca para agregar un comentario'}
+            <button type="button" onClick={handleEditObservation} className="flex items-start gap-1.5 text-[13px] text-left flex-1 hover:bg-[rgba(55,53,47,0.08)] px-2 py-1 rounded-[4px] transition-colors">
+              <span className={observation ? 'text-[#37352f] whitespace-pre-wrap' : 'text-[#787774]'}>
+                {observation || 'Agregar comentario'}
               </span>
-              <Pencil className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <Pencil className="h-3 w-3 text-[#787774] flex-shrink-0 mt-0.5" />
             </button>
           )}
         </div>
@@ -394,26 +387,20 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderVehicleSection = () => {
     if (!isRunning) return null
     return (
-      <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-2xl p-3 sm:p-4 border border-blue-100">
-        <div className="flex items-center gap-2 text-gray-600 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <Bus className="h-4 w-4 text-blue-600" />
-          </div>
-          <span className="text-sm font-semibold">Vehículo</span>
+      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
+        <div className="flex items-center gap-2 text-[#787774] mb-2.5">
+          <Bus className="h-3.5 w-3.5" />
+          <span className="text-[13px]">Vehículo</span>
         </div>
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
           {VEHICLE_OPTIONS.map((option) => (
             <button
+              type="button"
               key={option.value}
               onClick={() => handleSelectVehicle(option.value)}
-              className={`px-1.5 sm:px-2 py-2.5 rounded-xl text-[11px] sm:text-sm font-semibold transition-all truncate touch-manipulation active:scale-[0.96] ${
-                vehicleType === option.value
-                  ? 'bg-blue-600 text-white shadow-md scale-[1.02]'
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-              }`}
+              className={"px-2 py-2 rounded-[4px] text-[13px] transition-colors truncate touch-manipulation " + (vehicleType === option.value ? 'bg-[#37352f] text-white' : 'bg-transparent text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.06)]')}
             >
-              <span className="sm:hidden">{option.short}</span>
-              <span className="hidden sm:inline">{option.label}</span>
+              {option.label}
             </button>
           ))}
         </div>
@@ -424,20 +411,26 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderResultSection = () => {
     if (!result || isRunning) return null
     return (
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
-        <div className="flex items-center justify-center gap-2 text-green-600 mb-3">
-          <Clock className="h-5 w-5" />
-          <span className="font-medium">¡Turno Completado!</span>
+      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-4">
+        <div className="flex items-center justify-center gap-2 text-[#37352f] mb-3">
+          <Clock className="h-4 w-4" />
+          <span className="text-[14px] font-medium">Turno completado</span>
         </div>
         {(result.jobNumber ?? result.vehicle) && (
           <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
-            {result.jobNumber && <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-full">#{result.jobNumber}</span>}
-            {result.vehicle && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full flex items-center gap-1"><Bus className="h-3 w-3" />{getVehicleLabel(result.vehicle)}</span>}
+            {result.jobNumber && <span className="px-2 py-1 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[12px] font-mono rounded-[4px]">#{result.jobNumber}</span>}
+            {result.vehicle && <span className="px-2 py-1 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[12px] rounded-[4px] flex items-center gap-1"><Bus className="h-3 w-3" />{getVehicleLabel(result.vehicle)}</span>}
           </div>
         )}
         <div className="grid grid-cols-2 gap-4 text-center">
-          <div><div className="text-sm text-gray-500">Duración</div><div className="text-xl font-bold text-gray-900">{formatDuration(result.duration)}</div></div>
-          <div><div className="text-sm text-gray-500">Ganado</div><div className="text-xl font-bold text-green-600">{formatCurrency(result.earnings)}</div></div>
+          <div>
+            <div className="text-[12px] text-[#787774]">Duración</div>
+            <div className="text-[18px] font-semibold text-[#37352f]">{formatDuration(result.duration)}</div>
+          </div>
+          <div>
+            <div className="text-[12px] text-[#787774]">Ganado</div>
+            <div className="text-[18px] font-semibold text-[#37352f]">{formatCurrency(result.earnings)}</div>
+          </div>
         </div>
       </div>
     )
@@ -446,7 +439,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderRateEditor = () => {
     if (!isEditingRate) {
       return (
-        <button onClick={handleStartRateEdit} className="text-xs sm:text-sm text-gray-400 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1 mx-auto touch-manipulation py-1">
+        <button type="button" onClick={handleStartRateEdit} className="text-[12px] text-[#787774] hover:text-[#37352f] flex items-center justify-center gap-1 mx-auto py-1 hover:bg-[rgba(55,53,47,0.08)] px-2 rounded-[4px] transition-colors">
           <Settings className="h-3 w-3" />
           Tarifa: ${hourlyRate}/hora
         </button>
@@ -454,39 +447,28 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     }
     return (
       <div className="flex items-center justify-center gap-2">
-        <span className="text-gray-500">$</span>
-        <input type="number" value={tempRate} onChange={(e) => setTempRate(e.target.value)} className="w-20 px-2 py-1 text-center border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" step="0.01" min="0" />
-        <span className="text-gray-500">/hora</span>
-        <Button size="sm" variant="ghost" onClick={handleSaveRate} className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 touch-manipulation">✓</Button>
-        <Button size="sm" variant="ghost" onClick={handleCancelRateEdit} className="text-gray-400 hover:text-gray-600 touch-manipulation">✕</Button>
+        <span className="text-[13px] text-[#787774]">$</span>
+        <input type="number" value={tempRate} onChange={(e) => setTempRate(e.target.value)} className="w-20 px-2 py-1 text-center text-[13px] border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:outline-none focus:border-[#37352f]" step="0.01" min="0" />
+        <span className="text-[13px] text-[#787774]">/hora</span>
+        <button type="button" onClick={handleSaveRate} className="text-[13px] text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] px-2 py-1 rounded-[4px] transition-colors">✓</button>
+        <button type="button" onClick={handleCancelRateEdit} className="text-[13px] text-[#787774] hover:bg-[rgba(55,53,47,0.08)] px-2 py-1 rounded-[4px] transition-colors">✕</button>
       </div>
     )
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto border-0 shadow-2xl bg-gradient-to-br from-white via-white to-emerald-50/50 overflow-hidden">
-      <CardHeader className="text-center pb-2 sm:pb-4 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-green-500/5" />
-        <CardTitle className="flex items-center justify-center gap-2 text-lg sm:text-xl font-bold relative">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-200">
-            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-          </div>
-          <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-            Control de Horas
-          </span>
-        </CardTitle>
-        {renderBackgroundIndicator()}
-      </CardHeader>
-      <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-6">
+    <div className="w-full rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white overflow-hidden">
+      <div className="space-y-3 px-4 pt-5 pb-5">
         {/* Timer Display */}
-        <div className="text-center py-4 sm:py-6">
-          <div className={`text-5xl sm:text-7xl md:text-8xl font-mono font-black tracking-tight transition-all duration-300 ${isRunning ? 'text-emerald-600 scale-105' : 'text-gray-400'}`} style={{ textShadow: isRunning ? '0 4px 20px rgba(16, 185, 129, 0.3)' : 'none' }}>
+        <div className="text-center py-4">
+          <div className={"text-[56px] sm:text-[72px] font-mono font-bold tracking-tight transition-colors " + (isRunning ? 'text-[#37352f]' : 'text-[rgba(55,53,47,0.3)]')}>
             {formatDuration(elapsedSeconds)}
           </div>
-          <div className={`text-2xl sm:text-3xl mt-3 font-bold transition-colors ${isRunning ? 'text-green-500' : 'text-gray-300'}`}>
+          <div className={"text-[22px] sm:text-[28px] mt-1 font-semibold transition-colors " + (isRunning ? 'text-[#37352f]' : 'text-[rgba(55,53,47,0.25)]')}>
             {formatCurrency(currentEarnings)}
           </div>
           {renderStartTimeIndicator()}
+          {renderBackgroundIndicator()}
         </div>
 
         {renderJobNumberSection()}
@@ -495,28 +477,40 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         {renderResultSection()}
 
         {/* Error Message */}
-        {error && <div className="text-center text-red-500 text-sm bg-red-50 py-2 px-4 rounded-xl">{error}</div>}
+        {error && (
+          <div className="text-[13px] text-[#dc2626] bg-[#fef2f2] border border-[#fecaca] py-2 px-3 rounded-[4px]">{error}</div>
+        )}
 
         {/* Buttons */}
-        <div className="flex justify-center">
+        <div className="flex justify-center pt-1">
           {isRunning ? (
-            <Button onClick={handleStop} disabled={isLoading} className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-2xl shadow-xl shadow-red-200 transition-all hover:scale-[1.02] active:scale-[0.98]">
-              <Square className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
+            <button
+              type="button"
+              onClick={handleStop}
+              disabled={isLoading}
+              className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+            >
+              <Square className="h-4 w-4" />
               {isLoading ? 'Deteniendo...' : 'DETENER'}
-            </Button>
+            </button>
           ) : (
-            <Button onClick={handleStart} disabled={isLoading} className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-2xl shadow-xl shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-[0.98]">
-              <Play className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
+            <button
+              type="button"
+              onClick={handleStart}
+              disabled={isLoading}
+              className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+            >
+              <Play className="h-4 w-4" />
               {isLoading ? 'Iniciando...' : 'INICIAR'}
-            </Button>
+            </button>
           )}
         </div>
 
         {/* Rate Info */}
-        <div className="text-center">
+        <div className="text-center pt-1">
           {renderRateEditor()}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

@@ -22,7 +22,9 @@
     "recalculados",
     "thursday",
     "beforeinstallprompt",
-    "Paginación"
+    "Paginación",
+    "Topbar",
+    "topbar"
   ],
   "ignorePaths": [
     "node_modules",

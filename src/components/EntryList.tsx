@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
-import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, Eye } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface Entry {
   id: string
@@ -198,86 +196,48 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
   if (entries.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            {title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-gray-500 py-8">
-            No hay entradas registradas
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white px-4 py-8 text-center">
+        <Clock className="h-8 w-8 text-[rgba(55,53,47,0.2)] mx-auto mb-2" />
+        <p className="text-[14px] text-[#787774]">{title}</p>
+        <p className="text-[13px] text-[rgba(55,53,47,0.4)] mt-1">No hay entradas registradas</p>
+      </div>
     )
   }
 
   const totalDuration = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
 
   return (
-    <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm overflow-hidden">
-      <CardHeader 
-        className="cursor-pointer sm:cursor-default select-none bg-gradient-to-r from-emerald-50/50 to-green-50/50"
+    <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] hover:bg-[rgba(55,53,47,0.04)] transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            {/* Icono de expandir solo en móvil */}
-            <span className="sm:hidden">
-              {isExpanded ? (
-                <ChevronDown className="h-5 w-5 text-emerald-500" />
-              ) : (
-                <ChevronRight className="h-5 w-5 text-emerald-500" />
-              )}
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md">
-              <Clock className="h-4 w-4 text-white" />
-            </div>
-            <span>{title}</span>
-            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
-              {entries.length}
-            </span>
-          </CardTitle>
-          
-          {/* Botón Ver solo en laptop/desktop */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsExpanded(!isExpanded)
-            }}
-            className="hidden sm:flex items-center gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-          >
-            <Eye className="h-4 w-4" />
-            {isExpanded ? 'Ocultar' : 'Ver'}
-          </Button>
+        <div className="flex items-center gap-2">
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-[#787774]" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-[#787774]" />
+          )}
+          <Clock className="h-3.5 w-3.5 text-[#787774]" />
+          <span className="text-[14px] font-medium text-[#37352f]">{title}</span>
+          <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] font-mono rounded-[3px]">{entries.length}</span>
         </div>
-        
-        {/* Resumen cuando está colapsado */}
         {!isExpanded && (
-          <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-            <span className="px-2 py-0.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold rounded-full">
-              {formatDuration(totalDuration)}
-            </span>
-            <span className="text-gray-400">•</span>
-            <span className="font-semibold text-emerald-600">
-              {formatCurrency((totalDuration / 3600) * hourlyRate)}
-            </span>
+          <div className="flex items-center gap-2 text-[13px] text-[#787774]">
+            <span className="font-mono">{formatDuration(totalDuration)}</span>
+            <span>·</span>
+            <span>{formatCurrency((totalDuration / 3600) * hourlyRate)}</span>
           </div>
         )}
-      </CardHeader>
+      </button>
       
       {isExpanded && (
-        <CardContent className="px-2 sm:px-6 pt-4">
-        <div className="space-y-3">
+        <div className="divide-y divide-[rgba(55,53,47,0.09)]">
           {entries.map((entry) => renderEntryRow(entry))}
         </div>
-        </CardContent>
       )}
-    </Card>
+    </div>
   )
 
   function renderEntryRow(entry: Entry) {
@@ -287,7 +247,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     const difference = paid - calculatedAmount
     const isPositive = difference >= 0
     const isClickable = !!(entry.endTime && entry.duration !== null && editingId !== entry.id)
-    const rowBaseClass = `flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-slate-50 ${isJobExpanded ? 'rounded-t-xl' : 'rounded-xl'} border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-2`
+    const rowBaseClass = "flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 gap-2 hover:bg-[rgba(55,53,47,0.04)] transition-colors"
 
     const rowContent = (
       <>
@@ -342,13 +302,13 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 sm:gap-4">
-              <span className="text-xs sm:text-sm font-medium text-gray-700 px-2 py-1 bg-white rounded-lg shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] text-[#37352f] font-mono">
                 {formatTimeInFlorida(entry.startTime)}
-                <span className="text-gray-400 mx-1">→</span>
+                <span className="text-[#787774] mx-1">→</span>
                 {entry.endTime
                   ? formatTimeInFlorida(entry.endTime)
-                  : <span className="text-amber-500 animate-pulse">En progreso...</span>}
+                  : <span className="text-[#787774] animate-pulse">En progreso...</span>}
               </span>
             </div>
           )}
@@ -356,27 +316,25 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
           <div className="text-right flex-1 min-w-0">
             {entry.duration === null || entry.endTime === null ? (
-              <div className="px-2 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-full animate-pulse text-xs sm:text-sm shadow-md inline-block">
-                ⏱️ En curso
-              </div>
+              <div className="text-[12px] text-[#787774] animate-pulse">En curso</div>
             ) : (
               <div className="flex flex-col items-end gap-0.5">
-                <div className="font-mono font-bold text-sm sm:text-lg text-gray-800 bg-white px-1.5 sm:px-2 py-0.5 rounded-lg shadow-sm">
+                <div className="font-mono text-[13px] text-[#37352f]">
                   {formatDuration(entry.duration)}
                 </div>
-                <div className="text-sm sm:text-base text-emerald-600 font-black">
+                <div className="text-[13px] text-[#37352f] font-medium">
                   {formatCurrency((entry.duration / 3600) * hourlyRate)}
                 </div>
                 {(entry.jobNumber || entry.vehicle) && (
-                  <div className="flex items-center gap-1 mt-1 pt-1 border-t border-gray-200 flex-wrap">
+                  <div className="flex items-center gap-1 mt-1 flex-wrap justify-end">
                     {entry.jobNumber && (
-                      <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm truncate max-w-[70px] sm:max-w-none">
+                      <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] font-mono rounded-[3px]">
                         #{entry.jobNumber}
                       </span>
                     )}
                     {entry.vehicle && (
-                      <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 bg-gradient-to-r from-slate-500 to-gray-600 text-white text-[10px] sm:text-sm font-bold rounded-lg shadow-sm">
-                        🚗 {entry.vehicle}
+                      <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px]">
+                        {entry.vehicle}
                       </span>
                     )}
                     {entry.paidAmount !== null && entry.paidAmount !== undefined && (() => {
@@ -384,8 +342,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       const diff = entry.paidAmount - calculated
                       const diffPositive = diff >= 0
                       return (
-                        <span className={`text-[10px] sm:text-xs font-medium ${diffPositive ? 'text-green-600' : 'text-red-600'}`}>
-                          {diffPositive ? '😊' : '😢'} {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
+                        <span className={"text-[11px] " + (diffPositive ? 'text-[#37352f]' : 'text-[#dc2626]')}>
+                          {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
                         </span>
                       )
                     })()}
@@ -397,44 +355,40 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           {entry.endTime && entry.duration !== null && (
             <div className="flex items-center flex-shrink-0 ml-1">
               {editingId === entry.id ? (
-                <div className="flex items-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
                     onClick={() => handleSaveEdit(entry)}
                     disabled={isSaving}
-                    className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-8 sm:w-8"
+                    className="p-1.5 text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors disabled:opacity-50"
                   >
-                    <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={cancelEditing}
                     disabled={isSaving}
-                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-7 w-7 sm:h-8 sm:w-8"
+                    className="p-1.5 text-[#787774] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
                   >
-                    <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </Button>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               ) : (
-                <div className="flex items-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); startEditing(entry) }}
-                    className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-7 w-7 sm:h-8 sm:w-8"
+                    className="p-1.5 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
                   >
-                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); handleDelete(entry.id) }}
-                    className="text-red-400 hover:text-red-600 hover:bg-red-50 h-7 w-7 sm:h-8 sm:w-8"
+                    className="p-1.5 text-[#787774] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.08)] rounded-[4px] transition-colors"
                   >
-                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </Button>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               )}
             </div>
@@ -461,10 +415,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
         {/* Panel expandido inline */}
         {isJobExpanded && (
-          <div className="bg-emerald-50 border border-t-0 border-emerald-200 rounded-b-xl p-4 space-y-3">
+          <div className="bg-[rgba(55,53,47,0.04)] border-t border-[rgba(55,53,47,0.09)] px-4 py-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor={`job-${entry.id}`} className="text-xs font-bold text-gray-600">Job #</label>
+                <label htmlFor={`job-${entry.id}`} className="text-[12px] text-[#787774]">Job #</label>
                 <input
                   id={`job-${entry.id}`}
                   type="text"
@@ -472,17 +426,17 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   value={jobNumber}
                   onChange={(e) => setJobNumber(e.target.value)}
                   placeholder="123456"
-                  className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none text-[#37352f]"
                   style={{ fontSize: '16px' }}
                 />
               </div>
               <div>
-                <label htmlFor={`vehicle-${entry.id}`} className="text-xs font-bold text-gray-600">Vehículo</label>
+                <label htmlFor={`vehicle-${entry.id}`} className="text-[12px] text-[#787774]">Vehículo</label>
                 <select
                   id={`vehicle-${entry.id}`}
                   value={vehicleValue}
                   onChange={(e) => setVehicleValue(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none text-[#37352f]"
                   style={{ fontSize: '16px' }}
                 >
                   <option value="">Ninguno</option>
@@ -493,15 +447,15 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               </div>
             </div>
 
-            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex items-center justify-between bg-white rounded-[4px] px-3 py-2.5 border border-[rgba(55,53,47,0.09)]">
               <div>
-                <span className="text-xs text-gray-500">Calculado</span>
-                <p className="text-lg font-black text-emerald-600">{formatCurrency(calculatedAmount)}</p>
+                <span className="text-[12px] text-[#787774]">Calculado</span>
+                <p className="text-[15px] font-semibold text-[#37352f]">{formatCurrency(calculatedAmount)}</p>
               </div>
               <div className="text-right">
-                <label htmlFor={`paid-${entry.id}`} className="text-xs text-gray-500">Pagado</label>
+                <label htmlFor={`paid-${entry.id}`} className="text-[12px] text-[#787774]">Pagado</label>
                 <div className="flex items-center gap-1">
-                  <span className="text-gray-400">$</span>
+                  <span className="text-[13px] text-[#787774]">$</span>
                   <input
                     id={`paid-${entry.id}`}
                     type="number"
@@ -510,7 +464,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                     value={paidAmount}
                     onChange={(e) => setPaidAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-24 px-2 py-1 bg-gray-100 rounded text-right font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-20 px-2 py-1 bg-[rgba(55,53,47,0.04)] rounded-[4px] text-right text-[13px] focus:outline-none focus:border-[#37352f] border border-transparent focus:border"
                     style={{ fontSize: '16px' }}
                   />
                 </div>
@@ -518,29 +472,29 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             </div>
 
             {paidAmount && Number.parseFloat(paidAmount) > 0 && (
-              <div className={`text-center py-2 rounded-lg font-bold ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {isPositive ? '✓' : '✗'} {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
+              <div className={"text-center py-2 rounded-[4px] text-[13px] " + (isPositive ? 'bg-[rgba(55,53,47,0.06)] text-[#37352f]' : 'bg-[rgba(220,38,38,0.06)] text-[#dc2626]')}>
+                {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
               </div>
             )}
 
             <div>
-              <label htmlFor={`note-${entry.id}`} className="text-xs font-bold text-gray-600">Nota</label>
+              <label htmlFor={`note-${entry.id}`} className="text-[12px] text-[#787774]">Nota</label>
               <textarea
                 id={`note-${entry.id}`}
                 value={observation}
                 onChange={(e) => setObservation(e.target.value)}
                 placeholder="Agregar nota..."
                 rows={2}
-                className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none"
+                className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none resize-none text-[#37352f]"
                 style={{ fontSize: '16px' }}
               />
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={closeJobExpansion}
-                className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-bold text-gray-700"
+                className="flex-1 py-2 text-[13px] text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
               >
                 Cancelar
               </button>
@@ -548,7 +502,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                 type="button"
                 onClick={() => handleSaveJobInfo(entry)}
                 disabled={isSavingJob}
-                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                className="flex-1 py-2 text-[13px] bg-[#37352f] text-white hover:bg-[#2f2d28] rounded-[4px] transition-colors disabled:opacity-50"
               >
                 {isSavingJob ? 'Guardando...' : 'Guardar'}
               </button>

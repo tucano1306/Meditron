@@ -12,8 +12,7 @@ import { RateCalculator } from '@/components/RateCalculator'
 
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, User } from 'lucide-react'
+import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut } from 'lucide-react'
 
 interface DashboardData {
   timerState: {
@@ -116,26 +115,24 @@ export default function HourlyDashboardPage() {
 
   if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">Cargando...</p>
-        </div>
+      <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
+        <div className="w-5 h-5 border-2 border-[#37352f] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
-        <div className="text-center text-red-500">
-          <p>{error}</p>
+      <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-[#787774] text-[14px]">{error}</p>
           <button
+            type="button"
             onClick={() => {
               setIsLoading(true)
               fetchDashboard()
             }}
-            className="mt-4 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
+            className="mt-4 px-4 py-2 text-[13px] bg-[#37352f] text-white rounded-[6px] hover:bg-[#2f2d28] transition-colors"
           >
             Reintentar
           </button>
@@ -149,47 +146,45 @@ export default function HourlyDashboardPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-6 max-w-4xl">
-        {/* Header */}
-        <header className="flex items-center justify-between mb-4 sm:mb-6">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/mode-select')}
-              className="text-gray-500 h-9 w-9 p-0 touch-manipulation"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-base sm:text-lg font-bold text-gray-900">Por Hora</h1>
-                <p className="text-[10px] sm:text-xs text-gray-500">Control de tiempo</p>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-[100dvh] bg-[#ffffff] font-notion">
+      {/* Topbar */}
+      <header className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] bg-[#ffffff]">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => router.push('/mode-select')}
+            className="p-1.5 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
+            aria-label="Volver"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1 text-gray-500 text-sm">
-              <User className="w-4 h-4" />
-              <span>{session?.user?.name || session?.user?.email?.split('@')[0]}</span>
+            <div className="w-6 h-6 bg-[#37352f] rounded flex items-center justify-center">
+              <Clock className="w-3.5 h-3.5 text-white" />
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-gray-500 hover:text-red-500"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+            <span className="text-[14px] font-semibold text-[#37352f]">Por Hora</span>
           </div>
-        </header>
+        </div>
+        <div className="flex items-center gap-2">
+          {session?.user?.name && (
+            <span className="text-[13px] text-[#787774] hidden sm:inline">
+              {session.user.name}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="p-1.5 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
+            aria-label="Cerrar sesión"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
 
+      <div className="max-w-3xl mx-auto px-4 py-6">
         {/* Timer */}
-        <section className="mb-4 sm:mb-6">
+        <section className="mb-6">
           <Timer
             onTimerStop={handleTimerStop}
             initialState={data.timerState}
@@ -202,7 +197,7 @@ export default function HourlyDashboardPage() {
         </section>
 
         {/* Summary Cards */}
-        <section className="mb-4 sm:mb-6">
+        <section className="mb-6">
           <SummaryCards
             today={data.today}
             currentWeek={data.currentWeek}
@@ -217,33 +212,33 @@ export default function HourlyDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="today" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4 h-auto bg-white/50 backdrop-blur-sm rounded-xl p-1">
-            <TabsTrigger 
-              value="today" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          <TabsList className="flex w-full mb-4 h-auto bg-transparent border-b border-[rgba(55,53,47,0.09)] rounded-none p-0 gap-0">
+            <TabsTrigger
+              value="today"
+              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
             >
-              <Clock className="h-4 w-4" />
+              <Clock className="h-3.5 w-3.5" />
               <span>Hoy</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="weeks" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            <TabsTrigger
+              value="weeks"
+              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
             >
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-3.5 w-3.5" />
               <span>Semanas</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="months" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            <TabsTrigger
+              value="months"
+              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
             >
-              <BarChart3 className="h-4 w-4" />
+              <BarChart3 className="h-3.5 w-3.5" />
               <span>Resumen</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="calculator" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            <TabsTrigger
+              value="calculator"
+              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
             >
-              <Calculator className="h-4 w-4" />
+              <Calculator className="h-3.5 w-3.5" />
               <span>Calc</span>
             </TabsTrigger>
           </TabsList>
@@ -271,12 +266,11 @@ export default function HourlyDashboardPage() {
           </TabsContent>
         </Tabs>
 
-        {/* Footer */}
-        <footer className="text-center mt-6 text-xs text-gray-400 pb-24 sm:pb-20">
-          <p>Las semanas van de Lunes a Domingo</p>
+        <footer className="text-center mt-8 text-[12px] text-[#787774] pb-8">
+          Las semanas van de Lunes a Domingo
         </footer>
       </div>
-      
+
       <InstallPWA />
     </div>
   )
