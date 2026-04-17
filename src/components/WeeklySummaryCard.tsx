@@ -60,6 +60,29 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${startDay} ${startMonth} - ${endDay} ${endMonth}`
 }
 
+interface EntryDeleteButtonProps {
+  isConfirming: boolean
+  onInitiate: () => void
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function EntryDeleteButton({ isConfirming, onInitiate, onConfirm, onCancel }: Readonly<EntryDeleteButtonProps>) {
+  if (isConfirming) {
+    return (
+      <span className="flex items-center gap-1">
+        <button type="button" onClick={onConfirm} className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-red-500 text-white hover:bg-red-600">Sí, borrar</button>
+        <button type="button" onClick={onCancel} className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200">Cancelar</button>
+      </span>
+    )
+  }
+  return (
+    <button type="button" onClick={onInitiate} className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600">
+      <Trash2 className="h-2.5 w-2.5" /> Borrar
+    </button>
+  )
+}
+
 interface WeekStatusBadgeProps {
   hasPendingCorrections: boolean
   hasResolvedCorrections: boolean
@@ -311,8 +334,6 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
           {paginatedWeeks.map((week) => {
             const completedEntries = week.entries.filter(e => e.duration !== null)
             const totalCalculated = completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? 0), 0)
-            // Best-estimate total: use companyPaid when available, fall back to calculatedAmount
-            const totalBestEstimate = completedEntries.reduce((s, e) => s + (e.companyPaid ?? e.calculatedAmount ?? 0), 0)
             const difference = week.totalCompanyPaid - totalCalculated
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
@@ -553,32 +574,12 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                                       </button>
                                     )}
                                     {/* Borrar trabajo */}
-                                    {deletingEntryId === entry.id ? (
-                                      <span className="flex items-center gap-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteEntry(entry.id)}
-                                          className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-red-500 text-white hover:bg-red-600"
-                                        >
-                                          Sí, borrar
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setDeletingEntryId(null)}
-                                          className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200"
-                                        >
-                                          Cancelar
-                                        </button>
-                                      </span>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeletingEntryId(entry.id)}
-                                        className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-0.5 bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600"
-                                      >
-                                        <Trash2 className="h-2.5 w-2.5" /> Borrar
-                                      </button>
-                                    )}
+                                    <EntryDeleteButton
+                                      isConfirming={deletingEntryId === entry.id}
+                                      onInitiate={() => setDeletingEntryId(entry.id)}
+                                      onConfirm={() => handleDeleteEntry(entry.id)}
+                                      onCancel={() => setDeletingEntryId(null)}
+                                    />
                                   </div>
                                 </div>
                               </div>
@@ -787,10 +788,10 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
                           Total ({week.entryCount} trabajo{week.entryCount === 1 ? '' : 's'})
                         </span>
                         <div className="text-right">
-                          <span className="text-base font-black text-emerald-700">{formatCurrency(totalBestEstimate)}</span>
+                          <span className="text-base font-black text-emerald-700">{hasPayments ? formatCurrency(week.totalCompanyPaid) : formatCurrency(totalCalculated)}</span>
                           {week.totalHours > 0 && (
                             <div className="text-[11px] text-emerald-600">
-                              ≈ {formatCurrency(totalBestEstimate / week.totalHours)}/h efectivos
+                              ≈ {formatCurrency((hasPayments ? week.totalCompanyPaid : totalCalculated) / week.totalHours)}/h efectivos
                             </div>
                           )}
                         </div>
