@@ -204,12 +204,13 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
       <CardContent className="px-3 sm:px-6 pb-4">
         <div className="space-y-3">
           {paginatedWeeks.map((week) => {
-            const difference = week.totalCompanyPaid - week.earnings
+            const completedEntries = week.entries.filter(e => e.duration !== null)
+            const totalCalculated = completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? 0), 0)
+            const difference = week.totalCompanyPaid - totalCalculated
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
 
             const isExpanded = expandedWeek === week.id
-            const completedEntries = week.entries.filter(e => e.duration !== null)
             const hasPendingCorrections = week.entries.some(e => e.correctionPending)
             const hasResolvedCorrections = week.entries.some(e => e.correctionResolved)
 
@@ -279,7 +280,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-white rounded-md p-2 border border-gray-100">
                     <div className="text-gray-500 text-[10px] uppercase tracking-wide">Calculado</div>
-                    <div className="font-bold text-blue-600">{formatCurrency(week.earnings)}</div>
+                    <div className="font-bold text-blue-600">{formatCurrency(totalCalculated)}</div>
                   </div>
                   <div className={`rounded-md p-2 border ${hasPayments ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
                     <div className="text-gray-500 text-[10px] uppercase tracking-wide flex items-center gap-1">
@@ -336,7 +337,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0 }: Readonly<WeeklySummary
                         <DollarSign className="h-3.5 w-3.5 text-emerald-600 mb-0.5" />
                         <span className="text-[11px] text-gray-500">Calculado</span>
                         <span className="text-base font-black text-emerald-600">
-                          {formatCurrency(completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? 0), 0))}
+                          {formatCurrency(totalCalculated)}
                         </span>
                       </div>
                       <div className="flex flex-col items-center py-2 px-1">
