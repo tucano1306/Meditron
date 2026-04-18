@@ -118,10 +118,17 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Calcular duración en segundos
-    const duration = Math.floor(
-      (now.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
-    )
+    // Calcular duración en segundos (respetando tiempo pausado)
+    const isPaused = activeEntry.pausedAt !== null
+    let duration: number
+    if (isPaused) {
+      duration = activeEntry.accumulatedSeconds
+    } else {
+      const resumeRef = activeEntry.lastResumeTime ?? activeEntry.startTime
+      duration = activeEntry.accumulatedSeconds + Math.floor(
+        (now.getTime() - new Date(resumeRef).getTime()) / 1000
+      )
+    }
 
     // Calcular monto basado en horas trabajadas
     const hours = duration / 3600
@@ -208,23 +215,30 @@ export async function GET() {
     })
 
     if (activeEntry) {
-      // Usar timestamp real para calcular elapsed time correctamente
-      // (no usar getFloridaDate() aquí porque esa fecha tiene timestamp alterado)
       const now = new Date()
-      const startTime = new Date(activeEntry.startTime)
-      const elapsedSeconds = Math.floor(
-        (now.getTime() - startTime.getTime()) / 1000
-      )
+      const isPaused = activeEntry.pausedAt !== null
+      let elapsedSeconds: number
+
+      if (isPaused) {
+        elapsedSeconds = activeEntry.accumulatedSeconds
+      } else {
+        const resumeRef = activeEntry.lastResumeTime ?? activeEntry.startTime
+        elapsedSeconds = activeEntry.accumulatedSeconds + Math.floor(
+          (now.getTime() - new Date(resumeRef).getTime()) / 1000
+        )
+      }
 
       return NextResponse.json({
         success: true,
         data: {
-          isRunning: true,
+          isRunning: !isPaused,
+          isPaused,
           startTime: activeEntry.startTime,
           currentEntryId: activeEntry.id,
           jobNumber: activeEntry.jobNumber,
           vehicle: activeEntry.vehicle,
           observation: activeEntry.observation,
+          accumulatedSeconds: activeEntry.accumulatedSeconds,
           elapsedSeconds: Math.max(0, elapsedSeconds)
         }
       })
@@ -258,7 +272,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { jobNumber, vehicle, observation } = body
+    const { jobNumber, vehicle, observation, action } = body
 
     // Buscar timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -273,6 +287,36 @@ export async function PATCH(request: NextRequest) {
         { success: false, error: 'No hay timer activo' },
         { status: 400 }
       )
+    }
+
+    // Acción de pausar
+    if (action === 'pause') {
+      if (activeEntry.pausedAt) {
+        return NextResponse.json({ success: false, error: 'El timer ya está pausado' }, { status: 400 })
+      }
+      const now = new Date()
+      const resumeRef = activeEntry.lastResumeTime ?? activeEntry.startTime
+      const newAccumulated = activeEntry.accumulatedSeconds + Math.floor(
+        (now.getTime() - new Date(resumeRef).getTime()) / 1000
+      )
+      const updated = await prisma.timeEntry.update({
+        where: { id: activeEntry.id },
+        data: { pausedAt: now, accumulatedSeconds: newAccumulated }
+      })
+      return NextResponse.json({ success: true, data: { entry: updated, accumulatedSeconds: newAccumulated } })
+    }
+
+    // Acción de reanudar
+    if (action === 'resume') {
+      if (!activeEntry.pausedAt) {
+        return NextResponse.json({ success: false, error: 'El timer no está pausado' }, { status: 400 })
+      }
+      const now = new Date()
+      const updated = await prisma.timeEntry.update({
+        where: { id: activeEntry.id },
+        data: { pausedAt: null, lastResumeTime: now }
+      })
+      return NextResponse.json({ success: true, data: { entry: updated, accumulatedSeconds: activeEntry.accumulatedSeconds } })
     }
 
     // Actualizar jobNumber, vehicle y/o observation

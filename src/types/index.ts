@@ -38,9 +38,11 @@ export interface MonthSummary {
 
 export interface TimerState {
   isRunning: boolean
+  isPaused?: boolean
   startTime: string | null
   currentEntryId: string | null
   elapsedSeconds: number
+  accumulatedSeconds?: number
 }
 
 export interface DailySummary {

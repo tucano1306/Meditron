@@ -35,6 +35,9 @@ model TimeEntry {
   paidAmount       Float?
   companyPaid      Float?
   companyPaidDate  DateTime?
+  pausedAt               DateTime?
+  accumulatedSeconds     Int      @default(0)
+  lastResumeTime         DateTime?
   correctionPending      Boolean  @default(false)
   correctionNote         String?
   correctionResolved     Boolean  @default(false)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare } from 'lucide-react'
+import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare } from 'lucide-react'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida } from '@/lib/utils'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
@@ -27,6 +27,7 @@ interface TimerProps {
 
 export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onRateChange }: Readonly<TimerProps>) {
   const [isRunning, setIsRunning] = useState(initialState?.isRunning || false)
+  const [isPaused, setIsPaused] = useState(initialState?.isPaused || false)
   const [elapsedSeconds, setElapsedSeconds] = useState(initialState?.elapsedSeconds || 0)
   const [startTime, setStartTime] = useState<Date | null>(
     initialState?.startTime ? new Date(initialState.startTime) : null
@@ -57,14 +58,22 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         
         if (!data.success || !data.data) return
         
-        const { isRunning: running, elapsedSeconds: elapsed, jobNumber: job, vehicle } = data.data
+        const { isRunning: running, isPaused: paused, elapsedSeconds: elapsed, jobNumber: job, vehicle, accumulatedSeconds: accumulated } = data.data
         setIsRunning(running)
+        setIsPaused(!!paused)
         
-        if (running && elapsed !== undefined) {
+        if (paused && elapsed !== undefined) {
+          setElapsedSeconds(elapsed)
+          setStartTime(null)
+        } else if (running && elapsed !== undefined) {
           setStartTime(new Date(Date.now() - (elapsed * 1000)))
           setElapsedSeconds(elapsed)
         } else {
           setElapsedSeconds(0)
+        }
+        
+        if (accumulated !== undefined) {
+          // accumulatedSeconds is already reflected in elapsedSeconds
         }
         
         if (job) setJobNumber(job)
@@ -80,7 +89,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
   // Actualizar timer cada segundo
   useEffect(() => {
-    if (!isRunning || !startTime) return
+    if (!isRunning || isPaused || !startTime) return
 
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000)
@@ -88,10 +97,11 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [isRunning, startTime])
+  }, [isRunning, isPaused, startTime])
 
   const resetTimerState = useCallback(() => {
     setIsRunning(false)
+    setIsPaused(false)
     setStartTime(null)
     setElapsedSeconds(0)
     setJobNumber('')
@@ -121,6 +131,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       
       const newStartTime = new Date()
       setIsRunning(true)
+      setIsPaused(false)
       setStartTime(newStartTime)
       setElapsedSeconds(0)
       setJobNumber('')
@@ -176,7 +187,75 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     }
   }, [onTimerStop, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType, observation, elapsedSeconds, hourlyRate, resetTimerState])
 
+  const handlePause = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pause' })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setIsPaused(true)
+        setIsRunning(false)
+        // freeze elapsed at accumulated seconds returned from server
+        if (data.data?.accumulatedSeconds !== undefined) {
+          setElapsedSeconds(data.data.accumulatedSeconds)
+          setStartTime(null)
+        }
+      } else {
+        setError(data.error || 'Error al pausar')
+      }
+    } catch (err) {
+      setError('Error de conexión')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  const handleResume = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resume' })
+      })
+      const data = await res.json()
+      if (data.success) {
+        const accumulated = data.data?.accumulatedSeconds ?? elapsedSeconds
+        const newStartTime = new Date(Date.now() - accumulated * 1000)
+        setIsPaused(false)
+        setIsRunning(true)
+        setStartTime(newStartTime)
+      } else {
+        setError(data.error || 'Error al reanudar')
+      }
+    } catch (err) {
+      setError('Error de conexión')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [elapsedSeconds])
+
   const currentEarnings = (elapsedSeconds / 3600) * hourlyRate
+
+  function getTimerColor() {
+    if (isRunning) return 'text-[#37352f]'
+    if (isPaused) return 'text-[rgba(55,53,47,0.55)]'
+    return 'text-[rgba(55,53,47,0.3)]'
+  }
+
+  function getEarningsColor() {
+    if (isRunning) return 'text-[#37352f]'
+    if (isPaused) return 'text-[rgba(55,53,47,0.55)]'
+    return 'text-[rgba(55,53,47,0.25)]'
+  }
 
   const handleSaveJobNumber = useCallback(async () => {
     try {
@@ -302,7 +381,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }
 
   const renderStartTimeIndicator = () => {
-    if (!isRunning || !startTime) return null
+    if ((!isRunning && !isPaused) || !startTime) return null
     return (
       <div className="text-[12px] text-[#787774] mt-1">
         Iniciado: {formatTimeInFlorida(startTime)}
@@ -311,7 +390,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }
 
   const renderJobNumberSection = () => {
-    if (!isRunning) return null
+    if (!isRunning && !isPaused) return null
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
         <div className="flex items-center justify-between gap-2">
@@ -347,7 +426,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }
 
   const renderObservationSection = () => {
-    if (!isRunning) return null
+    if (!isRunning && !isPaused) return null
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
         <div className="flex items-start justify-between gap-2">
@@ -385,7 +464,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }
 
   const renderVehicleSection = () => {
-    if (!isRunning) return null
+    if (!isRunning && !isPaused) return null
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
         <div className="flex items-center gap-2 text-[#787774] mb-2.5">
@@ -456,15 +535,82 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     )
   }
 
+  const renderButtons = () => {
+    if (isRunning) {
+      return (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handlePause}
+            disabled={isLoading}
+            className="flex-1 py-3 text-[15px] font-semibold bg-[#b45309] hover:bg-[#92400e] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+          >
+            <Pause className="h-4 w-4" />
+            {isLoading ? '...' : 'PAUSAR'}
+          </button>
+          <button
+            type="button"
+            onClick={handleStop}
+            disabled={isLoading}
+            className="flex-1 py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+          >
+            <Square className="h-4 w-4" />
+            {isLoading ? 'Deteniendo...' : 'DETENER'}
+          </button>
+        </div>
+      )
+    }
+    if (isPaused) {
+      return (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleResume}
+            disabled={isLoading}
+            className="flex-1 py-3 text-[15px] font-semibold bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+          >
+            <Play className="h-4 w-4" />
+            {isLoading ? '...' : 'CONTINUAR'}
+          </button>
+          <button
+            type="button"
+            onClick={handleStop}
+            disabled={isLoading}
+            className="flex-1 py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+          >
+            <Square className="h-4 w-4" />
+            {isLoading ? 'Deteniendo...' : 'DETENER'}
+          </button>
+        </div>
+      )
+    }
+    return (
+      <button
+        type="button"
+        onClick={handleStart}
+        disabled={isLoading}
+        className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+      >
+        <Play className="h-4 w-4" />
+        {isLoading ? 'Iniciando...' : 'INICIAR'}
+      </button>
+    )
+  }
+
   return (
     <div className="w-full rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white overflow-hidden">
       <div className="space-y-3 px-4 pt-5 pb-5">
         {/* Timer Display */}
         <div className="text-center py-4">
-          <div className={"text-[56px] sm:text-[72px] font-mono font-bold tracking-tight transition-colors " + (isRunning ? 'text-[#37352f]' : 'text-[rgba(55,53,47,0.3)]')}>
+          <div className={`text-[56px] sm:text-[72px] font-mono font-bold tracking-tight transition-colors ${getTimerColor()}`}>
             {formatDuration(elapsedSeconds)}
           </div>
-          <div className={"text-[22px] sm:text-[28px] mt-1 font-semibold transition-colors " + (isRunning ? 'text-[#37352f]' : 'text-[rgba(55,53,47,0.25)]')}>
+          {isPaused && (
+            <div className="text-[12px] text-[#b45309] bg-[#fef3c7] border border-[#fde68a] px-3 py-1 rounded-full inline-block mt-1 font-medium">
+              En pausa
+            </div>
+          )}
+          <div className={`text-[22px] sm:text-[28px] mt-1 font-semibold transition-colors ${getEarningsColor()}`}>
             {formatCurrency(currentEarnings)}
           </div>
           {renderStartTimeIndicator()}
@@ -482,28 +628,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         )}
 
         {/* Buttons */}
-        <div className="flex justify-center pt-1">
-          {isRunning ? (
-            <button
-              type="button"
-              onClick={handleStop}
-              disabled={isLoading}
-              className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
-            >
-              <Square className="h-4 w-4" />
-              {isLoading ? 'Deteniendo...' : 'DETENER'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleStart}
-              disabled={isLoading}
-              className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
-            >
-              <Play className="h-4 w-4" />
-              {isLoading ? 'Iniciando...' : 'INICIAR'}
-            </button>
-          )}
+        <div className="flex flex-col gap-2 pt-1">
+          {renderButtons()}
         </div>
 
         {/* Rate Info */}
