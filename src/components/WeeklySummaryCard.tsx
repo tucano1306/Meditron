@@ -42,6 +42,7 @@ interface WeekData {
 interface WeeklySummaryCardProps {
   readonly refreshTrigger?: number
   readonly onRefresh?: () => void
+  readonly hourlyRate?: number
 }
 
 interface EntryCardProps {
@@ -315,7 +316,7 @@ function WeekStatusBadge({ hasPendingCorrections, hasResolvedCorrections, allPai
   )
 }
 
-export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<WeeklySummaryCardProps>) {
+export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 25 }: Readonly<WeeklySummaryCardProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -520,7 +521,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
         <div className="space-y-3">
           {paginatedWeeks.map((week) => {
             const completedEntries = week.entries.filter(e => e.duration !== null)
-            const totalCalculated = completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? 0), 0)
+            const totalCalculated = completedEntries.reduce((s, e) => s + (e.calculatedAmount ?? ((e.duration ?? 0) / 3600 * hourlyRate)), 0)
             const hasPayments = week.paidEntryCount > 0
             const allPaid = week.paidEntryCount === week.entryCount && week.entryCount > 0
 

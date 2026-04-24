@@ -258,7 +258,7 @@ export default function HourlyDashboardPage() {
           </TabsContent>
 
           <TabsContent value="months">
-            <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
+            <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} />
           </TabsContent>
 
           <TabsContent value="calculator">

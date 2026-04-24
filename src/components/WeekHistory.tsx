@@ -315,7 +315,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                 <div className="text-right flex-shrink-0">
                   <div className="font-semibold text-sm sm:text-base">{week.totalHours.toFixed(1)}h</div>
                   <div className="text-green-600 font-semibold text-sm sm:text-base">
-                    {formatCurrency(week.earnings)}
+                    {formatCurrency(week.entries.filter(e => e.duration !== null).reduce((s, e) => s + (e.calculatedAmount ?? ((e.duration ?? 0) / 3600 * hourlyRate)), 0))}
                   </div>
                 </div>
               </Button>
