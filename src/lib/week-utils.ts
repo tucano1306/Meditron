@@ -88,7 +88,14 @@ export async function updateWeekTotals(weekId: string, userId: string) {
 
   const totalSeconds = entries.reduce((sum: number, entry: { duration: number | null }) => sum + (entry.duration || 0), 0)
   const totalHours = totalSeconds / 3600
-  const earnings = totalHours * HOURLY_RATE
+  // Usar la suma de calculatedAmount guardado en cada entry (tasa real del usuario)
+  // Si alguna entry no tiene calculatedAmount, fallback a HOURLY_RATE como último recurso
+  const earnings = entries.reduce((sum: number, entry: { calculatedAmount: number | null; duration: number | null }) => {
+    if (entry.calculatedAmount !== null && entry.calculatedAmount !== undefined) {
+      return sum + entry.calculatedAmount
+    }
+    return sum + ((entry.duration || 0) / 3600) * HOURLY_RATE
+  }, 0)
 
   await prisma.week.update({
     where: { id: weekId },
@@ -102,12 +109,23 @@ export async function updateWeekTotals(weekId: string, userId: string) {
 }
 
 export async function updateMonthSummary(year: number, month: number, userId: string) {
-  const weeks = await prisma.week.findMany({
-    where: { year, month, userId }
+  // Sumar directamente desde las entries del mes para mayor exactitud
+  const entries = await prisma.timeEntry.findMany({
+    where: {
+      userId,
+      duration: { not: null },
+      week: { year, month }
+    }
   })
 
-  const totalHours = weeks.reduce((sum: number, week: { totalHours: number }) => sum + week.totalHours, 0)
-  const earnings = totalHours * HOURLY_RATE
+  const totalSeconds = entries.reduce((sum: number, entry: { duration: number | null }) => sum + (entry.duration || 0), 0)
+  const totalHours = totalSeconds / 3600
+  const earnings = entries.reduce((sum: number, entry: { calculatedAmount: number | null; duration: number | null }) => {
+    if (entry.calculatedAmount !== null && entry.calculatedAmount !== undefined) {
+      return sum + entry.calculatedAmount
+    }
+    return sum + ((entry.duration || 0) / 3600) * HOURLY_RATE
+  }, 0)
 
   await prisma.monthSummary.upsert({
     where: {

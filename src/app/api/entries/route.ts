@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, getOrCreateWeekFromCalendarDate, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
-import { getFloridaDateComponents } from '@/lib/utils'
+import { getFloridaDateComponents, HOURLY_RATE } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -165,7 +165,12 @@ export async function POST(request: NextRequest) {
     const entryExtraData: Record<string, unknown> = {}
     if (jobNumber) entryExtraData.jobNumber = String(jobNumber)
     if (vehicle) entryExtraData.vehicle = String(vehicle)
-    if (calculatedAmount !== undefined) entryExtraData.calculatedAmount = Number(calculatedAmount)
+    // Si no viene calculatedAmount del body, calcularlo con la tasa real del usuario
+    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
+    const resolvedCalculatedAmount = calculatedAmount === undefined
+      ? (totalSeconds / 3600) * userHourlyRate
+      : Number(calculatedAmount)
+    entryExtraData.calculatedAmount = resolvedCalculatedAmount
     if (paidAmount !== undefined) {
       entryExtraData.paidAmount = Number(paidAmount)
       entryExtraData.companyPaid = Number(paidAmount)

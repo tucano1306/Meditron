@@ -130,9 +130,10 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Calcular monto basado en horas trabajadas
+    // Calcular monto usando la tasa horaria real del usuario
+    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
     const hours = duration / 3600
-    const calculatedAmount = hours * HOURLY_RATE
+    const calculatedAmount = hours * userHourlyRate
 
     // Calcular la fecha correcta basada en la hora de FIN en Florida
     // Esto asegura que si terminas a las 2am del día 2, la fecha sea del día 2
