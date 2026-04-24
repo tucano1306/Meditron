@@ -47,6 +47,7 @@ interface WeeklySummaryCardProps {
 
 interface EntryCardProps {
   entry: TimeEntry
+  hourlyRate: number
   deletingEntryId: string | null
   resolveEntryId: string | null
   correctionEntryId: string | null
@@ -77,14 +78,14 @@ function entryHeaderBg(pending: boolean, resolved: boolean): string {
 }
 
 function EntryCard({
-  entry, deletingEntryId, resolveEntryId, correctionEntryId,
+  entry, hourlyRate, deletingEntryId, resolveEntryId, correctionEntryId,
   resolveNote, correctionNote, savingCorrection,
   onToggleCorrection, onMarkResolved, onSaveCorrection,
   onSetDeletingEntryId, onDeleteEntry,
   onSetResolveNote, onSetCorrectionNote,
   onCancelResolve, onCancelCorrection,
 }: Readonly<EntryCardProps>) {
-  const calc = entry.calculatedAmount ?? 0
+  const calc = entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600 * hourlyRate)
   const paid = entry.paidAmount ?? null
   const companyPaid = entry.companyPaid ?? null
   const diff = companyPaid === null ? null : companyPaid - calc
@@ -645,6 +646,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                           <EntryCard
                             key={entry.id}
                             entry={entry}
+                            hourlyRate={hourlyRate}
                             deletingEntryId={deletingEntryId}
                             resolveEntryId={resolveEntryId}
                             correctionEntryId={correctionEntryId}

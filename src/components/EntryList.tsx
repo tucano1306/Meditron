@@ -115,7 +115,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const handleSaveJobInfo = async (entry: Entry) => {
     setIsSavingJob(true)
     try {
-      const calculatedAmount = getCalculatedAmount(entry)
+      // NO recalcular calculatedAmount — preservar el valor histórico guardado en BD
+      // (puede estar a $25 o $30 según cuándo se creó la entrada)
       const res = await fetch(`/api/entries?id=${entry.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -123,7 +124,6 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           jobNumber,
           vehicle: vehicleValue || null,
           observation: observation || null,
-          calculatedAmount,
           paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
           startTime: entry.startTime,
           endTime: entry.endTime
@@ -227,7 +227,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           <div className="flex items-center gap-2 text-[13px] text-[#787774]">
             <span className="font-mono">{formatDuration(totalDuration)}</span>
             <span>·</span>
-            <span>{formatCurrency((totalDuration / 3600) * hourlyRate)}</span>
+            <span>{formatCurrency(entries.reduce((s, e) => s + (e.calculatedAmount ?? ((e.duration ?? 0) / 3600 * hourlyRate)), 0))}</span>
           </div>
         )}
       </button>
@@ -242,7 +242,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
   function renderEntryRow(entry: Entry) {
     const isJobExpanded = expandedJobId === entry.id
-    const calculatedAmount = getCalculatedAmount(entry)
+    // Usar el monto guardado en BD (tasa histórica correcta), nunca recalcular con tasa actual
+    const calculatedAmount = entry.calculatedAmount ?? getCalculatedAmount(entry)
     const paid = paidAmount ? Number.parseFloat(paidAmount) : 0
     const difference = paid - calculatedAmount
     const isPositive = difference >= 0
@@ -323,7 +324,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   {formatDuration(entry.duration)}
                 </div>
                 <div className="text-[13px] text-[#37352f] font-medium">
-                  {formatCurrency((entry.duration / 3600) * hourlyRate)}
+                  {formatCurrency(entry.calculatedAmount ?? (entry.duration / 3600) * hourlyRate)}
                 </div>
                 {(entry.jobNumber || entry.vehicle) && (
                   <div className="flex items-center gap-1 mt-1 flex-wrap justify-end">
@@ -338,8 +339,8 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                       </span>
                     )}
                     {entry.paidAmount !== null && entry.paidAmount !== undefined && (() => {
-                      const calculated = (entry.duration / 3600) * hourlyRate
-                      const diff = entry.paidAmount - calculated
+                      const calcAmt = entry.calculatedAmount ?? (entry.duration / 3600) * hourlyRate
+                      const diff = entry.paidAmount - calcAmt
                       const diffPositive = diff >= 0
                       return (
                         <span className={"text-[11px] " + (diffPositive ? 'text-[#37352f]' : 'text-[#dc2626]')}>
