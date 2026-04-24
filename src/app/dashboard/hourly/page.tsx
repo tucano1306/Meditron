@@ -211,7 +211,7 @@ export default function HourlyDashboardPage() {
         </section>
 
         {/* Tabs */}
-        <Tabs defaultValue="today" className="w-full">
+        <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
           <TabsList className="flex w-full mb-4 h-auto bg-transparent border-b border-[rgba(55,53,47,0.09)] rounded-none p-0 gap-0">
             <TabsTrigger
               value="today"

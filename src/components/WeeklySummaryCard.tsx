@@ -360,13 +360,9 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note, correctionResolved: resolved, correctionResolvedNote: resolvedNote ?? null }),
       })
-      // Actualizar estado local sin refetch completo
-      const updateEntry = (e: TimeEntry) =>
-        e.id === entryId
-          ? { ...e, correctionPending: pending, correctionNote: pending ? note : null, correctionResolved: resolved, correctionResolvedNote: resolved ? (resolvedNote ?? null) : null }
-          : e
-      const updateWeek = (week: WeekData) => ({ ...week, entries: week.entries.map(updateEntry) })
-      setWeeks(prev => prev.map(updateWeek))
+      // Refetch completo para garantizar que ambas secciones (Semanas y Resumen) muestren los mismos datos
+      await fetchWeeks()
+      onRefresh?.()
     } finally {
       setSavingCorrection(false)
       setCorrectionEntryId(null)
@@ -381,8 +377,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh }: Readonly<We
       const res = await fetch(`/api/entries?id=${entryId}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) {
-        const removeEntry = (week: WeekData) => ({ ...week, entries: week.entries.filter(e => e.id !== entryId) })
-        setWeeks(prev => prev.map(removeEntry))
+        await fetchWeeks()
         setLocalRefreshKey(prev => prev + 1)
         onRefresh?.()
       }

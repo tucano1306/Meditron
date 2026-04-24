@@ -250,6 +250,12 @@ export async function PATCH(request: NextRequest) {
         where: { id },
         data: buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation)
       })
+      // Actualizar totales de semana y mes para mantener consistencia
+      if (entry.weekId) {
+        await updateWeekTotals(entry.weekId, userId)
+      }
+      const entryDateForSummary = new Date(entry.date)
+      await updateMonthSummary(entryDateForSummary.getFullYear(), entryDateForSummary.getMonth() + 1, userId)
       return NextResponse.json({ success: true, data: updatedEntry })
     }
 
