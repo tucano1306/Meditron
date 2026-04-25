@@ -485,7 +485,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
         {/* Panel expandido inline */}
         {isJobExpanded && (
-          <div className="bg-[rgba(55,53,47,0.04)] border-t border-[rgba(55,53,47,0.09)] px-4 py-3 space-y-3">
+          <div className="bg-gray-200 border-t border-[rgba(55,53,47,0.09)] px-4 py-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor={`job-${entry.id}`} className="text-[12px] text-[#787774]">Job #</label>
