@@ -425,22 +425,22 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           {entry.endTime && entry.duration !== null && (
             <div className="flex items-center flex-shrink-0 ml-1">
               {editingId === entry.id ? (
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => handleSaveEdit(entry)}
                     disabled={isSaving}
-                    className="p-1.5 text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors disabled:opacity-50"
+                    className="p-2 text-white bg-[#37352f] hover:bg-[#2f2d28] rounded-lg transition-colors disabled:opacity-50 touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
                   >
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={cancelEditing}
                     disabled={isSaving}
-                    className="p-1.5 text-[#787774] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
+                    className="p-2 text-[#787774] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               ) : (
@@ -448,16 +448,16 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); startEditing(entry) }}
-                    className="p-1.5 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
+                    className="p-2 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleDelete(entry.id) }}
-                    className="p-1.5 text-[#787774] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.08)] rounded-[4px] transition-colors"
+                    className="p-2 text-[#787774] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               )}
@@ -472,7 +472,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         {isClickable ? (
           <button
             type="button"
-            className={`${rowBaseClass} w-full text-left active:scale-[0.99]`}
+            className={`${rowBaseClass} w-full text-left active:scale-[0.98] active:bg-gray-100 touch-manipulation`}
             onClick={() => toggleJobExpansion(entry)}
           >
             {rowContent}

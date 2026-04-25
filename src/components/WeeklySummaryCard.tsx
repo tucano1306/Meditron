@@ -155,7 +155,7 @@ function EntryCard({
             type="button"
             onClick={() => onToggleCorrection(entry)}
             disabled={savingCorrection}
-            className={`text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 ${
+            className={`text-[10px] font-semibold px-2 py-1.5 rounded-full flex items-center gap-0.5 touch-manipulation ${
               isPending
                 ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
                 : 'bg-white border border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-700'
@@ -169,7 +169,7 @@ function EntryCard({
             type="button"
             onClick={() => onMarkResolved(entry)}
             disabled={savingCorrection}
-            className="text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 bg-blue-500 text-white hover:bg-blue-600"
+            className="text-[10px] font-semibold px-2 py-1.5 rounded-full flex items-center gap-0.5 bg-blue-500 text-white hover:bg-blue-600 touch-manipulation"
           >
             <BadgeCheck className="h-2.5 w-2.5" /> Corregido
           </button>
@@ -179,7 +179,7 @@ function EntryCard({
             type="button"
             onClick={() => onSaveCorrection(entry.id, false, null, false, null)}
             disabled={savingCorrection}
-            className="text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-0.5 bg-white border border-gray-200 text-gray-500 hover:bg-gray-100"
+            className="text-[10px] font-semibold px-2 py-1.5 rounded-full flex items-center gap-0.5 bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 touch-manipulation"
           >
             <X className="h-2.5 w-2.5" /> Deshacer
           </button>
@@ -252,7 +252,7 @@ function weekCardClassName(expanded: boolean): string {
   return expanded ? 'bg-white shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'
 }
 function weekButtonClassName(expanded: boolean): string {
-  return expanded ? 'bg-emerald-50' : 'hover:bg-gray-100'
+  return expanded ? 'bg-emerald-50 hover:bg-emerald-50 active:scale-[0.98] touch-manipulation' : 'hover:bg-gray-100 active:scale-[0.98] touch-manipulation'
 }
 
 interface EntryDeleteButtonProps {

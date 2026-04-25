@@ -75,20 +75,22 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {/* Hoy */}
-      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white px-3 py-3">
-        <div className="flex items-center gap-1.5 text-[#787774] mb-2">
-          <Clock className="h-3.5 w-3.5" />
-          <span className="text-[12px]">Hoy</span>
+      <div className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white px-4 py-4 shadow-sm active:scale-[0.97] transition-transform touch-manipulation select-none">
+        <div className="flex items-center gap-1.5 text-[#787774] mb-3">
+          <div className="p-1.5 bg-blue-50 rounded-lg">
+            <Clock className="h-3.5 w-3.5 text-blue-500" />
+          </div>
+          <span className="text-[12px] font-medium uppercase tracking-wide">Hoy</span>
         </div>
-        <div className="text-[20px] sm:text-[24px] font-semibold text-[#37352f] leading-tight">
+        <div className="text-[22px] sm:text-[26px] font-bold text-[#37352f] leading-tight">
           {formatDuration(today.totalSeconds)}
         </div>
-        <div className="text-[14px] text-[#37352f] mt-0.5">
+        <div className="text-[15px] font-semibold text-emerald-600 mt-1">
           {formatCurrency(today.earnings)}
         </div>
-        <div className="text-[11px] text-[#787774] mt-1 hidden sm:block">
+        <div className="text-[11px] text-[#787774] mt-1.5 hidden sm:block">
           {formatDateInFlorida(today.date, {
             weekday: 'long',
             day: 'numeric',
@@ -98,43 +100,49 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
       </div>
 
       {/* Semana Actual */}
-      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white px-3 py-3">
-        <div className="flex items-center gap-1.5 text-[#787774] mb-2">
-          <Calendar className="h-3.5 w-3.5" />
-          <span className="text-[12px]">Semana</span>
-          <span className="px-1 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px] font-mono">{currentWeek.weekNumber}</span>
+      <div className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white px-4 py-4 shadow-sm active:scale-[0.97] transition-transform touch-manipulation select-none">
+        <div className="flex items-center gap-1.5 text-[#787774] mb-3">
+          <div className="p-1.5 bg-emerald-50 rounded-lg">
+            <Calendar className="h-3.5 w-3.5 text-emerald-500" />
+          </div>
+          <span className="text-[12px] font-medium uppercase tracking-wide">Semana</span>
+          <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[11px] rounded-md font-mono font-bold">{currentWeek.weekNumber}</span>
         </div>
-        <div className="text-[20px] sm:text-[24px] font-semibold text-[#37352f] leading-tight">
+        <div className="text-[22px] sm:text-[26px] font-bold text-[#37352f] leading-tight">
           {currentWeek.totalHours.toFixed(2)}h
         </div>
-        <div className="text-[14px] text-[#37352f] mt-0.5">
+        <div className="text-[15px] font-semibold text-emerald-600 mt-1">
           {formatCurrency(currentWeek.earnings)}
         </div>
-        <div className="text-[11px] text-[#787774] mt-1 hidden sm:block">
+        <div className="text-[11px] text-[#787774] mt-1.5 hidden sm:block">
           lun {parseLocalDate(currentWeek.startDate).getDate()} → dom {parseLocalDate(currentWeek.endDate).getDate()} {getMonthName(parseLocalDate(currentWeek.startDate).getMonth() + 1)}
         </div>
       </div>
 
       {/* Mes Actual */}
-      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white px-3 py-3">
-        <div className="flex items-center gap-1.5 text-[#787774] mb-2">
-          <TrendingUp className="h-3.5 w-3.5" />
-          <span className="text-[12px] truncate">{getMonthName(monthSummary.month)}</span>
+      <div className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white px-4 py-4 shadow-sm active:scale-[0.97] transition-transform touch-manipulation select-none">
+        <div className="flex items-center gap-1.5 text-[#787774] mb-3">
+          <div className="p-1.5 bg-purple-50 rounded-lg">
+            <TrendingUp className="h-3.5 w-3.5 text-purple-500" />
+          </div>
+          <span className="text-[12px] font-medium uppercase tracking-wide truncate">{getMonthName(monthSummary.month)}</span>
         </div>
-        <div className="text-[20px] sm:text-[24px] font-semibold text-[#37352f] leading-tight">
+        <div className="text-[22px] sm:text-[26px] font-bold text-[#37352f] leading-tight">
           {monthSummary.totalHours.toFixed(2)}h
         </div>
-        <div className="text-[14px] text-[#37352f] mt-0.5">
+        <div className="text-[15px] font-semibold text-emerald-600 mt-1">
           {formatCurrency(monthSummary.earnings)}
         </div>
-        <div className="text-[11px] text-[#787774] mt-1 hidden sm:block">Total del mes</div>
+        <div className="text-[11px] text-[#787774] mt-1.5 hidden sm:block">Total del mes</div>
       </div>
 
       {/* Tarifa - Editable */}
-      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white px-3 py-3">
-        <div className="flex items-center gap-1.5 text-[#787774] mb-2">
-          <DollarSign className="h-3.5 w-3.5" />
-          <span className="text-[12px]">Tarifa</span>
+      <div className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white px-4 py-4 shadow-sm">
+        <div className="flex items-center gap-1.5 text-[#787774] mb-3">
+          <div className="p-1.5 bg-amber-50 rounded-lg">
+            <DollarSign className="h-3.5 w-3.5 text-amber-500" />
+          </div>
+          <span className="text-[12px] font-medium uppercase tracking-wide">Tarifa</span>
           {!isEditingRate && (
             <button
               type="button"
@@ -186,7 +194,7 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
           </div>
         ) : (
           <>
-            <div className="text-[20px] sm:text-[24px] font-semibold text-[#37352f] leading-tight">
+            <div className="text-[22px] sm:text-[26px] font-bold text-[#37352f] leading-tight">
               ${hourlyRate}
             </div>
             <div className="text-[11px] text-[#787774] mt-0.5">USD/hr</div>

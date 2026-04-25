@@ -212,40 +212,40 @@ export default function HourlyDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
-          <TabsList className="flex w-full mb-4 h-auto bg-transparent border-b border-[rgba(55,53,47,0.09)] rounded-none p-0 gap-0">
+          <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
             <TabsTrigger
               value="today"
-              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className="h-4 w-4" />
               <span>Hoy</span>
             </TabsTrigger>
             <TabsTrigger
               value="weeks"
-              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
-              <Calendar className="h-3.5 w-3.5" />
+              <Calendar className="h-4 w-4" />
               <span>Semanas</span>
             </TabsTrigger>
             <TabsTrigger
               value="months"
-              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
-              <BarChart3 className="h-3.5 w-3.5" />
+              <BarChart3 className="h-4 w-4" />
               <span>Resumen</span>
             </TabsTrigger>
             <TabsTrigger
               value="calculator"
-              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
-              <Calculator className="h-3.5 w-3.5" />
+              <Calculator className="h-4 w-4" />
               <span>Calc</span>
             </TabsTrigger>
             <TabsTrigger
               value="search"
-              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
-              <Search className="h-3.5 w-3.5" />
+              <Search className="h-4 w-4" />
               <span>Buscar</span>
             </TabsTrigger>
           </TabsList>

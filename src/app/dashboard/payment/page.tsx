@@ -169,7 +169,7 @@ export default function PaymentDashboardPage() {
         {/* Stats Cards */}
         {data && (
           <section className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-            <Card className="border-0 shadow-lg shadow-blue-50 overflow-hidden">
+            <Card className="border-0 shadow-lg shadow-blue-50 overflow-hidden active:scale-[0.97] transition-transform touch-manipulation select-none">
               <CardContent className="p-2.5 sm:p-4">
                 <div className="flex items-center gap-1.5 sm:gap-2 text-blue-500 mb-1">
                   <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -179,7 +179,7 @@ export default function PaymentDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg shadow-green-50 overflow-hidden">
+            <Card className="border-0 shadow-lg shadow-green-50 overflow-hidden active:scale-[0.97] transition-transform touch-manipulation select-none">
               <CardContent className="p-2.5 sm:p-4">
                 <div className="flex items-center gap-1.5 sm:gap-2 text-green-500 mb-1">
                   <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -191,7 +191,7 @@ export default function PaymentDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg shadow-purple-50 overflow-hidden">
+            <Card className="border-0 shadow-lg shadow-purple-50 overflow-hidden active:scale-[0.97] transition-transform touch-manipulation select-none">
               <CardContent className="p-2.5 sm:p-4">
                 <div className="flex items-center gap-1.5 sm:gap-2 text-purple-500 mb-1">
                   <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -207,31 +207,31 @@ export default function PaymentDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="today" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4 h-auto bg-white/50 backdrop-blur-sm rounded-xl p-1">
+          <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
             <TabsTrigger 
               value="today" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
               <Clock className="h-4 w-4" />
               <span>Hoy</span>
             </TabsTrigger>
             <TabsTrigger 
               value="weeks" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
               <Calendar className="h-4 w-4" />
               <span>Semanas</span>
             </TabsTrigger>
             <TabsTrigger 
               value="months" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
               <BarChart3 className="h-4 w-4" />
               <span>Meses</span>
             </TabsTrigger>
             <TabsTrigger 
               value="calculator" 
-              className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-2 sm:px-3 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
             >
               <Calculator className="h-4 w-4" />
               <span>Calc</span>
