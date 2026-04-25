@@ -332,6 +332,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     } else {
       durationDisplay = (
         <div className="flex flex-col items-end gap-0.5">
+          <div className="text-[10px] font-semibold tracking-wide text-[#787774] uppercase">Horas realizadas</div>
           <div className="font-mono text-[13px] text-[#37352f]">{formatDuration(entry.duration)}</div>
           <div className="text-[13px] text-[#37352f] font-medium">{formatCurrency(storedCalc)}</div>
           <EntryAmountBadges
