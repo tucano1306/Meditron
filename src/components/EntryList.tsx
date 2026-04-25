@@ -26,6 +26,37 @@ interface EntryListProps {
   readonly hourlyRate?: number
 }
 
+function buildDurationDisplay(
+  entry: Entry,
+  preview: { duration: number; amount: number } | null,
+  storedCalc: number
+): React.ReactNode {
+  if (entry.duration === null || entry.endTime === null) {
+    return <div className="text-[12px] text-[#787774] animate-pulse">En curso</div>
+  }
+  if (preview) {
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <div className="font-mono text-[13px] text-emerald-600">{formatDuration(preview.duration)}</div>
+        <div className="text-[13px] text-emerald-600 font-medium">{formatCurrency(preview.amount)}</div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      <div className="text-[10px] font-semibold tracking-wide text-[#787774] uppercase">Horas realizadas</div>
+      <div className="font-mono text-[13px] text-[#37352f]">{formatDuration(entry.duration)}</div>
+      <div className="text-[13px] text-[#37352f] font-medium">{formatCurrency(storedCalc)}</div>
+      <EntryAmountBadges
+        jobNumber={entry.jobNumber}
+        vehicle={entry.vehicle}
+        paidAmount={entry.paidAmount}
+        calcAmt={storedCalc}
+      />
+    </div>
+  )
+}
+
 function computeEditPreview(
   entryId: string,
   editingId: string | null,
@@ -273,10 +304,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const totalDuration = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
 
   return (
-    <div className={`overflow-hidden rounded-[6px] transition-all duration-200 ${isExpanded ? 'bg-gray-100 shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
+    <div className={`overflow-hidden rounded-[6px] transition-all duration-200 ${isExpanded ? 'bg-white shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
       <button
         type="button"
-        className={`w-full flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] transition-colors ${isExpanded ? 'bg-gray-200 hover:bg-gray-200' : 'hover:bg-gray-100'}`}
+        className={`w-full flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] transition-colors ${isExpanded ? 'bg-emerald-50 hover:bg-emerald-50' : 'hover:bg-gray-100'}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2">
@@ -319,33 +350,9 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
     // Vista del lado derecho (duración + monto)
     const storedCalc = entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
-    let durationDisplay: React.ReactNode
-    if (entry.duration === null || entry.endTime === null) {
-      durationDisplay = <div className="text-[12px] text-[#787774] animate-pulse">En curso</div>
-    } else if (preview) {
-      durationDisplay = (
-        <div className="flex flex-col items-end gap-0.5">
-          <div className="font-mono text-[13px] text-emerald-600">{formatDuration(preview.duration)}</div>
-          <div className="text-[13px] text-emerald-600 font-medium">{formatCurrency(preview.amount)}</div>
-        </div>
-      )
-    } else {
-      durationDisplay = (
-        <div className="flex flex-col items-end gap-0.5">
-          <div className="text-[10px] font-semibold tracking-wide text-[#787774] uppercase">Horas realizadas</div>
-          <div className="font-mono text-[13px] text-[#37352f]">{formatDuration(entry.duration)}</div>
-          <div className="text-[13px] text-[#37352f] font-medium">{formatCurrency(storedCalc)}</div>
-          <EntryAmountBadges
-            jobNumber={entry.jobNumber}
-            vehicle={entry.vehicle}
-            paidAmount={entry.paidAmount}
-            calcAmt={storedCalc}
-          />
-        </div>
-      )
-    }
+    const durationDisplay = buildDurationDisplay(entry, preview, storedCalc)
 
-    const rowBaseClass = "flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 gap-2 hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+    const rowBaseClass = `flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 gap-2 transition-colors ${isJobExpanded ? 'bg-gray-200 hover:bg-gray-200' : 'hover:bg-[rgba(55,53,47,0.04)]'}`
 
     const rowContent = (
       <>
