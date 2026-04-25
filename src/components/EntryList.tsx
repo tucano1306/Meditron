@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
 import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight } from 'lucide-react'
 
@@ -130,6 +130,15 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [customAmount, setCustomAmount] = useState('')
   const [observation, setObservation] = useState('')
   const [isSavingJob, setIsSavingJob] = useState(false)
+  const [noteSheetOpen, setNoteSheetOpen] = useState(false)
+  const [noteSheetValue, setNoteSheetValue] = useState('')
+  const noteSheetRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (noteSheetOpen && noteSheetRef.current) {
+      noteSheetRef.current.focus()
+    }
+  }, [noteSheetOpen])
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta entrada?')) return
@@ -561,15 +570,72 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
             <div>
               <label htmlFor={`note-${entry.id}`} className="text-[12px] text-[#787774]">Nota</label>
-              <textarea
-                id={`note-${entry.id}`}
-                value={observation}
-                onChange={(e) => setObservation(e.target.value)}
-                placeholder="Agregar nota..."
-                rows={2}
-                className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none resize-none text-[#37352f]"
-                style={{ fontSize: '16px' }}
-              />
+              {/* Vista previa tappable → abre bottom sheet */}
+              <button
+                type="button"
+                onClick={() => { setNoteSheetValue(observation); setNoteSheetOpen(true) }}
+                className="mt-1 w-full min-h-[52px] px-3 py-2 text-left text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-lg focus:outline-none text-[#37352f] touch-manipulation active:bg-gray-50 transition-colors"
+              >
+                {observation
+                  ? <span className="line-clamp-2 text-[#37352f]">{observation}</span>
+                  : <span className="text-[#ababab] italic">Toca para agregar nota...</span>}
+              </button>
+
+              {/* Bottom sheet para editar nota */}
+              {noteSheetOpen && (
+                <dialog
+                  open
+                  className="fixed inset-0 z-50 flex flex-col justify-end w-full h-full max-w-none max-h-none m-0 p-0 bg-transparent border-0"
+                  aria-label="Editor de nota"
+                >
+                  {/* Backdrop */}
+                  <button
+                    type="button"
+                    aria-label="Cerrar nota"
+                    className="absolute inset-0 bg-black/40 backdrop-blur-[2px] cursor-default"
+                    onClick={() => { setObservation(noteSheetValue); setNoteSheetOpen(false) }}
+                  />
+                  <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col">
+                    {/* Handle */}
+                    <div className="flex justify-center pt-3 pb-1">
+                      <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                    </div>
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+                      <span className="text-[15px] font-semibold text-[#37352f]">Nota del trabajo</span>
+                      <button
+                        type="button"
+                        onClick={() => { setObservation(noteSheetValue); setNoteSheetOpen(false) }}
+                        className="px-4 py-2 font-semibold text-[13px] bg-[#37352f] text-white rounded-lg touch-manipulation"
+                      >
+                        Listo
+                      </button>
+                    </div>
+                    {/* Textarea */}
+                    <textarea
+                      ref={noteSheetRef}
+                      value={noteSheetValue}
+                      onChange={(e) => setNoteSheetValue(e.target.value)}
+                      placeholder="Escribe tu nota aquí..."
+                      className="flex-1 w-full px-4 py-3 text-[15px] text-[#37352f] placeholder-[#ababab] resize-none focus:outline-none"
+                      style={{ minHeight: '180px', fontSize: '16px' }}
+                    />
+                    {/* Contador + borrar */}
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
+                      <span className="text-[12px] text-[#787774]">{noteSheetValue.length} caracteres</span>
+                      {noteSheetValue && (
+                        <button
+                          type="button"
+                          onClick={() => setNoteSheetValue('')}
+                          className="text-[12px] text-red-500 touch-manipulation"
+                        >
+                          Borrar nota
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </dialog>
+              )}
             </div>
 
             <div className="flex gap-2 pt-1">
