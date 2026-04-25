@@ -26,6 +26,63 @@ interface EntryListProps {
   readonly hourlyRate?: number
 }
 
+function computeEditPreview(
+  entryId: string,
+  editingId: string | null,
+  editDate: string,
+  editStartTime: string,
+  editEndTime: string,
+  hourlyRate: number
+): { duration: number; amount: number } | null {
+  if (editingId !== entryId) return null
+  if (!editDate || editStartTime.length !== 5 || editEndTime.length !== 5) return null
+  try {
+    const [y, mo, d] = editDate.split('-').map(Number)
+    const [sH, sM] = editStartTime.split(':').map(Number)
+    const [eH, eM] = editEndTime.split(':').map(Number)
+    const start = new Date(y, mo - 1, d, sH, sM, 0)
+    const end = new Date(y, mo - 1, d, eH, eM, 0)
+    if (end <= start) end.setDate(end.getDate() + 1)
+    const dur = Math.floor((end.getTime() - start.getTime()) / 1000)
+    if (dur > 0 && dur < 86400) return { duration: dur, amount: (dur / 3600) * hourlyRate }
+  } catch { /* campos incompletos */ }
+  return null
+}
+
+function EntryAmountBadges({
+  jobNumber,
+  vehicle,
+  paidAmount,
+  calcAmt,
+}: {
+  readonly jobNumber?: string | null
+  readonly vehicle?: string | null
+  readonly paidAmount?: number | null
+  readonly calcAmt: number
+}) {
+  if (!jobNumber && !vehicle && (paidAmount === null || paidAmount === undefined)) return null
+  const diff = paidAmount !== null && paidAmount !== undefined ? paidAmount - calcAmt : null
+  return (
+    <div className="flex items-center gap-1 mt-1 flex-wrap justify-end">
+      {jobNumber && (
+        <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] font-mono rounded-[3px]">
+          #{jobNumber}
+        </span>
+      )}
+      {vehicle && (
+        <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px]">
+          {vehicle}
+        </span>
+      )}
+      {diff !== null && (
+        <span className={`text-[11px] ${diff >= 0 ? 'text-[#37352f]' : 'text-[#dc2626]'}`}>
+          {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpdate, showDate = false, hourlyRate = HOURLY_RATE }: Readonly<EntryListProps>) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editStartTime, setEditStartTime] = useState('')
@@ -39,6 +96,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [jobNumber, setJobNumber] = useState('')
   const [vehicleValue, setVehicleValue] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
+  const [customAmount, setCustomAmount] = useState('')
   const [observation, setObservation] = useState('')
   const [isSavingJob, setIsSavingJob] = useState(false)
 
@@ -95,6 +153,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       setJobNumber(entry.jobNumber || '')
       setVehicleValue(entry.vehicle || '')
       setPaidAmount(entry.paidAmount?.toString() || '')
+      setCustomAmount((entry.calculatedAmount ?? getCalculatedAmount(entry)).toFixed(2))
       setObservation(entry.observation || '')
     }
   }
@@ -104,6 +163,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setJobNumber('')
     setVehicleValue('')
     setPaidAmount('')
+    setCustomAmount('')
     setObservation('')
   }
 
@@ -125,6 +185,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           vehicle: vehicleValue || null,
           observation: observation || null,
           paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
+          calculatedAmount: customAmount ? Number.parseFloat(customAmount) : undefined,
           startTime: entry.startTime,
           endTime: entry.endTime
         })
@@ -182,6 +243,11 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       
       if (data.success) {
         cancelEditing()
+        // Actualizar customAmount con el nuevo valor calculado por el servidor
+        // para que el panel de detalles refleje el monto correcto al instante
+        if (data.data?.calculatedAmount != null) {
+          setCustomAmount((data.data.calculatedAmount as number).toFixed(2))
+        }
         onUpdate?.()
       } else {
         alert(data.error || 'Error al guardar')
@@ -242,12 +308,42 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
   function renderEntryRow(entry: Entry) {
     const isJobExpanded = expandedJobId === entry.id
-    // Usar el monto guardado en BD (tasa histórica correcta), nunca recalcular con tasa actual
     const calculatedAmount = entry.calculatedAmount ?? getCalculatedAmount(entry)
+    const displayAmount = isJobExpanded && customAmount ? Number.parseFloat(customAmount) || calculatedAmount : calculatedAmount
     const paid = paidAmount ? Number.parseFloat(paidAmount) : 0
-    const difference = paid - calculatedAmount
+    const difference = paid - displayAmount
     const isPositive = difference >= 0
     const isClickable = !!(entry.endTime && entry.duration !== null && editingId !== entry.id)
+
+    const preview = computeEditPreview(entry.id, editingId, editDate, editStartTime, editEndTime, hourlyRate)
+
+    // Vista del lado derecho (duración + monto)
+    const storedCalc = entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
+    let durationDisplay: React.ReactNode
+    if (entry.duration === null || entry.endTime === null) {
+      durationDisplay = <div className="text-[12px] text-[#787774] animate-pulse">En curso</div>
+    } else if (preview) {
+      durationDisplay = (
+        <div className="flex flex-col items-end gap-0.5">
+          <div className="font-mono text-[13px] text-emerald-600">{formatDuration(preview.duration)}</div>
+          <div className="text-[13px] text-emerald-600 font-medium">{formatCurrency(preview.amount)}</div>
+        </div>
+      )
+    } else {
+      durationDisplay = (
+        <div className="flex flex-col items-end gap-0.5">
+          <div className="font-mono text-[13px] text-[#37352f]">{formatDuration(entry.duration)}</div>
+          <div className="text-[13px] text-[#37352f] font-medium">{formatCurrency(storedCalc)}</div>
+          <EntryAmountBadges
+            jobNumber={entry.jobNumber}
+            vehicle={entry.vehicle}
+            paidAmount={entry.paidAmount}
+            calcAmt={storedCalc}
+          />
+        </div>
+      )
+    }
+
     const rowBaseClass = "flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 gap-2 hover:bg-[rgba(55,53,47,0.04)] transition-colors"
 
     const rowContent = (
@@ -316,42 +412,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
           <div className="text-right flex-1 min-w-0">
-            {entry.duration === null || entry.endTime === null ? (
-              <div className="text-[12px] text-[#787774] animate-pulse">En curso</div>
-            ) : (
-              <div className="flex flex-col items-end gap-0.5">
-                <div className="font-mono text-[13px] text-[#37352f]">
-                  {formatDuration(entry.duration)}
-                </div>
-                <div className="text-[13px] text-[#37352f] font-medium">
-                  {formatCurrency(entry.calculatedAmount ?? (entry.duration / 3600) * hourlyRate)}
-                </div>
-                {(entry.jobNumber || entry.vehicle) && (
-                  <div className="flex items-center gap-1 mt-1 flex-wrap justify-end">
-                    {entry.jobNumber && (
-                      <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] font-mono rounded-[3px]">
-                        #{entry.jobNumber}
-                      </span>
-                    )}
-                    {entry.vehicle && (
-                      <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px]">
-                        {entry.vehicle}
-                      </span>
-                    )}
-                    {entry.paidAmount !== null && entry.paidAmount !== undefined && (() => {
-                      const calcAmt = entry.calculatedAmount ?? (entry.duration / 3600) * hourlyRate
-                      const diff = entry.paidAmount - calcAmt
-                      const diffPositive = diff >= 0
-                      return (
-                        <span className={"text-[11px] " + (diffPositive ? 'text-[#37352f]' : 'text-[#dc2626]')}>
-                          {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
-                        </span>
-                      )
-                    })()}
-                  </div>
-                )}
-              </div>
-            )}
+            {durationDisplay}
           </div>
           {entry.endTime && entry.duration !== null && (
             <div className="flex items-center flex-shrink-0 ml-1">
@@ -450,8 +511,20 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
 
             <div className="flex items-center justify-between bg-white rounded-[4px] px-3 py-2.5 border border-[rgba(55,53,47,0.09)]">
               <div>
-                <span className="text-[12px] text-[#787774]">Calculado</span>
-                <p className="text-[15px] font-semibold text-[#37352f]">{formatCurrency(calculatedAmount)}</p>
+                <label htmlFor={`calc-${entry.id}`} className="text-[12px] text-[#787774]">Calculado</label>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[13px] text-[#787774]">$</span>
+                  <input
+                    id={`calc-${entry.id}`}
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    className="w-20 px-2 py-1 bg-[rgba(55,53,47,0.04)] rounded-[4px] text-right text-[13px] font-semibold focus:outline-none focus:border-[#37352f] border border-transparent focus:border text-[#37352f]"
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
               </div>
               <div className="text-right">
                 <label htmlFor={`paid-${entry.id}`} className="text-[12px] text-[#787774]">Pagado</label>

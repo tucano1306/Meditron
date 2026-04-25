@@ -286,6 +286,15 @@ export async function PATCH(request: NextRequest) {
     const newWeek = await getOrCreateWeek(newStart, userId)
     const oldWeekId = entry.weekId
 
+    // Si no se mandó calculatedAmount explícito, recalcular con la tasa del usuario
+    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
+    let resolvedCalculatedAmount: number
+    if (calculatedAmount === undefined) {
+      resolvedCalculatedAmount = (duration / 3600) * userHourlyRate
+    } else {
+      resolvedCalculatedAmount = Number(calculatedAmount)
+    }
+
     const updatedEntry = await prisma.timeEntry.update({
       where: { id },
       data: {
@@ -294,7 +303,12 @@ export async function PATCH(request: NextRequest) {
         duration,
         date: entryDate,
         weekId: newWeek.id,
-        ...buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation)
+        // Limpiar campos de pausa — los tiempos fueron editados manualmente
+        // y el duration ya está recalculado como endTime-startTime
+        accumulatedSeconds: 0,
+        pausedAt: null,
+        lastResumeTime: null,
+        ...buildJobUpdateData(jobNumber, vehicle, resolvedCalculatedAmount, paidAmount, observation)
       }
     })
 
