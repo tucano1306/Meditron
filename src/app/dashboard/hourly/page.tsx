@@ -9,10 +9,10 @@ import { EntryList } from '@/components/EntryList'
 import { WeekHistory } from '@/components/WeekHistory'
 import { WeeklySummaryCard } from '@/components/WeeklySummaryCard'
 import { RateCalculator } from '@/components/RateCalculator'
-
+import { JobSearch } from '@/components/JobSearch'
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut } from 'lucide-react'
+import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Search } from 'lucide-react'
 
 interface DashboardData {
   timerState: {
@@ -241,6 +241,13 @@ export default function HourlyDashboardPage() {
               <Calculator className="h-3.5 w-3.5" />
               <span>Calc</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="search"
+              className="flex items-center gap-1.5 py-2.5 px-3 text-[13px] text-[#787774] rounded-none border-b-2 border-transparent data-[state=active]:border-[#37352f] data-[state=active]:text-[#37352f] data-[state=active]:bg-transparent hover:bg-[rgba(55,53,47,0.04)] transition-colors"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span>Buscar</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="today">
@@ -263,6 +270,10 @@ export default function HourlyDashboardPage() {
 
           <TabsContent value="calculator">
             <RateCalculator onSave={fetchDashboard} hourlyRate={data.hourlyRate} />
+          </TabsContent>
+
+          <TabsContent value="search">
+            <JobSearch hourlyRate={data.hourlyRate} />
           </TabsContent>
         </Tabs>
 
