@@ -592,7 +592,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   <button
                     type="button"
                     aria-label="Cerrar nota"
-                    className="absolute inset-0 bg-black/40 backdrop-blur-[2px] cursor-default"
+                    className="absolute inset-0 bg-black/40 cursor-default"
                     onClick={() => { setObservation(noteSheetValue); setNoteSheetOpen(false) }}
                   />
                   <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col">
