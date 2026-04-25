@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const weekId = searchParams.get('weekId')
     const date = searchParams.get('date')
+    const jobNumber = searchParams.get('jobNumber')
 
     const where: Record<string, unknown> = { userId }
 
@@ -28,6 +29,10 @@ export async function GET(request: NextRequest) {
 
     if (date) {
       where.date = new Date(date)
+    }
+
+    if (jobNumber) {
+      where.jobNumber = jobNumber
     }
 
     const entries = await prisma.timeEntry.findMany({

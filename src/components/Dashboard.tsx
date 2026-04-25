@@ -8,9 +8,10 @@ import { EntryList } from '@/components/EntryList'
 import { WeekHistory } from '@/components/WeekHistory'
 import { MonthSummary } from '@/components/MonthSummary'
 import { RateCalculator } from '@/components/RateCalculator'
+import { JobSearch } from '@/components/JobSearch'
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, BarChart3, Calculator, Clock } from 'lucide-react'
+import { Calendar, BarChart3, Calculator, Clock, Search } from 'lucide-react'
 
 interface DashboardData {
   timerState: {
@@ -185,7 +186,7 @@ export function Dashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="today" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4 h-auto bg-white/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-lg border border-gray-100">
+          <TabsList className="grid w-full grid-cols-5 mb-4 h-auto bg-white/80 backdrop-blur-sm rounded-2xl p-1.5 shadow-lg border border-gray-100">
             <TabsTrigger value="today" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-1 sm:px-3 text-xs sm:text-sm rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline font-medium">Hoy</span>
@@ -201,6 +202,10 @@ export function Dashboard() {
             <TabsTrigger value="calculator" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-1 sm:px-3 text-xs sm:text-sm rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <Calculator className="h-4 w-4" />
               <span className="hidden sm:inline font-medium">Calc</span>
+            </TabsTrigger>
+            <TabsTrigger value="search" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2.5 px-1 sm:px-3 text-xs sm:text-sm rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline font-medium">Buscar</span>
             </TabsTrigger>
           </TabsList>
 
@@ -224,6 +229,10 @@ export function Dashboard() {
 
           <TabsContent value="calculator">
             <RateCalculator onSave={fetchDashboard} />
+          </TabsContent>
+
+          <TabsContent value="search">
+            <JobSearch hourlyRate={data.hourlyRate} />
           </TabsContent>
         </Tabs>
 
