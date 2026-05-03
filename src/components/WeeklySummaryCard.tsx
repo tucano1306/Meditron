@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration, getMonthName, parseLocalDate } from '@/lib/utils'
-import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2 } from 'lucide-react'
+import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2 } from 'lucide-react'
 
 const ITEMS_PER_PAGE = 5
 
@@ -614,7 +614,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
 
                     {/* Métricas resumen — solo si hay entradas */}
                     {completedEntries.length > 0 && (
-                      <div className="grid grid-cols-3 gap-0 divide-x divide-emerald-200 border-b border-emerald-200">
+                      <div className={`grid gap-0 divide-x divide-emerald-200 border-b border-emerald-200 ${week.totalCompanyPaid > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
                         <div className="flex flex-col items-center py-2 px-1">
                           <Clock className="h-3.5 w-3.5 text-emerald-600 mb-0.5" />
                           <span className="text-[11px] text-gray-500">Horas</span>
@@ -636,6 +636,44 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                             {week.totalCompanyPaid > 0 ? formatCurrency(week.totalCompanyPaid) : '—'}
                           </span>
                         </div>
+                        {week.totalCompanyPaid > 0 && (() => {
+                          const diff = week.totalCompanyPaid - totalCalculated
+                          const isPositive = diff > 0
+                          const isZero = diff === 0
+                          let diffIcon: React.ReactNode
+                          if (isZero) {
+                            diffIcon = <DollarSign className="h-3.5 w-3.5 text-gray-400 mb-0.5" />
+                          } else if (isPositive) {
+                            diffIcon = <TrendingUp className="h-3.5 w-3.5 text-green-500 mb-0.5" />
+                          } else {
+                            diffIcon = <TrendingDown className="h-3.5 w-3.5 text-red-500 mb-0.5" />
+                          }
+                          let diffColor: string
+                          if (isZero) {
+                            diffColor = 'text-gray-400'
+                          } else if (isPositive) {
+                            diffColor = 'text-green-600'
+                          } else {
+                            diffColor = 'text-red-500'
+                          }
+                          let diffLabel: string
+                          if (isZero) {
+                            diffLabel = '—'
+                          } else if (isPositive) {
+                            diffLabel = `+${formatCurrency(diff)}`
+                          } else {
+                            diffLabel = formatCurrency(diff)
+                          }
+                          return (
+                            <div className="flex flex-col items-center py-2 px-1">
+                              {diffIcon}
+                              <span className="text-[11px] text-gray-500">Diferencia</span>
+                              <span className={`text-base font-black ${diffColor}`}>
+                                {diffLabel}
+                              </span>
+                            </div>
+                          )
+                        })()}
                       </div>
                     )}
 
