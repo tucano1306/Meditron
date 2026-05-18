@@ -12,6 +12,7 @@ interface Entry {
   date: string
   jobNumber?: string | null
   vehicle?: string | null
+  serviceType?: string | null
   observation?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
@@ -50,6 +51,7 @@ function buildDurationDisplay(
       <EntryAmountBadges
         jobNumber={entry.jobNumber}
         vehicle={entry.vehicle}
+        serviceType={entry.serviceType}
         paidAmount={entry.paidAmount}
         calcAmt={storedCalc}
       />
@@ -83,15 +85,17 @@ function computeEditPreview(
 function EntryAmountBadges({
   jobNumber,
   vehicle,
+  serviceType,
   paidAmount,
   calcAmt,
 }: {
   readonly jobNumber?: string | null
   readonly vehicle?: string | null
+  readonly serviceType?: string | null
   readonly paidAmount?: number | null
   readonly calcAmt: number
 }) {
-  if (!jobNumber && !vehicle && (paidAmount === null || paidAmount === undefined)) return null
+  if (!jobNumber && !vehicle && !serviceType && (paidAmount === null || paidAmount === undefined)) return null
   const diff = paidAmount !== null && paidAmount !== undefined ? paidAmount - calcAmt : null
   return (
     <div className="flex items-center gap-1 mt-1 flex-wrap justify-end">
@@ -103,6 +107,11 @@ function EntryAmountBadges({
       {vehicle && (
         <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px]">
           {vehicle}
+        </span>
+      )}
+      {serviceType && (
+        <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px]">
+          {serviceType === 'point-to-point' ? 'P2P' : 'Hourly'}
         </span>
       )}
       {diff !== null && (

@@ -12,6 +12,7 @@ interface Entry {
   date: string
   jobNumber?: string | null
   vehicle?: string | null
+  serviceType?: string | null
   observation?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
