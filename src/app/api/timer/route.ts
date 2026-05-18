@@ -90,12 +90,14 @@ export async function PUT(request: NextRequest) {
     let jobNumber: string | undefined
     let vehicle: string | undefined
     let observation: string | undefined
+    let serviceType: string | undefined
     try {
       const body = await request.json()
       now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
       jobNumber = body.jobNumber
       vehicle = body.vehicle
       observation = body.observation
+      serviceType = body.serviceType
     } catch {
       now = new Date()
     }
@@ -154,6 +156,7 @@ export async function PUT(request: NextRequest) {
         jobNumber: jobNumber || activeEntry.jobNumber,
         vehicle: vehicle || activeEntry.vehicle,
         observation: observation ?? activeEntry.observation,
+        serviceType: serviceType ?? activeEntry.serviceType,
         date: correctDate,
         weekId: correctWeek.id
       }
@@ -239,6 +242,7 @@ export async function GET() {
           jobNumber: activeEntry.jobNumber,
           vehicle: activeEntry.vehicle,
           observation: activeEntry.observation,
+          serviceType: activeEntry.serviceType,
           accumulatedSeconds: activeEntry.accumulatedSeconds,
           elapsedSeconds: Math.max(0, elapsedSeconds)
         }
@@ -273,7 +277,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { jobNumber, vehicle, observation, action } = body
+    const { jobNumber, vehicle, observation, serviceType, action } = body
 
     // Buscar timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -320,11 +324,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true, data: { entry: updated, accumulatedSeconds: activeEntry.accumulatedSeconds } })
     }
 
-    // Actualizar jobNumber, vehicle y/o observation
-    const updateData: { jobNumber?: string; vehicle?: string; observation?: string } = {}
+    // Actualizar jobNumber, vehicle, observation y/o serviceType
+    const updateData: { jobNumber?: string; vehicle?: string; observation?: string; serviceType?: string } = {}
     if (jobNumber !== undefined) updateData.jobNumber = jobNumber
     if (vehicle !== undefined) updateData.vehicle = vehicle
     if (observation !== undefined) updateData.observation = observation
+    if (serviceType !== undefined) updateData.serviceType = serviceType
     
     const updatedEntry = await prisma.timeEntry.update({
       where: { id: activeEntry.id },

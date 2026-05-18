@@ -35,6 +35,7 @@ model TimeEntry {
   paidAmount       Float?
   companyPaid      Float?
   companyPaidDate  DateTime?
+  serviceType            String?
   pausedAt               DateTime?
   accumulatedSeconds     Int      @default(0)
   lastResumeTime         DateTime?

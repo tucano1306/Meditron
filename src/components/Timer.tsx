@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare } from 'lucide-react'
+import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare, ArrowLeftRight } from 'lucide-react'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida } from '@/lib/utils'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
@@ -40,6 +40,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [isEditingJobNumber, setIsEditingJobNumber] = useState(false)
   const [jobNumberInput, setJobNumberInput] = useState('')
   const [vehicleType, setVehicleType] = useState('')
+  const [serviceType, setServiceType] = useState('')
   const [observation, setObservation] = useState('')
   const [isEditingObservation, setIsEditingObservation] = useState(false)
   const [observationInput, setObservationInput] = useState('')
@@ -78,6 +79,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         
         if (job) setJobNumber(job)
         if (vehicle) setVehicleType(vehicle)
+        if (data.data.serviceType) setServiceType(data.data.serviceType)
         if (data.data.observation) setObservation(data.data.observation)
       } catch (err) {
         console.error('Error loading timer state:', err)
@@ -106,6 +108,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setElapsedSeconds(0)
     setJobNumber('')
     setVehicleType('')
+    setServiceType('')
     setObservation('')
   }, [])
 
@@ -136,6 +139,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       setElapsedSeconds(0)
       setJobNumber('')
       setVehicleType('')
+      setServiceType('')
       setObservation('')
       startBackgroundTimer(newStartTime.toISOString())
     } catch (err) {
@@ -333,6 +337,20 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     }
   }
 
+  const handleSelectServiceType = async (selected: string) => {
+    const newValue = serviceType === selected ? '' : selected
+    setServiceType(newValue)
+    try {
+      await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceType: newValue })
+      })
+    } catch (err) {
+      console.error('Error saving service type:', err)
+    }
+  }
+
   const handleSaveRate = useCallback(async () => {
     const newRate = Number.parseFloat(tempRate)
     if (Number.isNaN(newRate) || newRate <= 0) {
@@ -487,6 +505,34 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     )
   }
 
+  const renderServiceTypeSection = () => {
+    if (!isRunning && !isPaused) return null
+    const SERVICE_OPTIONS = [
+      { value: 'hourly', label: 'Hourly' },
+      { value: 'point-to-point', label: 'Point to Point' },
+    ]
+    return (
+      <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
+        <div className="flex items-center gap-2 text-[#787774] mb-2.5">
+          <ArrowLeftRight className="h-3.5 w-3.5" />
+          <span className="text-[13px]">Tipo de servicio</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {SERVICE_OPTIONS.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              onClick={() => handleSelectServiceType(option.value)}
+              className={"px-2 py-2 rounded-[4px] text-[13px] transition-colors touch-manipulation " + (serviceType === option.value ? 'bg-[#37352f] text-white' : 'bg-transparent text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.06)]')}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const renderResultSection = () => {
     if (!result || isRunning) return null
     return (
@@ -619,6 +665,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
         {renderJobNumberSection()}
         {renderVehicleSection()}
+        {renderServiceTypeSection()}
         {renderObservationSection()}
         {renderResultSection()}
 
