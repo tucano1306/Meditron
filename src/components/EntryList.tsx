@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
-import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, AlertTriangle, BadgeCheck } from 'lucide-react'
 
 interface Entry {
   id: string
@@ -16,6 +16,10 @@ interface Entry {
   observation?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
+  correctionPending?: boolean
+  correctionNote?: string | null
+  correctionResolved?: boolean
+  correctionResolvedNote?: string | null
 }
 
 interface EntryListProps {
@@ -143,6 +147,13 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [noteSheetValue, setNoteSheetValue] = useState('')
   const noteSheetRef = useRef<HTMLTextAreaElement>(null)
 
+  // Estado para correcciones
+  const [correctionModalEntryId, setCorrectionModalEntryId] = useState<string | null>(null)
+  const [correctionModalNote, setCorrectionModalNote] = useState('')
+  const [resolveModalEntryId, setResolveModalEntryId] = useState<string | null>(null)
+  const [resolveModalNote, setResolveModalNote] = useState('')
+  const [savingCorrectionId, setSavingCorrectionId] = useState<string | null>(null)
+
   useEffect(() => {
     if (noteSheetOpen && noteSheetRef.current) {
       noteSheetRef.current.focus()
@@ -214,6 +225,34 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setPaidAmount('')
     setCustomAmount('')
     setObservation('')
+    setCorrectionModalEntryId(null)
+    setCorrectionModalNote('')
+    setResolveModalEntryId(null)
+    setResolveModalNote('')
+  }
+
+  const handleSaveCorrection = async (
+    entryId: string,
+    pending: boolean,
+    note: string | null,
+    resolved: boolean,
+    resolvedNote?: string | null
+  ) => {
+    setSavingCorrectionId(entryId)
+    try {
+      await fetch('/api/entries/correction', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note, correctionResolved: resolved, correctionResolvedNote: resolvedNote ?? null }),
+      })
+      setCorrectionModalEntryId(null)
+      setCorrectionModalNote('')
+      setResolveModalEntryId(null)
+      setResolveModalNote('')
+      onUpdate?.()
+    } finally {
+      setSavingCorrectionId(null)
+    }
   }
 
   const getCalculatedAmount = (entry: Entry) => {
@@ -355,6 +394,111 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     </div>
   )
 
+  function renderRowActions(entry: Entry) {
+    if (!entry.endTime || entry.duration === null) return null
+    if (editingId === entry.id) {
+      return (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => handleSaveEdit(entry)}
+            disabled={isSaving}
+            className="p-2 text-white bg-[#37352f] hover:bg-[#2f2d28] rounded-lg transition-colors disabled:opacity-50 touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
+          >
+            <Check className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={cancelEditing}
+            disabled={isSaving}
+            className="p-2 text-[#787774] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )
+    }
+    return (
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); startEditing(entry) }}
+          className="p-2 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); handleDelete(entry.id) }}
+          className="p-2 text-[#787774] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    )
+  }
+
+  function renderTimeCell(entry: Entry) {
+    if (editingId === entry.id) {
+      return (
+        <div className="flex flex-col gap-2">
+          <input
+            type="date"
+            value={editDate}
+            onChange={(e) => setEditDate(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="px-2 py-1.5 text-sm border rounded w-full sm:w-36"
+            style={{ fontSize: '16px' }}
+          />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{2}:[0-9]{2}"
+              placeholder="HH:MM"
+              value={editStartTime}
+              onChange={(e) => {
+                let val = e.target.value.replaceAll(/[^0-9:]/g, '')
+                if (val.length === 2 && !val.includes(':')) val += ':'
+                if (val.length <= 5) setEditStartTime(val)
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
+              style={{ fontSize: '16px' }}
+            />
+            <span className="text-gray-400 text-xs flex-shrink-0">-</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{2}:[0-9]{2}"
+              placeholder="HH:MM"
+              value={editEndTime}
+              onChange={(e) => {
+                let val = e.target.value.replaceAll(/[^0-9:]/g, '')
+                if (val.length === 2 && !val.includes(':')) val += ':'
+                if (val.length <= 5) setEditEndTime(val)
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
+              style={{ fontSize: '16px' }}
+            />
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] text-[#37352f] font-mono">
+          {formatTimeInFlorida(entry.startTime)}
+          <span className="text-[#787774] mx-1">→</span>
+          {entry.endTime
+            ? formatTimeInFlorida(entry.endTime)
+            : <span className="text-[#787774] animate-pulse">En progreso...</span>}
+        </span>
+      </div>
+    )
+  }
+
   function renderEntryRow(entry: Entry) {
     const isJobExpanded = expandedJobId === entry.id
     const calculatedAmount = entry.calculatedAmount ?? getCalculatedAmount(entry)
@@ -380,107 +524,15 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               {formatShortDateFlorida(entry.date)}
             </div>
           )}
-          {editingId === entry.id ? (
-            <div className="flex flex-col gap-2">
-              <input
-                type="date"
-                value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                className="px-2 py-1.5 text-sm border rounded w-full sm:w-36"
-                style={{ fontSize: '16px' }}
-              />
-              <div className="flex items-center gap-1 sm:gap-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{2}:[0-9]{2}"
-                  placeholder="HH:MM"
-                  value={editStartTime}
-                  onChange={(e) => {
-                    let val = e.target.value.replaceAll(/[^0-9:]/g, '')
-                    if (val.length === 2 && !val.includes(':')) val += ':'
-                    if (val.length <= 5) setEditStartTime(val)
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
-                  style={{ fontSize: '16px' }}
-                />
-                <span className="text-gray-400 text-xs flex-shrink-0">-</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{2}:[0-9]{2}"
-                  placeholder="HH:MM"
-                  value={editEndTime}
-                  onChange={(e) => {
-                    let val = e.target.value.replaceAll(/[^0-9:]/g, '')
-                    if (val.length === 2 && !val.includes(':')) val += ':'
-                    if (val.length <= 5) setEditEndTime(val)
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
-                  style={{ fontSize: '16px' }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[#37352f] font-mono">
-                {formatTimeInFlorida(entry.startTime)}
-                <span className="text-[#787774] mx-1">→</span>
-                {entry.endTime
-                  ? formatTimeInFlorida(entry.endTime)
-                  : <span className="text-[#787774] animate-pulse">En progreso...</span>}
-              </span>
-            </div>
-          )}
+          {renderTimeCell(entry)}
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
           <div className="text-right flex-1 min-w-0">
             {durationDisplay}
           </div>
-          {entry.endTime && entry.duration !== null && (
-            <div className="flex items-center flex-shrink-0 ml-1">
-              {editingId === entry.id ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleSaveEdit(entry)}
-                    disabled={isSaving}
-                    className="p-2 text-white bg-[#37352f] hover:bg-[#2f2d28] rounded-lg transition-colors disabled:opacity-50 touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
-                  >
-                    <Check className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelEditing}
-                    disabled={isSaving}
-                    className="p-2 text-[#787774] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); startEditing(entry) }}
-                    className="p-2 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(entry.id) }}
-                    className="p-2 text-[#787774] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
+          <div className="flex items-center flex-shrink-0 ml-1">
+              {renderRowActions(entry)}
             </div>
-          )}
         </div>
       </>
     )
@@ -663,6 +715,119 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
               >
                 {isSavingJob ? 'Guardando...' : 'Guardar'}
               </button>
+            </div>
+
+            {/* Sección de correcciones */}
+            <div className="border-t border-[rgba(55,53,47,0.09)] pt-2 mt-1">
+              <p className="text-[11px] text-[#787774] uppercase tracking-wide mb-1.5 font-semibold">Correcciones</p>
+              <div className="flex flex-wrap gap-1.5">
+                {!entry.correctionResolved && (
+                  <button
+                    type="button"
+                    disabled={!!savingCorrectionId}
+                    onClick={() => {
+                      if (entry.correctionPending) {
+                        handleSaveCorrection(entry.id, false, null, false)
+                      } else {
+                        setCorrectionModalEntryId(entry.id)
+                        setCorrectionModalNote('')
+                      }
+                    }}
+                    className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1 touch-manipulation transition-colors ${
+                      entry.correctionPending
+                        ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
+                        : 'bg-white border border-gray-300 text-gray-500 hover:border-orange-300 hover:text-orange-700'
+                    }`}
+                  >
+                    {savingCorrectionId === entry.id && <span className="animate-pulse">...</span>}
+                    {savingCorrectionId !== entry.id && entry.correctionPending && <><X className="h-3 w-3" /> Quitar corrección</>}
+                    {savingCorrectionId !== entry.id && !entry.correctionPending && <><AlertTriangle className="h-3 w-3" /> Marcar corrección</>}
+                  </button>
+                )}
+                {entry.correctionPending && !entry.correctionResolved && (
+                  <button
+                    type="button"
+                    disabled={!!savingCorrectionId}
+                    onClick={() => { setResolveModalEntryId(entry.id); setResolveModalNote('') }}
+                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1 bg-blue-500 text-white hover:bg-blue-600 touch-manipulation"
+                  >
+                    <BadgeCheck className="h-3 w-3" /> Corregido
+                  </button>
+                )}
+                {entry.correctionResolved && (
+                  <button
+                    type="button"
+                    disabled={!!savingCorrectionId}
+                    onClick={() => handleSaveCorrection(entry.id, false, null, false, null)}
+                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1 bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 touch-manipulation"
+                  >
+                    <X className="h-3 w-3" /> Deshacer corrección
+                  </button>
+                )}
+              </div>
+              {entry.correctionPending && entry.correctionNote && (
+                <div className="mt-1.5 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1.5 italic">
+                  📝 {entry.correctionNote}
+                </div>
+              )}
+              {entry.correctionResolved && (
+                <div className="mt-1.5 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1">
+                  <BadgeCheck className="h-3 w-3 flex-shrink-0" />
+                  {entry.correctionResolvedNote ? entry.correctionResolvedNote : 'Corrección resuelta'}
+                </div>
+              )}
+
+              {/* Modal inline: nueva corrección */}
+              {correctionModalEntryId === entry.id && (
+                <div className="mt-2 bg-orange-50 border border-orange-300 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-orange-800">¿Por qué necesita corrección?</p>
+                  <textarea
+                    className="w-full text-xs border border-orange-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white"
+                    rows={2}
+                    placeholder="Ej: El monto recibido no coincide, falta $X..."
+                    value={correctionModalNote}
+                    onChange={e => setCorrectionModalNote(e.target.value)}
+                    style={{ fontSize: '16px' }}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button type="button" onClick={() => setCorrectionModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button
+                      type="button"
+                      disabled={!!savingCorrectionId}
+                      onClick={() => handleSaveCorrection(entry.id, true, correctionModalNote.trim() || null, false)}
+                      className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-600 font-semibold"
+                    >
+                      {savingCorrectionId ? 'Guardando...' : 'Marcar pendiente'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal inline: resolver corrección */}
+              {resolveModalEntryId === entry.id && (
+                <div className="mt-2 bg-blue-50 border border-blue-300 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-blue-800">¿Cómo se resolvió? (opcional)</p>
+                  <textarea
+                    className="w-full text-xs border border-blue-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                    rows={2}
+                    placeholder="Ej: Lo pusieron en la semana 18, pago del viernes..."
+                    value={resolveModalNote}
+                    onChange={e => setResolveModalNote(e.target.value)}
+                    style={{ fontSize: '16px' }}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button type="button" onClick={() => setResolveModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
+                    <button
+                      type="button"
+                      disabled={!!savingCorrectionId}
+                      onClick={() => handleSaveCorrection(entry.id, false, null, true, resolveModalNote.trim() || null)}
+                      className="text-xs px-3 py-1 rounded-full bg-blue-500 text-white hover:bg-blue-600 font-semibold"
+                    >
+                      {savingCorrectionId ? 'Guardando...' : 'Confirmar corregido'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

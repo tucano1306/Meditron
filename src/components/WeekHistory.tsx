@@ -21,7 +21,9 @@ interface Entry {
   paidAmount?: number | null
   companyPaid?: number | null
   correctionPending?: boolean
+  correctionNote?: string | null
   correctionResolved?: boolean
+  correctionResolvedNote?: string | null
 }
 
 interface WeekData {
