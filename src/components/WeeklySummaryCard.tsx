@@ -13,6 +13,7 @@ interface TimeEntry {
   date: string
   jobNumber: string | null
   vehicle: string | null
+  serviceType: string | null
   duration: number | null
   companyPaid: number | null
   calculatedAmount: number | null
@@ -118,6 +119,11 @@ function EntryCard({
         )}
         {entry.vehicle && (
           <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-full">🚗 {entry.vehicle}</span>
+        )}
+        {entry.serviceType && (
+          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-semibold rounded-full">
+            {entry.serviceType === 'point-to-point' ? 'P2P' : 'Hourly'}
+          </span>
         )}
         <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-medium rounded-full flex items-center gap-0.5">
           <Clock className="h-2.5 w-2.5" /> {formatDuration(entry.duration ?? 0)}

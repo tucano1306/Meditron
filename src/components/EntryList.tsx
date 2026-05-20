@@ -139,6 +139,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const [jobNumber, setJobNumber] = useState('')
   const [vehicleValue, setVehicleValue] = useState('')
+  const [serviceTypeValue, setServiceTypeValue] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [observation, setObservation] = useState('')
@@ -212,6 +213,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
       setExpandedJobId(entry.id)
       setJobNumber(entry.jobNumber || '')
       setVehicleValue(entry.vehicle || '')
+      setServiceTypeValue(entry.serviceType || '')
       setPaidAmount(entry.paidAmount?.toString() || '')
       setCustomAmount((entry.calculatedAmount ?? getCalculatedAmount(entry)).toFixed(2))
       setObservation(entry.observation || '')
@@ -222,6 +224,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setExpandedJobId(null)
     setJobNumber('')
     setVehicleValue('')
+    setServiceTypeValue('')
     setPaidAmount('')
     setCustomAmount('')
     setObservation('')
@@ -271,6 +274,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
         body: JSON.stringify({
           jobNumber,
           vehicle: vehicleValue || null,
+          serviceType: serviceTypeValue || null,
           observation: observation || null,
           paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
           calculatedAmount: customAmount ? Number.parseFloat(customAmount) : undefined,
@@ -585,6 +589,21 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   <option value="motorcoach">Motorcoach</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor={`service-${entry.id}`} className="text-[12px] text-[#787774]">Tipo de servicio</label>
+              <select
+                id={`service-${entry.id}`}
+                value={serviceTypeValue}
+                onChange={(e) => setServiceTypeValue(e.target.value)}
+                className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none text-[#37352f]"
+                style={{ fontSize: '16px' }}
+              >
+                <option value="">Sin especificar</option>
+                <option value="point-to-point">P2P (Point to Point)</option>
+                <option value="hourly">Hourly</option>
+              </select>
             </div>
 
             <div className="flex items-center justify-between bg-white rounded-[4px] px-3 py-2.5 border border-[rgba(55,53,47,0.09)]">

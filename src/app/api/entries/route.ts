@@ -217,10 +217,11 @@ export async function POST(request: NextRequest) {
 }
 
 // Función auxiliar para construir datos de actualización de trabajo
-function buildJobUpdateData(jobNumber?: string, vehicle?: string | null, calculatedAmount?: number, paidAmount?: number, observation?: string | null): Record<string, unknown> {
+function buildJobUpdateData(jobNumber?: string, vehicle?: string | null, calculatedAmount?: number, paidAmount?: number, observation?: string | null, serviceType?: string | null): Record<string, unknown> {
   const updateData: Record<string, unknown> = {}
   if (jobNumber !== undefined) updateData.jobNumber = jobNumber || null
   if (vehicle !== undefined) updateData.vehicle = vehicle || null
+  if (serviceType !== undefined) updateData.serviceType = serviceType || null
   if (observation !== undefined) updateData.observation = observation || null
   if (calculatedAmount !== undefined) updateData.calculatedAmount = calculatedAmount
   if (paidAmount !== undefined) {
@@ -249,7 +250,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { startTime, endTime, jobNumber, vehicle, calculatedAmount, paidAmount, observation } = body
+    const { startTime, endTime, jobNumber, vehicle, calculatedAmount, paidAmount, observation, serviceType } = body
 
     // Si los tiempos no cambiaron, solo actualizar campos de trabajo
     const isOnlyJobUpdate = startTime === entry.startTime.toISOString() && 
@@ -258,7 +259,7 @@ export async function PATCH(request: NextRequest) {
     if (isOnlyJobUpdate) {
       const updatedEntry = await prisma.timeEntry.update({
         where: { id },
-        data: buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation)
+        data: buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation, serviceType)
       })
       // Actualizar totales de semana y mes para mantener consistencia
       if (entry.weekId) {
@@ -313,7 +314,7 @@ export async function PATCH(request: NextRequest) {
         accumulatedSeconds: 0,
         pausedAt: null,
         lastResumeTime: null,
-        ...buildJobUpdateData(jobNumber, vehicle, resolvedCalculatedAmount, paidAmount, observation)
+        ...buildJobUpdateData(jobNumber, vehicle, resolvedCalculatedAmount, paidAmount, observation, serviceType)
       }
     })
 
