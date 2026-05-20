@@ -154,6 +154,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
   const [resolveModalEntryId, setResolveModalEntryId] = useState<string | null>(null)
   const [resolveModalNote, setResolveModalNote] = useState('')
   const [savingCorrectionId, setSavingCorrectionId] = useState<string | null>(null)
+  const [editCorrectionModalEntryId, setEditCorrectionModalEntryId] = useState<string | null>(null)
+  const [editCorrectionModalNote, setEditCorrectionModalNote] = useState('')
+  const [editResolvedModalEntryId, setEditResolvedModalEntryId] = useState<string | null>(null)
+  const [editResolvedModalNote, setEditResolvedModalNote] = useState('')
 
   useEffect(() => {
     if (noteSheetOpen && noteSheetRef.current) {
@@ -232,6 +236,10 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     setCorrectionModalNote('')
     setResolveModalEntryId(null)
     setResolveModalNote('')
+    setEditCorrectionModalEntryId(null)
+    setEditCorrectionModalNote('')
+    setEditResolvedModalEntryId(null)
+    setEditResolvedModalNote('')
   }
 
   const handleSaveCorrection = async (
@@ -503,6 +511,81 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
     )
   }
 
+  function renderEditCorrectionModals(entry: Entry) {
+    return (
+      <>
+        {editCorrectionModalEntryId === entry.id && (
+          <div className="mt-2 bg-orange-50 border border-orange-300 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-orange-800">Editar nota de corrección</p>
+            <textarea
+              className="w-full text-xs border border-orange-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white"
+              rows={2}
+              placeholder="Ej: El monto recibido no coincide, falta $X..."
+              value={editCorrectionModalNote}
+              onChange={e => setEditCorrectionModalNote(e.target.value)}
+              style={{ fontSize: '16px' }}
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setEditCorrectionModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button
+                type="button"
+                disabled={!!savingCorrectionId}
+                onClick={() => handleSaveCorrection(entry.id, true, editCorrectionModalNote.trim() || null, false)}
+                className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-600 font-semibold"
+              >
+                {savingCorrectionId ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        )}
+        {editResolvedModalEntryId === entry.id && (
+          <div className="mt-2 bg-blue-50 border border-blue-300 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-blue-800">Editar nota de resolución</p>
+            <textarea
+              className="w-full text-xs border border-blue-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+              rows={2}
+              placeholder="Ej: Lo pusieron en la semana 18, pago del viernes..."
+              value={editResolvedModalNote}
+              onChange={e => setEditResolvedModalNote(e.target.value)}
+              style={{ fontSize: '16px' }}
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setEditResolvedModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button
+                type="button"
+                disabled={!!savingCorrectionId}
+                onClick={() => handleSaveCorrection(entry.id, false, null, true, editResolvedModalNote.trim() || null)}
+                className="text-xs px-3 py-1 rounded-full bg-blue-500 text-white hover:bg-blue-600 font-semibold"
+              >
+                {savingCorrectionId ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  function renderCorrectionBadge(entry: Entry) {
+    if (entry.correctionPending && !entry.correctionResolved) {
+      return (
+        <span className="inline-flex items-center gap-0.5 mt-1 text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full border border-orange-300">
+          <AlertTriangle className="h-2.5 w-2.5" />
+          CORRECCIÓN{entry.jobNumber ? ` #${entry.jobNumber}` : ''}
+        </span>
+      )
+    }
+    if (entry.correctionResolved) {
+      return (
+        <span className="inline-flex items-center gap-0.5 mt-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full border border-blue-300">
+          <BadgeCheck className="h-2.5 w-2.5" />
+          CORREGIDO{entry.jobNumber ? ` #${entry.jobNumber}` : ''}
+        </span>
+      )
+    }
+    return null
+  }
+
   function renderEntryRow(entry: Entry) {
     const isJobExpanded = expandedJobId === entry.id
     const calculatedAmount = entry.calculatedAmount ?? getCalculatedAmount(entry)
@@ -529,6 +612,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
             </div>
           )}
           {renderTimeCell(entry)}
+          {renderCorrectionBadge(entry)}
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
           <div className="text-right flex-1 min-w-0">
@@ -784,15 +868,35 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </button>
                 )}
               </div>
-              {entry.correctionPending && entry.correctionNote && (
-                <div className="mt-1.5 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1.5 italic">
-                  📝 {entry.correctionNote}
+              {entry.correctionPending && (
+                <div className="mt-1.5 flex items-start gap-1">
+                  <div className="flex-1 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1.5 italic">
+                    📝 {entry.correctionNote || '(sin nota)'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setEditCorrectionModalEntryId(entry.id); setEditCorrectionModalNote(entry.correctionNote || '') }}
+                    className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg touch-manipulation flex-shrink-0"
+                    title="Editar nota de corrección"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
                 </div>
               )}
               {entry.correctionResolved && (
-                <div className="mt-1.5 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1">
-                  <BadgeCheck className="h-3 w-3 flex-shrink-0" />
-                  {entry.correctionResolvedNote ? entry.correctionResolvedNote : 'Corrección resuelta'}
+                <div className="mt-1.5 flex items-start gap-1">
+                  <div className="flex-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1">
+                    <BadgeCheck className="h-3 w-3 flex-shrink-0" />
+                    {entry.correctionResolvedNote ? entry.correctionResolvedNote : 'Corrección resuelta'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setEditResolvedModalEntryId(entry.id); setEditResolvedModalNote(entry.correctionResolvedNote || '') }}
+                    className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg touch-manipulation flex-shrink-0"
+                    title="Editar nota de resolución"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
                 </div>
               )}
 
@@ -821,6 +925,9 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
                   </div>
                 </div>
               )}
+
+              {/* Modales de edición de notas */}
+              {renderEditCorrectionModals(entry)}
 
               {/* Modal inline: resolver corrección */}
               {resolveModalEntryId === entry.id && (
