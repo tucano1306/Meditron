@@ -328,7 +328,7 @@ interface ObsSectionProps {
   readonly observation: string
   readonly isOpen: boolean
   readonly sheetValue: string
-  readonly noteRef: React.RefObject<HTMLTextAreaElement>
+  readonly noteRef: React.RefObject<HTMLTextAreaElement | null>
   readonly onTrigger: () => void
   readonly onSheetValueChange: (v: string) => void
   readonly onCommit: () => void
