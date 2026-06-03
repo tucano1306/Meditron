@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Search, X, Hash, CalendarDays, Clock, DollarSign, Briefcase, Car, Wrench } from 'lucide-react'
 import { formatCurrency, formatDuration, formatShortDateFlorida } from '@/lib/utils'
 import { EntryDetailModal } from './EntryDetailModal'
-import type { ModalEntry } from './EntryDetailModal'
 
 type SearchMode = 'job' | 'date'
 
@@ -381,7 +380,7 @@ export function HourlyEntrySearch({ hourlyRate = 25 }: HourlyEntrySearchProps) {
 
       {selectedEntry && (
         <EntryDetailModal
-          entry={selectedEntry as ModalEntry}
+          entry={selectedEntry}
           hourlyRate={hourlyRate}
           onClose={() => setSelectedEntry(null)}
           onUpdate={handleSearch}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X, Clock, Briefcase, Car, Wrench, DollarSign, Pencil,
   AlertTriangle, BadgeCheck, ChevronRight, Trash2, CalendarDays,
@@ -812,8 +813,11 @@ function CorrectionForm({ title, placeholder, color, note, saving, onNoteChange,
 
 export function EntryDetailModal({ entry, hourlyRate = 25, onClose, onUpdate }: EntryDetailModalProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('detail')
+  const [mounted, setMounted] = useState(false)
   // Refresh local copy on update
   const [localEntry, setLocalEntry] = useState<ModalEntry>(entry)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const handleUpdate = async () => {
     // Refresh entry data from server
@@ -833,11 +837,13 @@ export function EntryDetailModal({ entry, hourlyRate = 25, onClose, onUpdate }: 
   const resolvedBadge = isResolved ? '✓' : undefined
   const corrBadge = isPending ? 'pendiente' : resolvedBadge
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <dialog
       open
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center w-full h-full max-w-none max-h-none m-0 p-0 bg-transparent border-0"
       aria-label="Detalle de entrada"
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center w-full h-full max-w-none max-h-none m-0 p-0 bg-transparent border-0"
     >
       {/* Backdrop */}
       <button
@@ -916,7 +922,8 @@ export function EntryDetailModal({ entry, hourlyRate = 25, onClose, onUpdate }: 
           )}
         </div>
       </div>
-    </dialog>
+    </dialog>,
+    document.body
   )
 }
 
