@@ -10,6 +10,7 @@ import { WeekHistory } from '@/components/WeekHistory'
 import { WeeklySummaryCard } from '@/components/WeeklySummaryCard'
 import { RateCalculator } from '@/components/RateCalculator'
 import { JobSearch } from '@/components/JobSearch'
+import { HourlyEntrySearch } from '@/components/HourlyEntrySearch'
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Search } from 'lucide-react'
@@ -261,11 +262,17 @@ export default function HourlyDashboardPage() {
           </TabsContent>
 
           <TabsContent value="weeks">
-            <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
+            <div className="space-y-4">
+              <HourlyEntrySearch hourlyRate={data.hourlyRate} />
+              <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
+            </div>
           </TabsContent>
 
           <TabsContent value="months">
-            <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} />
+            <div className="space-y-4">
+              <HourlyEntrySearch hourlyRate={data.hourlyRate} />
+              <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} />
+            </div>
           </TabsContent>
 
           <TabsContent value="calculator">
