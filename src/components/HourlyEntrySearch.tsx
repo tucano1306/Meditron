@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Search, X, Hash, CalendarDays, Clock, DollarSign, Briefcase, Car, Wrench } from 'lucide-react'
 import { formatCurrency, formatDuration, formatShortDateFlorida } from '@/lib/utils'
+import { EntryDetailModal } from './EntryDetailModal'
+import type { ModalEntry } from './EntryDetailModal'
 
 type SearchMode = 'job' | 'date'
 
@@ -15,10 +17,16 @@ interface Entry {
   jobNumber?: string | null
   vehicle?: string | null
   serviceType?: string | null
+  observation?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
   companyPaid?: number | null
   correctionPending?: boolean
+  correctionNote?: string | null
+  correctionResolved?: boolean
+  correctionResolvedNote?: string | null
+  updatedAt?: string | null
+  createdAt?: string | null
 }
 
 interface HourlyEntrySearchProps {
@@ -28,9 +36,10 @@ interface HourlyEntrySearchProps {
 interface EntryCardProps {
   readonly entry: Entry
   readonly hourlyRate: number
+  readonly onOpen: (entry: Entry) => void
 }
 
-function EntryResultCard({ entry, hourlyRate }: EntryCardProps) {
+function EntryResultCard({ entry, hourlyRate, onOpen }: EntryCardProps) {
   const calc =
     entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
   const hasPaid = entry.companyPaid != null
@@ -40,7 +49,11 @@ function EntryResultCard({ entry, hourlyRate }: EntryCardProps) {
     : 'border-gray-100 bg-gray-50'
 
   return (
-    <div className={`rounded-xl border transition-all ${borderClass}`}>
+    <button
+      type="button"
+      onClick={() => onOpen(entry)}
+      className={`w-full text-left rounded-xl border transition-all active:scale-[0.98] touch-manipulation ${borderClass}`}
+    >
       <div className="flex items-center gap-3 px-3 py-2.5">
         <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 shadow-sm">
           <Briefcase className="h-3.5 w-3.5 text-gray-600" />
@@ -103,7 +116,11 @@ function EntryResultCard({ entry, hourlyRate }: EntryCardProps) {
           </span>
         </div>
       )}
-    </div>
+      {/* tap hint */}
+      <div className="flex items-center justify-end px-3 pb-2">
+        <span className="text-[10px] text-gray-400">Ver detalle →</span>
+      </div>
+    </button>
   )
 }
 
@@ -223,9 +240,10 @@ interface SearchResultsPanelProps {
   readonly mode: SearchMode
   readonly jobQuery: string
   readonly hourlyRate: number
+  readonly onOpenEntry: (entry: Entry) => void
 }
 
-function SearchResultsPanel({ searched, isLoading, results, mode, jobQuery, hourlyRate }: SearchResultsPanelProps) {
+function SearchResultsPanel({ searched, isLoading, results, mode, jobQuery, hourlyRate, onOpenEntry }: SearchResultsPanelProps) {
   if (!searched || isLoading || results === null) return null
 
   const totalHours = results.reduce((acc, e) => acc + (e.duration ?? 0) / 3600, 0)
@@ -269,7 +287,7 @@ function SearchResultsPanel({ searched, isLoading, results, mode, jobQuery, hour
         )}
       </div>
       {results.map((entry) => (
-        <EntryResultCard key={entry.id} entry={entry} hourlyRate={hourlyRate} />
+        <EntryResultCard key={entry.id} entry={entry} hourlyRate={hourlyRate} onOpen={onOpenEntry} />
       ))}
     </div>
   )
@@ -293,6 +311,7 @@ export function HourlyEntrySearch({ hourlyRate = 25 }: HourlyEntrySearchProps) {
   const [results, setResults] = useState<Entry[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
 
   const handleSearch = async () => {
     const param = mode === 'job' ? jobQuery.trim() : dateQuery
@@ -330,32 +349,44 @@ export function HourlyEntrySearch({ hourlyRate = 25 }: HourlyEntrySearchProps) {
   const canSearch = activeQuery.length > 0
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-      <SearchHeader
-        searched={searched}
-        mode={mode}
-        onClear={handleClear}
-        onModeChange={handleModeChange}
-      />
-      <SearchInputPanel
-        mode={mode}
-        jobQuery={jobQuery}
-        dateQuery={dateQuery}
-        canSearch={canSearch}
-        isLoading={isLoading}
-        onJobChange={setJobQuery}
-        onDateChange={setDateQuery}
-        onSearch={handleSearch}
-      />
-      <SearchResultsPanel
-        searched={searched}
-        isLoading={isLoading}
-        results={results}
-        mode={mode}
-        jobQuery={jobQuery}
-        hourlyRate={hourlyRate}
-      />
-      {!searched && <SearchHint mode={mode} />}
-    </div>
+    <>
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+        <SearchHeader
+          searched={searched}
+          mode={mode}
+          onClear={handleClear}
+          onModeChange={handleModeChange}
+        />
+        <SearchInputPanel
+          mode={mode}
+          jobQuery={jobQuery}
+          dateQuery={dateQuery}
+          canSearch={canSearch}
+          isLoading={isLoading}
+          onJobChange={setJobQuery}
+          onDateChange={setDateQuery}
+          onSearch={handleSearch}
+        />
+        <SearchResultsPanel
+          searched={searched}
+          isLoading={isLoading}
+          results={results}
+          mode={mode}
+          jobQuery={jobQuery}
+          hourlyRate={hourlyRate}
+          onOpenEntry={setSelectedEntry}
+        />
+        {!searched && <SearchHint mode={mode} />}
+      </div>
+
+      {selectedEntry && (
+        <EntryDetailModal
+          entry={selectedEntry as ModalEntry}
+          hourlyRate={hourlyRate}
+          onClose={() => setSelectedEntry(null)}
+          onUpdate={handleSearch}
+        />
+      )}
+    </>
   )
 }
