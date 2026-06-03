@@ -57,7 +57,7 @@ function nowLabel(): string {
 
 function parseTimestampFromNote(note: string | null | undefined): { ts: string; text: string } | null {
   if (!note) return null
-  const re = /^\[([^\]]+)\]\s*(.*)$/s
+  const re = /^\[([^\]]+)\]\s*([\s\S]*)$/
   const match = re.exec(note)
   if (match) return { ts: match[1], text: match[2].trim() }
   return { ts: '', text: note.trim() }
