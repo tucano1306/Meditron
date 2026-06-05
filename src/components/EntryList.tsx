@@ -16,6 +16,7 @@ interface Entry {
   observation?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
+  companyPaid?: number | null
   correctionPending?: boolean
   correctionNote?: string | null
   correctionResolved?: boolean
@@ -28,6 +29,7 @@ interface EntryListProps {
   readonly onDelete?: () => void
   readonly onUpdate?: () => void
   readonly showDate?: boolean
+  readonly onEntryModal?: (entry: Entry) => void
   readonly hourlyRate?: number
 }
 
@@ -127,7 +129,7 @@ function EntryAmountBadges({
   )
 }
 
-export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpdate, showDate = false, hourlyRate = HOURLY_RATE }: Readonly<EntryListProps>) {
+export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpdate, showDate = false, hourlyRate = HOURLY_RATE, onEntryModal }: Readonly<EntryListProps>) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editStartTime, setEditStartTime] = useState('')
   const [editEndTime, setEditEndTime] = useState('')
@@ -631,7 +633,7 @@ export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpda
           <button
             type="button"
             className={`${rowBaseClass} w-full text-left active:scale-[0.98] active:bg-gray-100 touch-manipulation`}
-            onClick={() => toggleJobExpansion(entry)}
+            onClick={() => onEntryModal ? onEntryModal(entry) : toggleJobExpansion(entry)}
           >
             {rowContent}
           </button>

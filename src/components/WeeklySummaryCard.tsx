@@ -4,16 +4,20 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration, getMonthName, parseLocalDate } from '@/lib/utils'
-import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2 } from 'lucide-react'
+import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2, ExternalLink } from 'lucide-react'
+import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 
 const ITEMS_PER_PAGE = 5
 
 interface TimeEntry {
   id: string
   date: string
+  startTime: string
+  endTime: string | null
   jobNumber: string | null
   vehicle: string | null
   serviceType: string | null
+  observation: string | null
   duration: number | null
   companyPaid: number | null
   calculatedAmount: number | null
@@ -55,6 +59,7 @@ interface EntryCardProps {
   resolveNote: string
   correctionNote: string
   savingCorrection: boolean
+  onOpen: (entry: TimeEntry) => void
   onToggleCorrection: (entry: TimeEntry) => void
   onMarkResolved: (entry: TimeEntry) => void
   onSaveCorrection: (entryId: string, pending: boolean, note: string | null, resolved: boolean, resolvedNote?: string | null) => void
@@ -81,7 +86,7 @@ function entryHeaderBg(pending: boolean, resolved: boolean): string {
 function EntryCard({
   entry, hourlyRate, deletingEntryId, resolveEntryId, correctionEntryId,
   resolveNote, correctionNote, savingCorrection,
-  onToggleCorrection, onMarkResolved, onSaveCorrection,
+  onOpen, onToggleCorrection, onMarkResolved, onSaveCorrection,
   onSetDeletingEntryId, onDeleteEntry,
   onSetResolveNote, onSetCorrectionNote,
   onCancelResolve, onCancelCorrection,
@@ -95,64 +100,72 @@ function EntryCard({
 
   return (
     <div className={`bg-white rounded-xl shadow-sm overflow-hidden border ${entryBorderClass(isPending, isResolved)}`}>
-      {/* Cabecera: fecha + estado */}
-      <div className={`flex items-center justify-between px-3 py-2 ${entryHeaderBg(isPending, isResolved)}`}>
-        <span className="text-xs font-semibold text-gray-700">{formatShortDateFlorida(entry.date)}</span>
-        <div className="flex items-center gap-1">
-          {isPending && (
-            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full flex items-center gap-0.5">
-              <AlertTriangle className="h-2.5 w-2.5" /> PENDIENTE
-            </span>
-          )}
-          {isResolved && (
-            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full flex items-center gap-0.5">
-              <BadgeCheck className="h-2.5 w-2.5" /> CORREGIDO
-            </span>
-          )}
+      {/* Sección clickable: abre modal de detalle */}
+      <button
+        type="button"
+        onClick={() => onOpen(entry)}
+        className="w-full text-left active:bg-gray-50 touch-manipulation transition-colors hover:bg-gray-50/60"
+      >
+        {/* Cabecera: fecha + estado */}
+        <div className={`flex items-center justify-between px-3 py-2 ${entryHeaderBg(isPending, isResolved)}`}>
+          <span className="text-xs font-semibold text-gray-700">{formatShortDateFlorida(entry.date)}</span>
+          <div className="flex items-center gap-1">
+            {isPending && (
+              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full flex items-center gap-0.5">
+                <AlertTriangle className="h-2.5 w-2.5" /> PENDIENTE
+              </span>
+            )}
+            {isResolved && (
+              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full flex items-center gap-0.5">
+                <BadgeCheck className="h-2.5 w-2.5" /> CORREGIDO
+              </span>
+            )}
+            <ExternalLink className="h-3 w-3 text-gray-300 ml-1" />
+          </div>
         </div>
-      </div>
 
-      {/* Tags */}
-      <div className="flex items-center gap-1.5 flex-wrap px-3 py-2 border-b border-gray-100">
-        {entry.jobNumber && (
-          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">#{entry.jobNumber}</span>
-        )}
-        {entry.vehicle && (
-          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-full">🚗 {entry.vehicle}</span>
-        )}
-        {entry.serviceType && (
-          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-semibold rounded-full">
-            {entry.serviceType === 'point-to-point' ? 'P2P' : 'Hourly'}
+        {/* Tags */}
+        <div className="flex items-center gap-1.5 flex-wrap px-3 py-2 border-b border-gray-100">
+          {entry.jobNumber && (
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">#{entry.jobNumber}</span>
+          )}
+          {entry.vehicle && (
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-full">🚗 {entry.vehicle}</span>
+          )}
+          {entry.serviceType && (
+            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-semibold rounded-full">
+              {entry.serviceType === 'point-to-point' ? 'P2P' : 'Hourly'}
+            </span>
+          )}
+          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-medium rounded-full flex items-center gap-0.5">
+            <Clock className="h-2.5 w-2.5" /> {formatDuration(entry.duration ?? 0)}
           </span>
-        )}
-        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-medium rounded-full flex items-center gap-0.5">
-          <Clock className="h-2.5 w-2.5" /> {formatDuration(entry.duration ?? 0)}
-        </span>
-      </div>
+        </div>
 
-      {/* Financiero */}
-      <div className="grid grid-cols-2 divide-x divide-gray-100">
-        <div className="px-3 py-2">
-          <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Calculado</div>
-          <div className="text-sm font-bold text-gray-700">{formatCurrency(calc)}</div>
-          {paid !== null && <div className="text-[10px] text-gray-400 mt-0.5">pago: {formatCurrency(paid)}</div>}
+        {/* Financiero */}
+        <div className="grid grid-cols-2 divide-x divide-gray-100">
+          <div className="px-3 py-2">
+            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Calculado</div>
+            <div className="text-sm font-bold text-gray-700">{formatCurrency(calc)}</div>
+            {paid !== null && <div className="text-[10px] text-gray-400 mt-0.5">pago: {formatCurrency(paid)}</div>}
+          </div>
+          <div className={`px-3 py-2 ${companyPaid === null ? '' : 'bg-emerald-50'}`}>
+            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Empresa</div>
+            {companyPaid === null ? (
+              <span className="text-xs text-gray-400 italic">sin pago</span>
+            ) : (
+              <div>
+                <div className="text-sm font-bold text-emerald-700">{formatCurrency(companyPaid)}</div>
+                {diff !== null && diff !== 0 && (
+                  <div className={`text-[10px] font-semibold mt-0.5 ${diff > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {diff > 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div className={`px-3 py-2 ${companyPaid === null ? '' : 'bg-emerald-50'}`}>
-          <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Empresa</div>
-          {companyPaid === null ? (
-            <span className="text-xs text-gray-400 italic">sin pago</span>
-          ) : (
-            <div>
-              <div className="text-sm font-bold text-emerald-700">{formatCurrency(companyPaid)}</div>
-              {diff !== null && diff !== 0 && (
-                <div className={`text-[10px] font-semibold mt-0.5 ${diff > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  {diff > 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      </button>
 
       {/* Acciones */}
       <div className="flex gap-1 flex-wrap px-3 py-1.5 border-t border-gray-100 bg-gray-50">
@@ -340,6 +353,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
   const [lastAddedWeekId, setLastAddedWeekId] = useState<string | null>(null)
   const [localRefreshKey, setLocalRefreshKey] = useState(0)
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<ModalEntry | null>(null)
 
   const toggleWeek = (id: string) => setExpandedWeek(prev => (prev === id ? null : id))
 
@@ -516,6 +530,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
   // Calcular el máximo para las barras de progreso
 
   return (
+    <>
     <Card>
       <CardHeader className="px-3 sm:px-6 py-3">
         <CardTitle className="text-base flex items-center gap-2">
@@ -697,6 +712,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                             resolveNote={resolveNote}
                             correctionNote={correctionNote}
                             savingCorrection={savingCorrection}
+                            onOpen={(e) => setSelectedEntry(e)}
                             onToggleCorrection={handleToggleCorrection}
                             onMarkResolved={handleMarkResolved}
                             onSaveCorrection={saveCorrection}
@@ -881,5 +897,19 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
         )}
       </CardContent>
     </Card>
+
+    {selectedEntry && (
+      <EntryDetailModal
+        entry={selectedEntry}
+        hourlyRate={hourlyRate}
+        onClose={() => setSelectedEntry(null)}
+        onUpdate={() => {
+          setSelectedEntry(null)
+          void fetchWeeks()
+          onRefresh?.()
+        }}
+      />
+    )}
+    </>
   )
 }
