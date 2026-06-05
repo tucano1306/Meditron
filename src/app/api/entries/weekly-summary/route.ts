@@ -15,6 +15,7 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
+    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
     // Usar timestamp real con componentes de Florida (evitar doble conversión)
     const realNow = new Date()
     const floridaComponents = getFloridaDateComponents(realNow)
@@ -103,7 +104,27 @@ export async function GET() {
         calculatedAmount,
         companyPaidAmount,
         difference,
-        differencePercentage
+        differencePercentage,
+        entries: week.entries.map(e => ({
+          id: e.id,
+          startTime: e.startTime.toISOString(),
+          endTime: e.endTime?.toISOString() ?? null,
+          duration: e.duration,
+          date: e.date.toISOString(),
+          jobNumber: e.jobNumber,
+          vehicle: e.vehicle,
+          serviceType: e.serviceType,
+          observation: e.observation,
+          calculatedAmount: e.calculatedAmount,
+          paidAmount: e.paidAmount,
+          companyPaid: e.companyPaid,
+          correctionPending: e.correctionPending,
+          correctionNote: e.correctionNote,
+          correctionResolved: e.correctionResolved,
+          correctionResolvedNote: e.correctionResolvedNote,
+          updatedAt: e.updatedAt?.toISOString() ?? null,
+          createdAt: e.createdAt?.toISOString() ?? null,
+        }))
       }
     })
 
@@ -115,7 +136,8 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: weeklySummaries
+      data: weeklySummaries,
+      hourlyRate: userHourlyRate
     })
   } catch (error) {
     console.error('Error getting weekly summary:', error)

@@ -97,6 +97,8 @@ export async function GET() {
         differencePercentage,
         entries: week.entries.map(e => ({
           id: e.id,
+          startTime: e.startTime.toISOString(),
+          endTime: e.endTime?.toISOString() ?? null,
           date: e.date,
           jobNumber: e.jobNumber,
           vehicle: e.vehicle,

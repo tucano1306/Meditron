@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDateInFlorida, formatDuration, formatShortDateFlorida } from '@/lib/utils'
 import { Calendar, TrendingUp, TrendingDown, DollarSign, Clock, Briefcase, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import { PaymentEntryModal, type PaymentEntryData } from '@/components/PaymentEntryModal'
 
 interface PaymentEntryRow {
   id: string
+  startTime: string
+  endTime: string | null
   date: string
   jobNumber: string | null
   vehicle: string | null
@@ -34,6 +37,7 @@ export function WeeklySummary() {
   const [weeklyData, setWeeklyData] = useState<WeeklySummaryData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<PaymentEntryData | null>(null)
 
   const toggleWeek = (key: string) => {
     setExpandedWeek(prev => (prev === key ? null : key))
@@ -91,6 +95,7 @@ export function WeeklySummary() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader className="px-3 sm:px-6">
         <CardTitle className="text-base sm:text-lg flex items-center gap-2">
@@ -218,6 +223,7 @@ export function WeeklySummary() {
                     <div className="px-3 py-2 bg-emerald-600 flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-white" />
                       <span className="text-white text-sm font-bold">Detalle de trabajos</span>
+                      <span className="ml-auto text-emerald-200 text-xs">Toca para ver detalles</span>
                     </div>
                     <div className="divide-y divide-emerald-100">
                       {week.entries.map((entry) => {
@@ -225,7 +231,12 @@ export function WeeklySummary() {
                         const paid = entry.companyPaid ?? null
                         const diff = paid == null ? null : paid - calc
                         return (
-                          <div key={entry.id} className="flex items-center justify-between px-3 py-2 gap-2">
+                          <button
+                            key={entry.id}
+                            type="button"
+                            onClick={() => setSelectedEntry(entry)}
+                            className="w-full flex items-center justify-between px-3 py-2 gap-2 hover:bg-emerald-100/60 active:bg-emerald-100 transition-colors text-left"
+                          >
                             <div className="flex flex-col min-w-0">
                               <span className="text-xs text-gray-500">{formatShortDateFlorida(entry.date)}</span>
                               <div className="flex items-center gap-1 flex-wrap mt-0.5">
@@ -258,8 +269,9 @@ export function WeeklySummary() {
                                   )}
                                 </>
                               )}
+                              <ChevronRight className="h-3 w-3 text-gray-300 mt-0.5" />
                             </div>
-                          </div>
+                          </button>
                         )
                       })}
                     </div>
@@ -284,5 +296,18 @@ export function WeeklySummary() {
         </div>
       </CardContent>
     </Card>
+
+    {/* Payment entry detail modal */}
+    {selectedEntry && (
+      <PaymentEntryModal
+        entry={selectedEntry}
+        onClose={() => setSelectedEntry(null)}
+        onUpdate={() => {
+          setSelectedEntry(null)
+          fetchData()
+        }}
+      />
+    )}
+  </>
   )
 }

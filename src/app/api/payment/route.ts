@@ -221,8 +221,8 @@ export async function GET() {
 }
 
 // Helper: Editar entrada existente completa
-async function handleFullEntryEdit(id: string, userId: string, body: { startTime?: string; endTime?: string; amount?: number; jobNumber?: string }) {
-  const { startTime, endTime, amount, jobNumber } = body
+async function handleFullEntryEdit(id: string, userId: string, body: { startTime?: string; endTime?: string; amount?: number; jobNumber?: string; vehicle?: string }) {
+  const { startTime, endTime, amount, jobNumber, vehicle } = body
 
   const entry = await prisma.paymentEntry.findFirst({
     where: { id, userId }
@@ -269,7 +269,8 @@ async function handleFullEntryEdit(id: string, userId: string, body: { startTime
       amount: Number(amount),
       hourlyRate,
       date: correctDate,
-      jobNumber: jobNumber ?? entry.jobNumber
+      jobNumber: jobNumber ?? entry.jobNumber,
+      vehicle: vehicle ?? entry.vehicle,
     }
   })
 
