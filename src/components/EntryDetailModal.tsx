@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   formatCurrency, formatDuration, formatShortDateFlorida,
-  formatTimeInFlorida, getFloridaDateComponents
+  formatTimeInFlorida, getFloridaDateComponents, floridaWallTimeToUTC
 } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -66,6 +66,27 @@ function parseTimestampFromNote(note: string | null | undefined): { ts: string; 
 function getDiffColorClass(d: number | null): string {
   if (d === null) return ''
   return d >= 0 ? 'text-green-600' : 'text-red-600'
+}
+
+// Construye los instantes UTC de inicio/fin a partir de los campos editables,
+// interpretando las horas SIEMPRE como hora de pared de Florida (con DST correcto).
+// Si el fin es <= inicio se asume cruce de medianoche (turno nocturno).
+function buildFloridaTimes(date: string, start: string, end: string): { start: Date; end: Date } | null {
+  const [y, mo, d] = date.split('-').map(Number)
+  const [sH, sM] = start.split(':').map(Number)
+  const [eH, eM] = end.split(':').map(Number)
+  if ([y, mo, d, sH, sM, eH, eM].some(n => Number.isNaN(n))) return null
+  const s = floridaWallTimeToUTC(y, mo, d, sH, sM)
+  let e = floridaWallTimeToUTC(y, mo, d, eH, eM)
+  if (e <= s) e = floridaWallTimeToUTC(y, mo, d + 1, eH, eM)
+  return { start: s, end: e }
+}
+
+// Calcula la duración en segundos a partir de los campos editables del formulario.
+function computeDurationSeconds(date: string, start: string, end: string): number | null {
+  const t = buildFloridaTimes(date, start, end)
+  if (!t) return null
+  return Math.floor((t.end.getTime() - t.start.getTime()) / 1000)
 }
 
 function statusBadge(pending: boolean, resolved: boolean) {
@@ -463,20 +484,41 @@ function DetailTab({ entry, hourlyRate, onUpdate, onClose }: DetailTabProps) {
   const [noteSheetValue, setNoteSheetValue] = useState('')
   const noteRef = useRef<HTMLTextAreaElement>(null)
 
+  // ¿El usuario editó el monto manualmente? Si no, se recalcula al cambiar las horas.
+  const [amountTouched, setAmountTouched] = useState(false)
+  // Tiempos originales (al montar) para detectar si realmente cambiaron las horas.
+  const initialTimes = useRef({ date: editDate, start: editStart, end: editEnd })
+
   useEffect(() => {
     if (noteSheetOpen && noteRef.current) noteRef.current.focus()
   }, [noteSheetOpen])
 
+  // Recalcular el monto "Calculado" automáticamente cuando cambian las horas/fecha,
+  // salvo que el usuario lo haya editado a mano. Esto mantiene el valor total,
+  // el Historial de Semanas y el Resumen Semanal consistentes con las nuevas horas.
+  useEffect(() => {
+    if (!editing || amountTouched) return
+    const t = initialTimes.current
+    const timesChanged = editDate !== t.date || editStart !== t.start || editEnd !== t.end
+    if (!timesChanged) return
+    const dur = computeDurationSeconds(editDate, editStart, editEnd)
+    if (dur && dur > 0) {
+      setCustomAmount(((dur / 3600) * hourlyRate).toFixed(2))
+    }
+  }, [editing, amountTouched, editDate, editStart, editEnd, hourlyRate])
+
+  const handleAmountChange = (v: string) => {
+    setAmountTouched(true)
+    setCustomAmount(v)
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Compute new times
-      const [y, mo, d] = editDate.split('-').map(Number)
-      const [sH, sM] = editStart.split(':').map(Number)
-      const [eH, eM] = editEnd.split(':').map(Number)
-      const newStart = new Date(y, mo - 1, d, sH, sM, 0)
-      const newEnd = new Date(y, mo - 1, d, eH, eM, 0)
-      if (newEnd <= newStart) newEnd.setDate(newEnd.getDate() + 1)
+      // Construir tiempos interpretando las horas como hora de pared de Florida
+      const times = buildFloridaTimes(editDate, editStart, editEnd)
+      if (!times) { setSaving(false); return }
+      const { start: newStart, end: newEnd } = times
 
       const res = await fetch(`/api/entries?id=${entry.id}`, {
         method: 'PATCH',
@@ -520,9 +562,9 @@ function DetailTab({ entry, hourlyRate, onUpdate, onClose }: DetailTabProps) {
     <div className="space-y-4">
       <TimeSection entry={entry} editing={editing} editDate={editDate} editStart={editStart} editEnd={editEnd} onDateChange={setEditDate} onStartChange={setEditStart} onEndChange={setEditEnd} />
       <JobSection entry={entry} editing={editing} jobNumber={jobNumber} vehicle={vehicle} serviceType={serviceType} onJobChange={setJobNumber} onVehicleChange={setVehicle} onServiceChange={setServiceType} />
-      <AmountSection entry={entry} calc={calc} editing={editing} customAmount={customAmount} paidAmount={paidAmount} onAmountChange={setCustomAmount} onPaidChange={setPaidAmount} />
+      <AmountSection entry={entry} calc={calc} editing={editing} customAmount={customAmount} paidAmount={paidAmount} onAmountChange={handleAmountChange} onPaidChange={setPaidAmount} />
       <ObsSection entry={entry} editing={editing} observation={observation} isOpen={noteSheetOpen} sheetValue={noteSheetValue} noteRef={noteRef} onTrigger={openNote} onSheetValueChange={setNoteSheetValue} onCommit={commitNote} />
-      <DetailActions editing={editing} saving={saving} deleting={deleting} confirmDelete={confirmDelete} onSave={handleSave} onCancelEdit={() => setEditing(false)} onEdit={() => setEditing(true)} onDeleteRequest={() => setConfirmDelete(true)} onDeleteConfirm={handleDelete} onDeleteCancel={() => setConfirmDelete(false)} />
+      <DetailActions editing={editing} saving={saving} deleting={deleting} confirmDelete={confirmDelete} onSave={handleSave} onCancelEdit={() => { setAmountTouched(false); setEditing(false) }} onEdit={() => { setAmountTouched(false); setEditing(true) }} onDeleteRequest={() => setConfirmDelete(true)} onDeleteConfirm={handleDelete} onDeleteCancel={() => setConfirmDelete(false)} />
     </div>
   )
 }

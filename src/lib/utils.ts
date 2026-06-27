@@ -69,6 +69,26 @@ export function getFloridaDateComponents(date: Date): { year: number; month: num
   }
 }
 
+/**
+ * Convierte una hora de pared de Florida (America/New_York) al instante UTC correcto,
+ * teniendo en cuenta el horario de verano (EDT/EST). Independiente de la zona horaria
+ * del navegador o del servidor.
+ *
+ * Ej: 14:00 del 26 de junio (EDT, UTC-4) → 18:00 UTC.
+ */
+export function floridaWallTimeToUTC(
+  year: number, month: number, day: number, hour: number, minute: number
+): Date {
+  // Instante "ingenuo" tratando la hora de pared como si fuera UTC
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0)
+  // Qué hora de pared muestra Florida en ese instante
+  const f = getFloridaDateComponents(new Date(utcGuess))
+  const asFloridaUTC = Date.UTC(f.year, f.month - 1, f.day, f.hour, f.minute, 0)
+  // diff = offset de Florida respecto a UTC (negativo: EDT=-4h, EST=-5h)
+  const diff = asFloridaUTC - utcGuess
+  return new Date(utcGuess - diff)
+}
+
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
