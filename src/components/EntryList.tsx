@@ -48,12 +48,14 @@ function getCalculatedAmount(entry: Entry, hourlyRate: number): number {
   return entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
 }
 
+// Todas las tarjetas llevan borde negro; el estado se distingue por el fondo
+// y por el badge de corrección.
 function cardAccentClass(entry: Entry): string {
   if (entry.correctionPending && !entry.correctionResolved) {
-    return 'border-orange-200 bg-orange-50/40'
+    return 'border-black bg-orange-50/60'
   }
-  if (entry.correctionResolved) return 'border-blue-200 bg-blue-50/30'
-  return 'border-[rgba(55,53,47,0.09)] bg-white'
+  if (entry.correctionResolved) return 'border-black bg-blue-50/50'
+  return 'border-black bg-white'
 }
 
 function serviceLabel(serviceType?: string | null): string {
@@ -182,7 +184,7 @@ function EntryCard({ entry, hourlyRate, showDate, onOpen }: EntryCardProps) {
   // Entrada en curso: se muestra igual pero no se puede abrir (aún no tiene fin)
   if (isRunning) {
     return (
-      <div className="h-full rounded-xl border border-dashed border-[rgba(55,53,47,0.16)] bg-white px-3.5 py-3 shadow-sm">
+      <div className="h-full rounded-xl border border-dashed border-black bg-white px-3.5 py-3 shadow-sm">
         {header}
         <div className="mt-2 text-[12px] text-[#9b9a97]">
           Detén el cronómetro para poder editar este trabajo
@@ -204,7 +206,7 @@ function EntryCard({ entry, hourlyRate, showDate, onOpen }: EntryCardProps) {
         <EntryAmounts entry={entry} hourlyRate={hourlyRate} />
       </button>
 
-      <div className="flex items-center justify-between gap-2 border-t border-[rgba(55,53,47,0.07)] px-3.5 py-2">
+      <div className="flex items-center justify-between gap-2 border-t border-[rgba(55,53,47,0.15)] px-3.5 py-2">
         {entry.observation ? (
           <span className="flex min-w-0 items-center gap-1 text-[11px] text-[#787774]">
             <FileText className="h-3 w-3 flex-shrink-0" />

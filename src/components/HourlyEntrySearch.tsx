@@ -43,9 +43,10 @@ function EntryResultCard({ entry, hourlyRate, onOpen }: EntryCardProps) {
     entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
   const hasPaid = entry.companyPaid != null
   const diff = hasPaid ? (entry.companyPaid ?? 0) - calc : null
+  // Borde negro en todas las tarjetas de resultado
   const borderClass = entry.correctionPending
-    ? 'border-orange-200 bg-orange-50/40'
-    : 'border-gray-100 bg-gray-50'
+    ? 'border-black bg-orange-50/50'
+    : 'border-black bg-gray-50'
 
   return (
     <button

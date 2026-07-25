@@ -71,10 +71,12 @@ interface EntryCardProps {
   onCancelCorrection: () => void
 }
 
+// Borde negro en todas las tarjetas de trabajo; el estado se ve por el ring
+// de color y por el badge de la cabecera.
 function entryBorderClass(pending: boolean, resolved: boolean): string {
-  if (pending) return 'border-orange-300 ring-1 ring-orange-200'
-  if (resolved) return 'border-blue-200 ring-1 ring-blue-100'
-  return 'border-gray-100'
+  if (pending) return 'border-black ring-1 ring-orange-200'
+  if (resolved) return 'border-black ring-1 ring-blue-100'
+  return 'border-black'
 }
 
 function entryHeaderBg(pending: boolean, resolved: boolean): string {
