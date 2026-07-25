@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration, getMonthName, parseLocalDate } from '@/lib/utils'
-import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2, ExternalLink } from 'lucide-react'
+import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2, ExternalLink, Pencil } from 'lucide-react'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 
 const ITEMS_PER_PAGE = 5
@@ -59,7 +59,7 @@ interface EntryCardProps {
   resolveNote: string
   correctionNote: string
   savingCorrection: boolean
-  onOpen: (entry: TimeEntry) => void
+  onOpen: (entry: TimeEntry, startEditing: boolean) => void
   onToggleCorrection: (entry: TimeEntry) => void
   onMarkResolved: (entry: TimeEntry) => void
   onSaveCorrection: (entryId: string, pending: boolean, note: string | null, resolved: boolean, resolvedNote?: string | null) => void
@@ -103,7 +103,7 @@ function EntryCard({
       {/* Sección clickable: abre modal de detalle */}
       <button
         type="button"
-        onClick={() => onOpen(entry)}
+        onClick={() => onOpen(entry, false)}
         className="w-full text-left active:bg-gray-50 touch-manipulation transition-colors hover:bg-gray-50/60"
       >
         {/* Cabecera: fecha + estado */}
@@ -169,6 +169,13 @@ function EntryCard({
 
       {/* Acciones */}
       <div className="flex gap-1 flex-wrap px-3 py-1.5 border-t border-gray-100 bg-gray-50">
+        <button
+          type="button"
+          onClick={() => onOpen(entry, true)}
+          className="text-[10px] font-semibold px-2 py-1.5 rounded-full flex items-center gap-0.5 bg-gray-900 text-white hover:bg-gray-700 touch-manipulation"
+        >
+          <Pencil className="h-2.5 w-2.5" /> Editar
+        </button>
         {!isResolved && (
           <button
             type="button"
@@ -354,6 +361,12 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
   const [localRefreshKey, setLocalRefreshKey] = useState(0)
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
   const [selectedEntry, setSelectedEntry] = useState<ModalEntry | null>(null)
+  const [openInEditMode, setOpenInEditMode] = useState(false)
+
+  const openEntry = (entry: TimeEntry, startEditing: boolean) => {
+    setOpenInEditMode(startEditing)
+    setSelectedEntry(entry)
+  }
 
   const toggleWeek = (id: string) => setExpandedWeek(prev => (prev === id ? null : id))
 
@@ -712,7 +725,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                             resolveNote={resolveNote}
                             correctionNote={correctionNote}
                             savingCorrection={savingCorrection}
-                            onOpen={(e) => setSelectedEntry(e)}
+                            onOpen={openEntry}
                             onToggleCorrection={handleToggleCorrection}
                             onMarkResolved={handleMarkResolved}
                             onSaveCorrection={saveCorrection}
@@ -902,9 +915,11 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
       <EntryDetailModal
         entry={selectedEntry}
         hourlyRate={hourlyRate}
+        startInEditMode={openInEditMode}
         onClose={() => setSelectedEntry(null)}
         onUpdate={() => {
-          setSelectedEntry(null)
+          // No cerramos el modal: así se ve la confirmación de guardado
+          // y los valores ya actualizados desde el servidor.
           void fetchWeeks()
           onRefresh?.()
         }}

@@ -38,6 +38,8 @@ export interface ModalEntry {
 interface EntryDetailModalProps {
   readonly entry: ModalEntry
   readonly hourlyRate?: number
+  /** Abre el modal directamente en modo edición (al tocar "Editar" en la tarjeta). */
+  readonly startInEditMode?: boolean
   readonly onClose: () => void
   readonly onUpdate: () => void
 }
@@ -394,6 +396,26 @@ function ObsSection({ entry, editing, observation, isOpen, sheetValue, noteRef, 
   )
 }
 
+function SaveStatus({ error, saved }: { readonly error: string | null; readonly saved: boolean }) {
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+        {error}
+      </div>
+    )
+  }
+  if (saved) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+        <BadgeCheck className="h-3.5 w-3.5 flex-shrink-0" />
+        Cambios guardados correctamente
+      </div>
+    )
+  }
+  return null
+}
+
 interface DetailActionsProps {
   readonly editing: boolean
   readonly saving: boolean
@@ -449,15 +471,16 @@ function DetailActions({ editing, saving, deleting, confirmDelete, onSave, onCan
 interface DetailTabProps {
   readonly entry: ModalEntry
   readonly hourlyRate: number
+  readonly startInEditMode?: boolean
   readonly onUpdate: () => void
   readonly onClose: () => void
 }
 
-function DetailTab({ entry, hourlyRate, onUpdate, onClose }: DetailTabProps) {
+function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClose }: DetailTabProps) {
   const calc = entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
 
   // edit mode
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(startInEditMode)
   const [jobNumber, setJobNumber] = useState(entry.jobNumber ?? '')
   const [vehicle, setVehicle] = useState(entry.vehicle ?? '')
   const [serviceType, setServiceType] = useState(entry.serviceType ?? '')
@@ -478,6 +501,8 @@ function DetailTab({ entry, hourlyRate, onUpdate, onClose }: DetailTabProps) {
     return `${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`
   })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [justSaved, setJustSaved] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [noteSheetOpen, setNoteSheetOpen] = useState(false)
@@ -513,13 +538,17 @@ function DetailTab({ entry, hourlyRate, onUpdate, onClose }: DetailTabProps) {
   }
 
   const handleSave = async () => {
-    setSaving(true)
-    try {
-      // Construir tiempos interpretando las horas como hora de pared de Florida
-      const times = buildFloridaTimes(editDate, editStart, editEnd)
-      if (!times) { setSaving(false); return }
-      const { start: newStart, end: newEnd } = times
+    // Construir tiempos interpretando las horas como hora de pared de Florida
+    const times = buildFloridaTimes(editDate, editStart, editEnd)
+    if (!times) {
+      setSaveError('Revisa la fecha y las horas (formato HH:MM)')
+      return
+    }
+    const { start: newStart, end: newEnd } = times
 
+    setSaving(true)
+    setSaveError(null)
+    try {
       const res = await fetch(`/api/entries?id=${entry.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -537,8 +566,13 @@ function DetailTab({ entry, hourlyRate, onUpdate, onClose }: DetailTabProps) {
       const data = await res.json()
       if (data.success) {
         setEditing(false)
+        setJustSaved(true)
         onUpdate()
+      } else {
+        setSaveError(data.error || 'No se pudo guardar. Intenta de nuevo.')
       }
+    } catch {
+      setSaveError('Error de conexión. Los cambios NO se guardaron.')
     } finally {
       setSaving(false)
     }
@@ -564,7 +598,19 @@ function DetailTab({ entry, hourlyRate, onUpdate, onClose }: DetailTabProps) {
       <JobSection entry={entry} editing={editing} jobNumber={jobNumber} vehicle={vehicle} serviceType={serviceType} onJobChange={setJobNumber} onVehicleChange={setVehicle} onServiceChange={setServiceType} />
       <AmountSection entry={entry} calc={calc} editing={editing} customAmount={customAmount} paidAmount={paidAmount} onAmountChange={handleAmountChange} onPaidChange={setPaidAmount} />
       <ObsSection entry={entry} editing={editing} observation={observation} isOpen={noteSheetOpen} sheetValue={noteSheetValue} noteRef={noteRef} onTrigger={openNote} onSheetValueChange={setNoteSheetValue} onCommit={commitNote} />
-      <DetailActions editing={editing} saving={saving} deleting={deleting} confirmDelete={confirmDelete} onSave={handleSave} onCancelEdit={() => { setAmountTouched(false); setEditing(false) }} onEdit={() => { setAmountTouched(false); setEditing(true) }} onDeleteRequest={() => setConfirmDelete(true)} onDeleteConfirm={handleDelete} onDeleteCancel={() => setConfirmDelete(false)} />
+      <SaveStatus error={saveError} saved={justSaved} />
+      <DetailActions
+        editing={editing}
+        saving={saving}
+        deleting={deleting}
+        confirmDelete={confirmDelete}
+        onSave={handleSave}
+        onCancelEdit={() => { setAmountTouched(false); setSaveError(null); setEditing(false) }}
+        onEdit={() => { setAmountTouched(false); setSaveError(null); setJustSaved(false); setEditing(true) }}
+        onDeleteRequest={() => setConfirmDelete(true)}
+        onDeleteConfirm={handleDelete}
+        onDeleteCancel={() => setConfirmDelete(false)}
+      />
     </div>
   )
 }
@@ -853,7 +899,7 @@ function CorrectionForm({ title, placeholder, color, note, saving, onNoteChange,
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
-export function EntryDetailModal({ entry, hourlyRate = 25, onClose, onUpdate }: EntryDetailModalProps) {
+export function EntryDetailModal({ entry, hourlyRate = 25, startInEditMode = false, onClose, onUpdate }: EntryDetailModalProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('detail')
   const [mounted, setMounted] = useState(false)
   // Refresh local copy on update
@@ -952,6 +998,7 @@ export function EntryDetailModal({ entry, hourlyRate = 25, onClose, onUpdate }: 
             <DetailTab
               entry={localEntry}
               hourlyRate={hourlyRate}
+              startInEditMode={startInEditMode}
               onUpdate={handleUpdate}
               onClose={onClose}
             />

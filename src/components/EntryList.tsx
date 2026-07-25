@@ -1,8 +1,18 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, formatShortDateFlorida, getFloridaDateComponents } from '@/lib/utils'
-import { Clock, Trash2, Pencil, X, Check, ChevronDown, ChevronRight, AlertTriangle, BadgeCheck } from 'lucide-react'
+import { useState } from 'react'
+import {
+  formatDuration,
+  formatCurrency,
+  HOURLY_RATE,
+  formatTimeInFlorida,
+  formatShortDateFlorida,
+} from '@/lib/utils'
+import {
+  Clock, ChevronDown, ChevronRight, AlertTriangle, BadgeCheck,
+  Pencil, Car, Wrench, FileText,
+} from 'lucide-react'
+import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 
 interface Entry {
   id: string
@@ -29,937 +39,285 @@ interface EntryListProps {
   readonly onDelete?: () => void
   readonly onUpdate?: () => void
   readonly showDate?: boolean
-  readonly onEntryModal?: (entry: Entry) => void
   readonly hourlyRate?: number
 }
 
-function buildDurationDisplay(
-  entry: Entry,
-  preview: { duration: number; amount: number } | null,
-  storedCalc: number
-): React.ReactNode {
-  if (entry.duration === null || entry.endTime === null) {
-    return <div className="text-[12px] text-[#787774] animate-pulse">En curso</div>
-  }
-  if (preview) {
-    return (
-      <div className="flex flex-col items-end gap-0.5">
-        <div className="font-mono text-[13px] text-emerald-600">{formatDuration(preview.duration)}</div>
-        <div className="text-[13px] text-emerald-600 font-medium">{formatCurrency(preview.amount)}</div>
-      </div>
-    )
-  }
-  return (
-    <div className="flex flex-col items-end gap-0.5">
-      <div className="text-[10px] font-semibold tracking-wide text-[#787774] uppercase">Horas realizadas</div>
-      <div className="font-mono text-[13px] text-[#37352f]">{formatDuration(entry.duration)}</div>
-      <div className="text-[13px] text-[#37352f] font-medium">{formatCurrency(storedCalc)}</div>
-      <EntryAmountBadges
-        jobNumber={entry.jobNumber}
-        vehicle={entry.vehicle}
-        serviceType={entry.serviceType}
-        paidAmount={entry.paidAmount}
-        calcAmt={storedCalc}
-      />
-    </div>
-  )
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getCalculatedAmount(entry: Entry, hourlyRate: number): number {
+  return entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
 }
 
-function computeEditPreview(
-  entryId: string,
-  editingId: string | null,
-  editDate: string,
-  editStartTime: string,
-  editEndTime: string,
-  hourlyRate: number
-): { duration: number; amount: number } | null {
-  if (editingId !== entryId) return null
-  if (!editDate || editStartTime.length !== 5 || editEndTime.length !== 5) return null
-  try {
-    const [y, mo, d] = editDate.split('-').map(Number)
-    const [sH, sM] = editStartTime.split(':').map(Number)
-    const [eH, eM] = editEndTime.split(':').map(Number)
-    const start = new Date(y, mo - 1, d, sH, sM, 0)
-    const end = new Date(y, mo - 1, d, eH, eM, 0)
-    if (end <= start) end.setDate(end.getDate() + 1)
-    const dur = Math.floor((end.getTime() - start.getTime()) / 1000)
-    if (dur > 0 && dur < 86400) return { duration: dur, amount: (dur / 3600) * hourlyRate }
-  } catch { /* campos incompletos */ }
+function cardAccentClass(entry: Entry): string {
+  if (entry.correctionPending && !entry.correctionResolved) {
+    return 'border-orange-200 bg-orange-50/40'
+  }
+  if (entry.correctionResolved) return 'border-blue-200 bg-blue-50/30'
+  return 'border-[rgba(55,53,47,0.09)] bg-white'
+}
+
+function serviceLabel(serviceType?: string | null): string {
+  if (serviceType === 'point-to-point') return 'P2P'
+  return 'Hourly'
+}
+
+// ── Card sub-components ───────────────────────────────────────────────────────
+
+function StatusPill({ entry }: { readonly entry: Entry }) {
+  if (entry.correctionPending && !entry.correctionResolved) {
+    return (
+      <span className="inline-flex flex-shrink-0 items-center gap-0.5 rounded-full border border-orange-300 bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700">
+        <AlertTriangle className="h-2.5 w-2.5" />
+        CORRECCIÓN
+      </span>
+    )
+  }
+  if (entry.correctionResolved) {
+    return (
+      <span className="inline-flex flex-shrink-0 items-center gap-0.5 rounded-full border border-blue-300 bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+        <BadgeCheck className="h-2.5 w-2.5" />
+        CORREGIDO
+      </span>
+    )
+  }
   return null
 }
 
-function EntryAmountBadges({
-  jobNumber,
-  vehicle,
-  serviceType,
-  paidAmount,
-  calcAmt,
-}: {
-  readonly jobNumber?: string | null
-  readonly vehicle?: string | null
-  readonly serviceType?: string | null
-  readonly paidAmount?: number | null
-  readonly calcAmt: number
-}) {
-  if (!jobNumber && !vehicle && !serviceType && (paidAmount === null || paidAmount === undefined)) return null
-  const diff = paidAmount !== null && paidAmount !== undefined ? paidAmount - calcAmt : null
+function EntryChips({ entry }: { readonly entry: Entry }) {
+  const chip = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium'
   return (
-    <div className="flex items-center gap-1 mt-1 flex-wrap justify-end">
-      {jobNumber && (
-        <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] font-mono rounded-[3px]">
-          #{jobNumber}
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {entry.jobNumber && (
+        <span className={`${chip} bg-[#37352f] font-mono font-semibold text-white`}>
+          #{entry.jobNumber}
         </span>
       )}
-      {vehicle && (
-        <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px]">
-          {vehicle}
+      {entry.duration !== null && (
+        <span className={`${chip} bg-[rgba(55,53,47,0.06)] text-[#37352f]`}>
+          <Clock className="h-2.5 w-2.5" />
+          {formatDuration(entry.duration)}
         </span>
       )}
-      {serviceType && (
-        <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] rounded-[3px]">
-          {serviceType === 'point-to-point' ? 'P2P' : 'Hourly'}
+      {entry.vehicle && (
+        <span className={`${chip} bg-[rgba(55,53,47,0.06)] capitalize text-[#787774]`}>
+          <Car className="h-2.5 w-2.5" />
+          {entry.vehicle}
         </span>
       )}
-      {diff !== null && (
-        <span className={`text-[11px] ${diff >= 0 ? 'text-[#37352f]' : 'text-[#dc2626]'}`}>
-          {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
+      {entry.serviceType && (
+        <span className={`${chip} bg-[rgba(55,53,47,0.06)] text-[#787774]`}>
+          <Wrench className="h-2.5 w-2.5" />
+          {serviceLabel(entry.serviceType)}
         </span>
       )}
     </div>
   )
 }
 
-export function EntryList({ entries, title = "Entradas de Hoy", onDelete, onUpdate, showDate = false, hourlyRate = HOURLY_RATE, onEntryModal }: Readonly<EntryListProps>) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editStartTime, setEditStartTime] = useState('')
-  const [editEndTime, setEditEndTime] = useState('')
-  const [editDate, setEditDate] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(showDate)
-  
-  // Estado para expansión inline de detalles del trabajo
-  const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
-  const [jobNumber, setJobNumber] = useState('')
-  const [vehicleValue, setVehicleValue] = useState('')
-  const [serviceTypeValue, setServiceTypeValue] = useState('')
-  const [paidAmount, setPaidAmount] = useState('')
-  const [customAmount, setCustomAmount] = useState('')
-  const [observation, setObservation] = useState('')
-  const [isSavingJob, setIsSavingJob] = useState(false)
-  const [noteSheetOpen, setNoteSheetOpen] = useState(false)
-  const [noteSheetValue, setNoteSheetValue] = useState('')
-  const noteSheetRef = useRef<HTMLTextAreaElement>(null)
+function EntryAmounts({ entry, hourlyRate }: { readonly entry: Entry; readonly hourlyRate: number }) {
+  const calc = getCalculatedAmount(entry, hourlyRate)
+  const companyPaid = entry.companyPaid ?? entry.paidAmount ?? null
+  const diff = companyPaid === null ? null : companyPaid - calc
 
-  // Estado para correcciones
-  const [correctionModalEntryId, setCorrectionModalEntryId] = useState<string | null>(null)
-  const [correctionModalNote, setCorrectionModalNote] = useState('')
-  const [resolveModalEntryId, setResolveModalEntryId] = useState<string | null>(null)
-  const [resolveModalNote, setResolveModalNote] = useState('')
-  const [savingCorrectionId, setSavingCorrectionId] = useState<string | null>(null)
-  const [editCorrectionModalEntryId, setEditCorrectionModalEntryId] = useState<string | null>(null)
-  const [editCorrectionModalNote, setEditCorrectionModalNote] = useState('')
-  const [editResolvedModalEntryId, setEditResolvedModalEntryId] = useState<string | null>(null)
-  const [editResolvedModalNote, setEditResolvedModalNote] = useState('')
-
-  useEffect(() => {
-    if (noteSheetOpen && noteSheetRef.current) {
-      noteSheetRef.current.focus()
-    }
-  }, [noteSheetOpen])
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta entrada?')) return
-    
-    try {
-      const res = await fetch(`/api/entries?id=${id}`, {
-        method: 'DELETE'
-      })
-      const data = await res.json()
-      
-      if (data.success && onDelete) {
-        onDelete()
-      }
-    } catch (error) {
-      console.error('Error deleting entry:', error)
-    }
+  let diffNode: React.ReactNode = null
+  if (diff !== null && diff !== 0) {
+    diffNode = (
+      <div className={`text-[11px] font-semibold ${diff > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+        {diff > 0 ? '▲' : '▼'} {formatCurrency(Math.abs(diff))}
+      </div>
+    )
   }
 
-  const startEditing = (entry: Entry) => {
-    // Usar zona horaria de Florida para obtener la hora correcta
-    const startComponents = getFloridaDateComponents(new Date(entry.startTime))
-    const endComponents = entry.endTime ? getFloridaDateComponents(new Date(entry.endTime)) : null
-    
-    // Obtener fecha en formato YYYY-MM-DD
-    const dateStr = typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]
-    
-    setEditStartTime(`${String(startComponents.hour).padStart(2, '0')}:${String(startComponents.minute).padStart(2, '0')}`)
-    setEditEndTime(endComponents ? `${String(endComponents.hour).padStart(2, '0')}:${String(endComponents.minute).padStart(2, '0')}` : '')
-    setEditDate(dateStr)
-    setEditingId(entry.id)
+  return (
+    <div className="mt-2.5 grid grid-cols-2 divide-x divide-[rgba(55,53,47,0.08)] overflow-hidden rounded-lg bg-[rgba(55,53,47,0.03)]">
+      <div className="px-2.5 py-1.5">
+        <div className="text-[10px] uppercase tracking-wide text-[#9b9a97]">Calculado</div>
+        <div className="text-[15px] font-bold text-[#37352f]">{formatCurrency(calc)}</div>
+      </div>
+      <div className="px-2.5 py-1.5">
+        <div className="text-[10px] uppercase tracking-wide text-[#9b9a97]">Pagado empresa</div>
+        {companyPaid === null ? (
+          <div className="text-[15px] font-medium text-[#c4c3c0]">—</div>
+        ) : (
+          <>
+            <div className="text-[15px] font-bold text-emerald-700">{formatCurrency(companyPaid)}</div>
+            {diffNode}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+interface EntryCardProps {
+  readonly entry: Entry
+  readonly hourlyRate: number
+  readonly showDate: boolean
+  readonly onOpen: (entry: Entry, startEditing: boolean) => void
+}
+
+function EntryCard({ entry, hourlyRate, showDate, onOpen }: EntryCardProps) {
+  const isRunning = entry.endTime === null || entry.duration === null
+
+  const header = (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        {showDate && (
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9b9a97]">
+            {formatShortDateFlorida(entry.date)}
+          </div>
+        )}
+        <div className="mt-0.5 font-mono text-[15px] font-semibold text-[#37352f]">
+          {formatTimeInFlorida(entry.startTime)}
+          <span className="mx-1.5 text-[#c4c3c0]">→</span>
+          {entry.endTime
+            ? formatTimeInFlorida(entry.endTime)
+            : <span className="animate-pulse text-[#787774]">En curso</span>}
+        </div>
+      </div>
+      <StatusPill entry={entry} />
+    </div>
+  )
+
+  // Entrada en curso: se muestra igual pero no se puede abrir (aún no tiene fin)
+  if (isRunning) {
+    return (
+      <div className="h-full rounded-xl border border-dashed border-[rgba(55,53,47,0.16)] bg-white px-3.5 py-3 shadow-sm">
+        {header}
+        <div className="mt-2 text-[12px] text-[#9b9a97]">
+          Detén el cronómetro para poder editar este trabajo
+        </div>
+      </div>
+    )
   }
 
-  const cancelEditing = () => {
-    setEditingId(null)
-    setEditStartTime('')
-    setEditEndTime('')
-    setEditDate('')
+  return (
+    <div className={`flex h-full flex-col overflow-hidden rounded-xl border shadow-sm transition-shadow hover:shadow-md ${cardAccentClass(entry)}`}>
+      <button
+        type="button"
+        onClick={() => onOpen(entry, false)}
+        aria-label={`Ver detalle del trabajo${entry.jobNumber ? ` #${entry.jobNumber}` : ''}`}
+        className="w-full flex-1 px-3.5 py-3 text-left transition-colors touch-manipulation hover:bg-[rgba(55,53,47,0.02)] active:scale-[0.99] active:bg-[rgba(55,53,47,0.05)]"
+      >
+        {header}
+        <EntryChips entry={entry} />
+        <EntryAmounts entry={entry} hourlyRate={hourlyRate} />
+      </button>
+
+      <div className="flex items-center justify-between gap-2 border-t border-[rgba(55,53,47,0.07)] px-3.5 py-2">
+        {entry.observation ? (
+          <span className="flex min-w-0 items-center gap-1 text-[11px] text-[#787774]">
+            <FileText className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{entry.observation}</span>
+          </span>
+        ) : (
+          <span className="text-[11px] text-[#c4c3c0]">Toca la tarjeta para ver el detalle</span>
+        )}
+        <button
+          type="button"
+          onClick={() => onOpen(entry, true)}
+          className="flex min-h-[36px] flex-shrink-0 items-center gap-1 rounded-lg bg-[#37352f] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors touch-manipulation hover:bg-[#2f2d28] active:scale-95"
+        >
+          <Pencil className="h-3 w-3" />
+          Editar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Lista ─────────────────────────────────────────────────────────────────────
+
+export function EntryList({
+  entries,
+  title = 'Entradas de Hoy',
+  onDelete,
+  onUpdate,
+  showDate = false,
+  hourlyRate = HOURLY_RATE,
+}: Readonly<EntryListProps>) {
+  // Las tarjetas se ven de entrada; el encabezado permite plegarlas.
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
+  const [openInEditMode, setOpenInEditMode] = useState(false)
+
+  // Refresca la vista del padre tras guardar o borrar desde el modal.
+  const handleRefresh = () => {
+    if (onUpdate) onUpdate()
+    else onDelete?.()
   }
 
-  // Funciones para expansión inline del trabajo  
-  const toggleJobExpansion = (entry: Entry) => {
-    if (expandedJobId === entry.id) {
-      // Cerrar
-      setExpandedJobId(null)
-      setJobNumber('')
-      setVehicleValue('')
-      setPaidAmount('')
-      setObservation('')
-    } else {
-      // Abrir
-      setExpandedJobId(entry.id)
-      setJobNumber(entry.jobNumber || '')
-      setVehicleValue(entry.vehicle || '')
-      setServiceTypeValue(entry.serviceType || '')
-      setPaidAmount(entry.paidAmount?.toString() || '')
-      setCustomAmount((entry.calculatedAmount ?? getCalculatedAmount(entry)).toFixed(2))
-      setObservation(entry.observation || '')
-    }
-  }
-
-  const closeJobExpansion = () => {
-    setExpandedJobId(null)
-    setJobNumber('')
-    setVehicleValue('')
-    setServiceTypeValue('')
-    setPaidAmount('')
-    setCustomAmount('')
-    setObservation('')
-    setCorrectionModalEntryId(null)
-    setCorrectionModalNote('')
-    setResolveModalEntryId(null)
-    setResolveModalNote('')
-    setEditCorrectionModalEntryId(null)
-    setEditCorrectionModalNote('')
-    setEditResolvedModalEntryId(null)
-    setEditResolvedModalNote('')
-  }
-
-  const handleSaveCorrection = async (
-    entryId: string,
-    pending: boolean,
-    note: string | null,
-    resolved: boolean,
-    resolvedNote?: string | null
-  ) => {
-    setSavingCorrectionId(entryId)
-    try {
-      await fetch('/api/entries/correction', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryId, correctionPending: pending, correctionNote: note, correctionResolved: resolved, correctionResolvedNote: resolvedNote ?? null }),
-      })
-      setCorrectionModalEntryId(null)
-      setCorrectionModalNote('')
-      setResolveModalEntryId(null)
-      setResolveModalNote('')
-      onUpdate?.()
-    } finally {
-      setSavingCorrectionId(null)
-    }
-  }
-
-  const getCalculatedAmount = (entry: Entry) => {
-    if (!entry.duration) return 0
-    return (entry.duration / 3600) * hourlyRate
-  }
-
-  const handleSaveJobInfo = async (entry: Entry) => {
-    setIsSavingJob(true)
-    try {
-      // NO recalcular calculatedAmount — preservar el valor histórico guardado en BD
-      // (puede estar a $25 o $30 según cuándo se creó la entrada)
-      const res = await fetch(`/api/entries?id=${entry.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobNumber,
-          vehicle: vehicleValue || null,
-          serviceType: serviceTypeValue || null,
-          observation: observation || null,
-          paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
-          calculatedAmount: customAmount ? Number.parseFloat(customAmount) : undefined,
-          startTime: entry.startTime,
-          endTime: entry.endTime
-        })
-      })
-      
-      const data = await res.json()
-      
-      if (data.success) {
-        closeJobExpansion()
-        onUpdate?.()
-      } else {
-        alert(data.error || 'Error al guardar')
-      }
-    } catch (error) {
-      console.error('Error saving job info:', error)
-      alert('Error al guardar información del trabajo')
-    } finally {
-      setIsSavingJob(false)
-    }
-  }
-
-  const handleSaveEdit = async (entry: Entry) => {
-    if (!editStartTime || !editEndTime || !editDate) return
-    
-    setIsSaving(true)
-    try {
-      // Usar la fecha editada por el usuario
-      const [year, month, day] = editDate.split('-').map(Number)
-      const entryDate = new Date(year, month - 1, day)
-      
-      const [startH, startM] = editStartTime.split(':').map(Number)
-      const [endH, endM] = editEndTime.split(':').map(Number)
-      
-      const newStart = new Date(entryDate)
-      newStart.setHours(startH, startM, 0, 0)
-      
-      const newEnd = new Date(entryDate)
-      newEnd.setHours(endH, endM, 0, 0)
-      
-      // Si el fin es antes que el inicio, asumir día siguiente
-      if (newEnd <= newStart) {
-        newEnd.setDate(newEnd.getDate() + 1)
-      }
-      
-      const res = await fetch(`/api/entries?id=${entry.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startTime: newStart.toISOString(),
-          endTime: newEnd.toISOString()
-        })
-      })
-      
-      const data = await res.json()
-      
-      if (data.success) {
-        cancelEditing()
-        // Actualizar customAmount con el nuevo valor calculado por el servidor
-        // para que el panel de detalles refleje el monto correcto al instante
-        if (data.data?.calculatedAmount != null) {
-          setCustomAmount((data.data.calculatedAmount as number).toFixed(2))
-        }
-        onUpdate?.()
-      } else {
-        alert(data.error || 'Error al guardar')
-      }
-    } catch (error) {
-      console.error('Error updating entry:', error)
-      alert('Error al actualizar la entrada')
-    } finally {
-      setIsSaving(false)
-    }
+  const handleOpen = (entry: Entry, startEditing: boolean) => {
+    setOpenInEditMode(startEditing)
+    setSelectedEntry(entry)
   }
 
   if (entries.length === 0) {
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white px-4 py-8 text-center">
-        <Clock className="h-8 w-8 text-[rgba(55,53,47,0.2)] mx-auto mb-2" />
+        <Clock className="mx-auto mb-2 h-8 w-8 text-[rgba(55,53,47,0.2)]" />
         <p className="text-[14px] text-[#787774]">{title}</p>
-        <p className="text-[13px] text-[rgba(55,53,47,0.4)] mt-1">No hay entradas registradas</p>
+        <p className="mt-1 text-[13px] text-[rgba(55,53,47,0.4)]">No hay entradas registradas</p>
       </div>
     )
   }
 
   const totalDuration = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
+  const totalAmount = entries.reduce((sum, e) => sum + getCalculatedAmount(e, hourlyRate), 0)
 
   return (
-    <div className={`overflow-hidden rounded-[6px] transition-all duration-200 ${isExpanded ? 'bg-white shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
-      <button
-        type="button"
-        className={`w-full flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] transition-colors ${isExpanded ? 'bg-emerald-50 hover:bg-emerald-50' : 'hover:bg-gray-100'}`}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-2">
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-[#787774]" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-[#787774]" />
-          )}
-          <Clock className="h-3.5 w-3.5 text-[#787774]" />
-          <span className="text-[14px] font-medium text-[#37352f]">{title}</span>
-          <span className="px-1.5 py-0.5 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[11px] font-mono rounded-[3px]">{entries.length}</span>
-        </div>
-        {!isExpanded && (
-          <div className="flex items-center gap-2 text-[13px] text-[#787774]">
-            <span className="font-mono">{formatDuration(totalDuration)}</span>
-            <span>·</span>
-            <span>{formatCurrency(entries.reduce((s, e) => s + (e.calculatedAmount ?? ((e.duration ?? 0) / 3600 * hourlyRate)), 0))}</span>
-          </div>
-        )}
-      </button>
-      
-      {isExpanded && (
-        <div className="divide-y divide-[rgba(55,53,47,0.09)]">
-          {entries.map((entry) => renderEntryRow(entry))}
-        </div>
-      )}
-    </div>
-  )
-
-  function renderRowActions(entry: Entry) {
-    if (!entry.endTime || entry.duration === null) return null
-    if (editingId === entry.id) {
-      return (
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => handleSaveEdit(entry)}
-            disabled={isSaving}
-            className="p-2 text-white bg-[#37352f] hover:bg-[#2f2d28] rounded-lg transition-colors disabled:opacity-50 touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
-          >
-            <Check className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={cancelEditing}
-            disabled={isSaving}
-            className="p-2 text-[#787774] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )
-    }
-    return (
-      <div className="flex items-center gap-0.5">
+    <>
+      <div className={`overflow-hidden rounded-[6px] transition-all duration-200 ${isExpanded ? 'bg-white shadow-md ring-2 ring-emerald-400' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); startEditing(entry) }}
-          className="p-2 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
+          className={`flex w-full items-center justify-between border-b border-[rgba(55,53,47,0.09)] px-4 py-3 transition-colors touch-manipulation ${isExpanded ? 'bg-emerald-50 hover:bg-emerald-50' : 'hover:bg-gray-100'}`}
+          onClick={() => setIsExpanded(!isExpanded)}
         >
-          <Pencil className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); handleDelete(entry.id) }}
-          className="p-2 text-[#787774] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.08)] rounded-lg transition-colors touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-    )
-  }
-
-  function renderTimeCell(entry: Entry) {
-    if (editingId === entry.id) {
-      return (
-        <div className="flex flex-col gap-2">
-          <input
-            type="date"
-            value={editDate}
-            onChange={(e) => setEditDate(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            className="px-2 py-1.5 text-sm border rounded w-full sm:w-36"
-            style={{ fontSize: '16px' }}
-          />
-          <div className="flex items-center gap-1 sm:gap-2">
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{2}:[0-9]{2}"
-              placeholder="HH:MM"
-              value={editStartTime}
-              onChange={(e) => {
-                let val = e.target.value.replaceAll(/[^0-9:]/g, '')
-                if (val.length === 2 && !val.includes(':')) val += ':'
-                if (val.length <= 5) setEditStartTime(val)
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
-              style={{ fontSize: '16px' }}
-            />
-            <span className="text-gray-400 text-xs flex-shrink-0">-</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{2}:[0-9]{2}"
-              placeholder="HH:MM"
-              value={editEndTime}
-              onChange={(e) => {
-                let val = e.target.value.replaceAll(/[^0-9:]/g, '')
-                if (val.length === 2 && !val.includes(':')) val += ':'
-                if (val.length <= 5) setEditEndTime(val)
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="px-1 sm:px-2 py-1.5 text-sm border rounded w-[72px] sm:w-20 text-center"
-              style={{ fontSize: '16px' }}
-            />
-          </div>
-        </div>
-      )
-    }
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-[13px] text-[#37352f] font-mono">
-          {formatTimeInFlorida(entry.startTime)}
-          <span className="text-[#787774] mx-1">→</span>
-          {entry.endTime
-            ? formatTimeInFlorida(entry.endTime)
-            : <span className="text-[#787774] animate-pulse">En progreso...</span>}
-        </span>
-      </div>
-    )
-  }
-
-  function renderEditCorrectionModals(entry: Entry) {
-    return (
-      <>
-        {editCorrectionModalEntryId === entry.id && (
-          <div className="mt-2 bg-orange-50 border border-orange-300 rounded-xl p-3 space-y-2">
-            <p className="text-xs font-semibold text-orange-800">Editar nota de corrección</p>
-            <textarea
-              className="w-full text-xs border border-orange-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white"
-              rows={2}
-              placeholder="Ej: El monto recibido no coincide, falta $X..."
-              value={editCorrectionModalNote}
-              onChange={e => setEditCorrectionModalNote(e.target.value)}
-              style={{ fontSize: '16px' }}
-            />
-            <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setEditCorrectionModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button
-                type="button"
-                disabled={!!savingCorrectionId}
-                onClick={() => handleSaveCorrection(entry.id, true, editCorrectionModalNote.trim() || null, false)}
-                className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-600 font-semibold"
-              >
-                {savingCorrectionId ? 'Guardando...' : 'Guardar cambios'}
-              </button>
-            </div>
-          </div>
-        )}
-        {editResolvedModalEntryId === entry.id && (
-          <div className="mt-2 bg-blue-50 border border-blue-300 rounded-xl p-3 space-y-2">
-            <p className="text-xs font-semibold text-blue-800">Editar nota de resolución</p>
-            <textarea
-              className="w-full text-xs border border-blue-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
-              rows={2}
-              placeholder="Ej: Lo pusieron en la semana 18, pago del viernes..."
-              value={editResolvedModalNote}
-              onChange={e => setEditResolvedModalNote(e.target.value)}
-              style={{ fontSize: '16px' }}
-            />
-            <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setEditResolvedModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button
-                type="button"
-                disabled={!!savingCorrectionId}
-                onClick={() => handleSaveCorrection(entry.id, false, null, true, editResolvedModalNote.trim() || null)}
-                className="text-xs px-3 py-1 rounded-full bg-blue-500 text-white hover:bg-blue-600 font-semibold"
-              >
-                {savingCorrectionId ? 'Guardando...' : 'Guardar cambios'}
-              </button>
-            </div>
-          </div>
-        )}
-      </>
-    )
-  }
-
-  function renderCorrectionBadge(entry: Entry) {
-    if (entry.correctionPending && !entry.correctionResolved) {
-      return (
-        <span className="inline-flex items-center gap-0.5 mt-1 text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full border border-orange-300">
-          <AlertTriangle className="h-2.5 w-2.5" />
-          CORRECCIÓN{entry.jobNumber ? ` #${entry.jobNumber}` : ''}
-        </span>
-      )
-    }
-    if (entry.correctionResolved) {
-      return (
-        <span className="inline-flex items-center gap-0.5 mt-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full border border-blue-300">
-          <BadgeCheck className="h-2.5 w-2.5" />
-          CORREGIDO{entry.jobNumber ? ` #${entry.jobNumber}` : ''}
-        </span>
-      )
-    }
-    return null
-  }
-
-  function renderEntryRow(entry: Entry) {
-    const isJobExpanded = expandedJobId === entry.id
-    const calculatedAmount = entry.calculatedAmount ?? getCalculatedAmount(entry)
-    const displayAmount = isJobExpanded && customAmount ? Number.parseFloat(customAmount) || calculatedAmount : calculatedAmount
-    const paid = paidAmount ? Number.parseFloat(paidAmount) : 0
-    const difference = paid - displayAmount
-    const isPositive = difference >= 0
-    const isClickable = !!(entry.endTime && entry.duration !== null && editingId !== entry.id)
-
-    const preview = computeEditPreview(entry.id, editingId, editDate, editStartTime, editEndTime, hourlyRate)
-
-    // Vista del lado derecho (duración + monto)
-    const storedCalc = entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
-    const durationDisplay = buildDurationDisplay(entry, preview, storedCalc)
-
-    const rowBaseClass = `flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 gap-2 transition-colors ${isJobExpanded ? 'bg-gray-200 hover:bg-gray-200' : 'hover:bg-[rgba(55,53,47,0.04)]'}`
-
-    const rowContent = (
-      <>
-        <div className="flex-1 min-w-0">
-          {showDate && (
-            <div className="text-xs text-gray-500 mb-1">
-              {formatShortDateFlorida(entry.date)}
-            </div>
-          )}
-          {renderTimeCell(entry)}
-          {renderCorrectionBadge(entry)}
-        </div>
-        <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-2">
-          <div className="text-right flex-1 min-w-0">
-            {durationDisplay}
-          </div>
-          <div className="flex items-center flex-shrink-0 ml-1">
-              {renderRowActions(entry)}
-            </div>
-        </div>
-      </>
-    )
-
-    return (
-      <div key={entry.id} className="space-y-0">
-        {isClickable ? (
-          <button
-            type="button"
-            className={`${rowBaseClass} w-full text-left active:scale-[0.98] active:bg-gray-100 touch-manipulation`}
-            onClick={() => onEntryModal ? onEntryModal(entry) : toggleJobExpansion(entry)}
-          >
-            {rowContent}
-          </button>
-        ) : (
-          <div className={rowBaseClass}>
-            {rowContent}
-          </div>
-        )}
-
-        {/* Panel expandido inline */}
-        {isJobExpanded && (
-          <div className="bg-gray-200 border-t border-[rgba(55,53,47,0.09)] px-4 py-3 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor={`job-${entry.id}`} className="text-[12px] text-[#787774]">Job #</label>
-                <input
-                  id={`job-${entry.id}`}
-                  type="text"
-                  inputMode="numeric"
-                  value={jobNumber}
-                  onChange={(e) => setJobNumber(e.target.value)}
-                  placeholder="123456"
-                  className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none text-[#37352f]"
-                  style={{ fontSize: '16px' }}
-                />
-              </div>
-              <div>
-                <label htmlFor={`vehicle-${entry.id}`} className="text-[12px] text-[#787774]">Vehículo</label>
-                <select
-                  id={`vehicle-${entry.id}`}
-                  value={vehicleValue}
-                  onChange={(e) => setVehicleValue(e.target.value)}
-                  className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none text-[#37352f]"
-                  style={{ fontSize: '16px' }}
-                >
-                  <option value="">Ninguno</option>
-                  <option value="sprinter">Sprinter</option>
-                  <option value="mini-bus">Mini Bus</option>
-                  <option value="motorcoach">Motorcoach</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor={`service-${entry.id}`} className="text-[12px] text-[#787774]">Tipo de servicio</label>
-              <select
-                id={`service-${entry.id}`}
-                value={serviceTypeValue}
-                onChange={(e) => setServiceTypeValue(e.target.value)}
-                className="mt-1 w-full px-2 py-1.5 text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-[4px] focus:border-[#37352f] focus:outline-none text-[#37352f]"
-                style={{ fontSize: '16px' }}
-              >
-                <option value="">Sin especificar</option>
-                <option value="point-to-point">P2P (Point to Point)</option>
-                <option value="hourly">Hourly</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between bg-white rounded-[4px] px-3 py-2.5 border border-[rgba(55,53,47,0.09)]">
-              <div>
-                <label htmlFor={`calc-${entry.id}`} className="text-[12px] text-[#787774]">Calculado</label>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-[13px] text-[#787774]">$</span>
-                  <input
-                    id={`calc-${entry.id}`}
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                    className="w-20 px-2 py-1 bg-[rgba(55,53,47,0.04)] rounded-[4px] text-right text-[13px] font-semibold focus:outline-none focus:border-[#37352f] border border-transparent focus:border text-[#37352f]"
-                    style={{ fontSize: '16px' }}
-                  />
-                </div>
-              </div>
-              <div className="text-right">
-                <label htmlFor={`paid-${entry.id}`} className="text-[12px] text-[#787774]">Pagado</label>
-                <div className="flex items-center gap-1">
-                  <span className="text-[13px] text-[#787774]">$</span>
-                  <input
-                    id={`paid-${entry.id}`}
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    value={paidAmount}
-                    onChange={(e) => setPaidAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-20 px-2 py-1 bg-[rgba(55,53,47,0.04)] rounded-[4px] text-right text-[13px] focus:outline-none focus:border-[#37352f] border border-transparent focus:border"
-                    style={{ fontSize: '16px' }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {paidAmount && Number.parseFloat(paidAmount) > 0 && (
-              <div className={"text-center py-2 rounded-[4px] text-[13px] " + (isPositive ? 'bg-[rgba(55,53,47,0.06)] text-[#37352f]' : 'bg-[rgba(220,38,38,0.06)] text-[#dc2626]')}>
-                {difference >= 0 ? '+' : ''}{formatCurrency(difference)}
-              </div>
+          <div className="flex items-center gap-2">
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-[#787774]" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-[#787774]" />
             )}
-
-            <div>
-              <label htmlFor={`note-${entry.id}`} className="text-[12px] text-[#787774]">Nota</label>
-              {/* Vista previa tappable → abre bottom sheet */}
-              <button
-                type="button"
-                onClick={() => { setNoteSheetValue(observation); setNoteSheetOpen(true) }}
-                className="mt-1 w-full min-h-[52px] px-3 py-2 text-left text-[13px] bg-white border border-[rgba(55,53,47,0.16)] rounded-lg focus:outline-none text-[#37352f] touch-manipulation active:bg-gray-50 transition-colors"
-              >
-                {observation
-                  ? <span className="line-clamp-2 text-[#37352f]">{observation}</span>
-                  : <span className="text-[#ababab] italic">Toca para agregar nota...</span>}
-              </button>
-
-              {/* Bottom sheet para editar nota */}
-              {noteSheetOpen && (
-                <dialog
-                  open
-                  className="fixed inset-0 z-50 flex flex-col justify-end w-full h-full max-w-none max-h-none m-0 p-0 bg-transparent border-0"
-                  aria-label="Editor de nota"
-                >
-                  {/* Backdrop */}
-                  <button
-                    type="button"
-                    aria-label="Cerrar nota"
-                    className="absolute inset-0 bg-black/40 cursor-default"
-                    onClick={() => { setObservation(noteSheetValue); setNoteSheetOpen(false) }}
-                  />
-                  <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col">
-                    {/* Handle */}
-                    <div className="flex justify-center pt-3 pb-1">
-                      <div className="w-10 h-1 bg-gray-300 rounded-full" />
-                    </div>
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-                      <span className="text-[15px] font-semibold text-[#37352f]">Nota del trabajo</span>
-                      <button
-                        type="button"
-                        onClick={() => { setObservation(noteSheetValue); setNoteSheetOpen(false) }}
-                        className="px-4 py-2 font-semibold text-[13px] bg-[#37352f] text-white rounded-lg touch-manipulation"
-                      >
-                        Listo
-                      </button>
-                    </div>
-                    {/* Textarea */}
-                    <textarea
-                      ref={noteSheetRef}
-                      value={noteSheetValue}
-                      onChange={(e) => setNoteSheetValue(e.target.value)}
-                      placeholder="Escribe tu nota aquí..."
-                      className="flex-1 w-full px-4 py-3 text-[15px] text-[#37352f] placeholder-[#ababab] resize-none focus:outline-none"
-                      style={{ minHeight: '180px', fontSize: '16px' }}
-                    />
-                    {/* Contador + borrar */}
-                    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
-                      <span className="text-[12px] text-[#787774]">{noteSheetValue.length} caracteres</span>
-                      {noteSheetValue && (
-                        <button
-                          type="button"
-                          onClick={() => setNoteSheetValue('')}
-                          className="text-[12px] text-red-500 touch-manipulation"
-                        >
-                          Borrar nota
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </dialog>
-              )}
+            <Clock className="h-3.5 w-3.5 text-[#787774]" />
+            <span className="text-[14px] font-medium text-[#37352f]">{title}</span>
+            <span className="rounded-[3px] bg-[rgba(55,53,47,0.08)] px-1.5 py-0.5 font-mono text-[11px] text-[#37352f]">
+              {entries.length}
+            </span>
+          </div>
+          {!isExpanded && (
+            <div className="flex items-center gap-2 text-[13px] text-[#787774]">
+              <span className="font-mono">{formatDuration(totalDuration)}</span>
+              <span>·</span>
+              <span>{formatCurrency(totalAmount)}</span>
             </div>
+          )}
+        </button>
 
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={closeJobExpansion}
-                className="flex-1 py-2 text-[13px] text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSaveJobInfo(entry)}
-                disabled={isSavingJob}
-                className="flex-1 py-2 text-[13px] bg-[#37352f] text-white hover:bg-[#2f2d28] rounded-[4px] transition-colors disabled:opacity-50"
-              >
-                {isSavingJob ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-
-            {/* Sección de correcciones */}
-            <div className="border-t border-[rgba(55,53,47,0.09)] pt-2 mt-1">
-              <p className="text-[11px] text-[#787774] uppercase tracking-wide mb-1.5 font-semibold">Correcciones</p>
-              <div className="flex flex-wrap gap-1.5">
-                {!entry.correctionResolved && (
-                  <button
-                    type="button"
-                    disabled={!!savingCorrectionId}
-                    onClick={() => {
-                      if (entry.correctionPending) {
-                        handleSaveCorrection(entry.id, false, null, false)
-                      } else {
-                        setCorrectionModalEntryId(entry.id)
-                        setCorrectionModalNote('')
-                      }
-                    }}
-                    className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1 touch-manipulation transition-colors ${
-                      entry.correctionPending
-                        ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
-                        : 'bg-white border border-gray-300 text-gray-500 hover:border-orange-300 hover:text-orange-700'
-                    }`}
-                  >
-                    {savingCorrectionId === entry.id && <span className="animate-pulse">...</span>}
-                    {savingCorrectionId !== entry.id && entry.correctionPending && <><X className="h-3 w-3" /> Quitar corrección</>}
-                    {savingCorrectionId !== entry.id && !entry.correctionPending && <><AlertTriangle className="h-3 w-3" /> Marcar corrección</>}
-                  </button>
-                )}
-                {entry.correctionPending && !entry.correctionResolved && (
-                  <button
-                    type="button"
-                    disabled={!!savingCorrectionId}
-                    onClick={() => { setResolveModalEntryId(entry.id); setResolveModalNote('') }}
-                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1 bg-blue-500 text-white hover:bg-blue-600 touch-manipulation"
-                  >
-                    <BadgeCheck className="h-3 w-3" /> Corregido
-                  </button>
-                )}
-                {entry.correctionResolved && (
-                  <button
-                    type="button"
-                    disabled={!!savingCorrectionId}
-                    onClick={() => handleSaveCorrection(entry.id, false, null, false, null)}
-                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1 bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 touch-manipulation"
-                  >
-                    <X className="h-3 w-3" /> Deshacer corrección
-                  </button>
-                )}
-              </div>
-              {entry.correctionPending && (
-                <div className="mt-1.5 flex items-start gap-1">
-                  <div className="flex-1 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1.5 italic">
-                    📝 {entry.correctionNote || '(sin nota)'}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setEditCorrectionModalEntryId(entry.id); setEditCorrectionModalNote(entry.correctionNote || '') }}
-                    className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg touch-manipulation flex-shrink-0"
-                    title="Editar nota de corrección"
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
-              {entry.correctionResolved && (
-                <div className="mt-1.5 flex items-start gap-1">
-                  <div className="flex-1 text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1">
-                    <BadgeCheck className="h-3 w-3 flex-shrink-0" />
-                    {entry.correctionResolvedNote ? entry.correctionResolvedNote : 'Corrección resuelta'}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setEditResolvedModalEntryId(entry.id); setEditResolvedModalNote(entry.correctionResolvedNote || '') }}
-                    className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg touch-manipulation flex-shrink-0"
-                    title="Editar nota de resolución"
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
-
-              {/* Modal inline: nueva corrección */}
-              {correctionModalEntryId === entry.id && (
-                <div className="mt-2 bg-orange-50 border border-orange-300 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-semibold text-orange-800">¿Por qué necesita corrección?</p>
-                  <textarea
-                    className="w-full text-xs border border-orange-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white"
-                    rows={2}
-                    placeholder="Ej: El monto recibido no coincide, falta $X..."
-                    value={correctionModalNote}
-                    onChange={e => setCorrectionModalNote(e.target.value)}
-                    style={{ fontSize: '16px' }}
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button type="button" onClick={() => setCorrectionModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
-                    <button
-                      type="button"
-                      disabled={!!savingCorrectionId}
-                      onClick={() => handleSaveCorrection(entry.id, true, correctionModalNote.trim() || null, false)}
-                      className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-600 font-semibold"
-                    >
-                      {savingCorrectionId ? 'Guardando...' : 'Marcar pendiente'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Modales de edición de notas */}
-              {renderEditCorrectionModals(entry)}
-
-              {/* Modal inline: resolver corrección */}
-              {resolveModalEntryId === entry.id && (
-                <div className="mt-2 bg-blue-50 border border-blue-300 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-semibold text-blue-800">¿Cómo se resolvió? (opcional)</p>
-                  <textarea
-                    className="w-full text-xs border border-blue-300 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
-                    rows={2}
-                    placeholder="Ej: Lo pusieron en la semana 18, pago del viernes..."
-                    value={resolveModalNote}
-                    onChange={e => setResolveModalNote(e.target.value)}
-                    style={{ fontSize: '16px' }}
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button type="button" onClick={() => setResolveModalEntryId(null)} className="text-xs px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
-                    <button
-                      type="button"
-                      disabled={!!savingCorrectionId}
-                      onClick={() => handleSaveCorrection(entry.id, false, null, true, resolveModalNote.trim() || null)}
-                      className="text-xs px-3 py-1 rounded-full bg-blue-500 text-white hover:bg-blue-600 font-semibold"
-                    >
-                      {savingCorrectionId ? 'Guardando...' : 'Confirmar corregido'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+        {isExpanded && (
+          <div className="grid grid-cols-1 gap-2.5 bg-[#fbfbfa] p-2.5 sm:grid-cols-2">
+            {entries.map((entry) => (
+              <EntryCard
+                key={entry.id}
+                entry={entry}
+                hourlyRate={hourlyRate}
+                showDate={showDate}
+                onOpen={handleOpen}
+              />
+            ))}
           </div>
         )}
       </div>
-    )
-  }
+
+      {selectedEntry && (
+        <EntryDetailModal
+          entry={selectedEntry as ModalEntry}
+          hourlyRate={hourlyRate}
+          startInEditMode={openInEditMode}
+          onClose={() => setSelectedEntry(null)}
+          onUpdate={handleRefresh}
+        />
+      )}
+    </>
+  )
 }

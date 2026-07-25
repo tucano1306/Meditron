@@ -6,7 +6,6 @@ import { formatCurrency, formatDuration, getMonthName, parseLocalDate, formatTim
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer, CheckCircle2, AlertTriangle, BadgeCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
-import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 
 const ITEMS_PER_PAGE = 5
 
@@ -50,7 +49,6 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [hourlyRate, setHourlyRate] = useState<number>(25)
-  const [selectedEntry, setSelectedEntry] = useState<ModalEntry | null>(null)
 
   const fetchWeeks = async () => {
     try {
@@ -228,7 +226,6 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
   }
 
   return (
-    <>
     <Card>
       <CardHeader className="px-3 sm:px-6">
         <div className="flex items-center justify-between">
@@ -335,7 +332,6 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                       onDelete={handleEntryDelete}
                       onUpdate={() => { fetchWeeks(); onRefresh?.(); }}
                       hourlyRate={hourlyRate}
-                      onEntryModal={(entry) => setSelectedEntry(entry)}
                     />
                   </div>
                 </div>
@@ -375,19 +371,5 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
         )}
       </CardContent>
     </Card>
-
-    {selectedEntry && (
-      <EntryDetailModal
-        entry={selectedEntry}
-        hourlyRate={hourlyRate}
-        onClose={() => setSelectedEntry(null)}
-        onUpdate={() => {
-          setSelectedEntry(null)
-          fetchWeeks()
-          onRefresh?.()
-        }}
-      />
-    )}
-  </>
   )
 }

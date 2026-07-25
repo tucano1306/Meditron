@@ -17,11 +17,18 @@ export async function GET(request: NextRequest) {
 
     const userId = authResult.user.id
     const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
     const weekId = searchParams.get('weekId')
     const date = searchParams.get('date')
     const jobNumber = searchParams.get('jobNumber')
 
     const where: Record<string, unknown> = { userId }
+
+    // Buscar una entrada concreta (usado por el modal de detalle al refrescar
+    // tras guardar). Sin este filtro se devolvían TODAS las entradas del usuario.
+    if (id) {
+      where.id = id
+    }
 
     if (weekId) {
       where.weekId = weekId
