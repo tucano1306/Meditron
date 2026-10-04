@@ -78,6 +78,17 @@ async function _findOrCreateWeek(weekNumber: number, year: number, month: number
 }
 
 export async function updateWeekTotals(weekId: string, userId: string) {
+  // Si la semana se quedó sin ninguna entrada (se borró o se movió la última),
+  // se elimina. Las semanas se crean bajo demanda, así que vuelve a aparecer
+  // si entra un trabajo nuevo. La condición va en el propio DELETE para que
+  // nunca se borre una semana que tenga entradas (incluido un timer en curso).
+  const { count: deletedWeeks } = await prisma.week.deleteMany({
+    where: { id: weekId, userId, entries: { none: {} } }
+  })
+  if (deletedWeeks > 0) {
+    return { totalHours: 0, earnings: 0 }
+  }
+
   const entries = await prisma.timeEntry.findMany({
     where: {
       weekId,

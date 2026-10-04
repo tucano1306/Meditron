@@ -310,9 +310,10 @@ interface WeekStatusBadgeProps {
   hasPendingCorrections: boolean
   hasResolvedCorrections: boolean
   allPaid: boolean
+  hasCompletedEntries: boolean
 }
 
-function WeekStatusBadge({ hasPendingCorrections, hasResolvedCorrections, allPaid }: Readonly<WeekStatusBadgeProps>) {
+function WeekStatusBadge({ hasPendingCorrections, hasResolvedCorrections, allPaid, hasCompletedEntries }: Readonly<WeekStatusBadgeProps>) {
   if (hasPendingCorrections) {
     return (
       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300">
@@ -338,9 +339,20 @@ function WeekStatusBadge({ hasPendingCorrections, hasResolvedCorrections, allPai
       </span>
     )
   }
+  // Nada terminado todavía (p. ej. solo un timer en curso): nada que revisar
+  if (!hasCompletedEntries) return null
   return (
     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300">
       SIN REVISAR
+    </span>
+  )
+}
+
+function RunningBadge({ jobNumber }: { readonly jobNumber: string | null }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      EN CURSO{jobNumber ? ` #${jobNumber}` : ''}
     </span>
   )
 }
@@ -565,6 +577,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
             const isExpanded = expandedWeek === week.id
             const hasPendingCorrections = week.entries.some(e => e.correctionPending)
             const hasResolvedCorrections = week.entries.some(e => e.correctionResolved)
+            const runningEntry = week.entries.find(e => e.endTime === null)
             const weekCardClass = weekCardClassName(isExpanded)
             const weekButtonClass = weekButtonClassName(isExpanded)
 
@@ -588,7 +601,9 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                           hasPendingCorrections={hasPendingCorrections}
                           hasResolvedCorrections={hasResolvedCorrections}
                           allPaid={allPaid}
+                          hasCompletedEntries={completedEntries.length > 0}
                         />
+                        {runningEntry && <RunningBadge jobNumber={runningEntry.jobNumber} />}
                       </div>
                       <div className="text-[10px] sm:text-xs text-gray-500 flex flex-wrap items-center gap-1 mt-0.5">
                         <span className="bg-blue-100 text-blue-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">
@@ -742,7 +757,9 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                       </div>
                     ) : (
                       <div className="px-3 py-4 text-center text-xs text-gray-400">
-                        No hay trabajos registrados en esta semana
+                        {runningEntry
+                          ? `Trabajo${runningEntry.jobNumber ? ` #${runningEntry.jobNumber}` : ''} en curso — aparecerá aquí al detener el cronómetro`
+                          : 'No hay trabajos registrados en esta semana'}
                       </div>
                     )}
 

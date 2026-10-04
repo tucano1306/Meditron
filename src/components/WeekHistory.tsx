@@ -253,6 +253,8 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
             const allPaid = paidEntryCount === completedEntries.length && completedEntries.length > 0
             const hasPendingCorrections = completedEntries.some(e => e.correctionPending)
             const hasResolvedCorrections = completedEntries.some(e => e.correctionResolved)
+            // Timer sin detener: la semana existe pero sus horas aún no cuentan
+            const runningEntry = week.entries.find(e => e.endTime === null)
 
             let statusBadge: React.ReactNode
             if (hasPendingCorrections) {
@@ -277,6 +279,9 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                 </span>
               )
+            } else if (completedEntries.length === 0) {
+              // Nada terminado todavía: no hay nada que revisar
+              statusBadge = null
             } else {
               statusBadge = (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300">
@@ -302,6 +307,12 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
                     <div className="font-semibold text-sm sm:text-base truncate flex items-center gap-1.5 flex-wrap">
                       Sem {week.weekNumber} - {getMonthName(week.month)}
                       {statusBadge}
+                      {runningEntry && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          EN CURSO{runningEntry.jobNumber ? ` #${runningEntry.jobNumber}` : ''}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[10px] sm:text-xs text-gray-500 flex flex-wrap items-center gap-1">
                       <span className="bg-blue-100 text-blue-700 px-1 sm:px-1.5 py-0.5 rounded font-medium">

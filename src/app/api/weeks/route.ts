@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year')
     const month = searchParams.get('month')
 
-    const where: Record<string, unknown> = { userId }
+    // Nunca devolver semanas sin entradas (no tienen nada que mostrar)
+    const where: Record<string, unknown> = { userId, entries: { some: {} } }
 
     if (year) {
       where.year = Number.parseInt(year, 10)
