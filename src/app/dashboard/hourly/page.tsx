@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { Timer } from '@/components/Timer'
@@ -104,7 +104,10 @@ function CompanySwitcher({ value, onChange, runningCompany, hourlyRate }: Compan
             <div className="text-[14px] font-semibold leading-tight">{COMPANIES[id].name}</div>
             <div className={`text-[11px] mt-0.5 ${active ? 'text-white/70' : 'text-[#787774]'}`}>{subtitle(id)}</div>
             {runningCompany === id && (
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-label="Trabajo en curso" />
+              <div className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold ${active ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Turno en curso
+              </div>
             )}
           </button>
         )
@@ -121,6 +124,8 @@ export default function HourlyDashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [company, setCompany] = useState<CompanyId>('larrys')
+  // Al abrir la app con un turno en curso se muestra la compañía de ese turno
+  const followedRunningEntry = useRef(false)
 
   // Recordar la última compañía elegida en este dispositivo
   useEffect(() => {
@@ -145,6 +150,11 @@ export default function HourlyDashboardPage() {
       if (result.success) {
         setData(result.data)
         setError(null)
+        if (!followedRunningEntry.current) {
+          followedRunningEntry.current = true
+          const running: CompanyId | null = result.data.runningCompany
+          if (running) setCompany(running)
+        }
       } else {
         setError(result.error || 'Error al cargar datos')
       }
@@ -273,6 +283,7 @@ export default function HourlyDashboardPage() {
             company={company}
             tecnofuelPriorSeconds={data.tecnofuel.completedSeconds}
             onCompanyChange={handleEntryUpdate}
+            onSwitchView={handleCompanyChange}
             onRateChange={(newRate) => {
               setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
               fetchDashboard()
