@@ -12,13 +12,17 @@ import { RateCalculator } from '@/components/RateCalculator'
 import { JobSearch } from '@/components/JobSearch'
 import { HourlyEntrySearch } from '@/components/HourlyEntrySearch'
 import { InstallPWA } from '@/components/InstallPWA'
-import { TecnofuelPanel } from '@/components/TecnofuelPanel'
+import { CompanyHoursPanel } from '@/components/CompanyHoursPanel'
+import { CompanyManager } from '@/components/CompanyManager'
 import { ExportCard } from '@/components/ExportCard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Search } from 'lucide-react'
-import { COMPANIES, COMPANY_IDS, isCompanyId, type CompanyId, type OvertimeRules } from '@/lib/companies'
+import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Search, Settings2 } from 'lucide-react'
+import { describeRule, ruleFor, weekLabel, weekShortLabel, type Company, type OvertimeRules } from '@/lib/companies'
+import { saveCompanyRate } from '@/lib/company-client'
+import { getFloridaDateString } from '@/lib/utils'
+import { refreshCompanies, useCompanies } from '@/hooks/useCompanies'
 
-const COMPANY_STORAGE_KEY = 'meditron_company'
+const COMPANY_STORAGE_KEY = 'meditron_company_id'
 
 interface DashboardData {
   timerState: {
@@ -63,8 +67,10 @@ interface DashboardData {
     earnings: number
   }
   hourlyRate: number
-  runningCompany: CompanyId | null
-  tecnofuel: {
+  companyId: string
+  runningCompanyId: string | null
+  overtime: {
+    kind: 'week' | 'day' | 'entry'
     periodStart: string
     periodEnd: string
     completedSeconds: number
@@ -72,46 +78,68 @@ interface DashboardData {
   }
 }
 
+/**
+ * Vista con pestañas de trabajos (Hoy, Semanas, Resumen, Calc, Buscar): para
+ * compañías por hora que registran trabajos con semana de lunes a domingo (esas
+ * pestañas agrupan así). Las demás usan la vista de horas por semana de pago.
+ */
+function usesJobsView(company: Company, today: string): boolean {
+  return ruleFor(company, today).payType === 'hourly'
+    && (company.trackJobNumber || company.trackCompanyPaid)
+    && company.weekStartsOn === 1
+}
+
 interface CompanySwitcherProps {
-  readonly value: CompanyId
-  readonly onChange: (company: CompanyId) => void
-  readonly runningCompany: CompanyId | null
-  readonly hourlyRate: number
+  readonly companies: Company[]
+  readonly value: string
+  readonly onChange: (companyId: string) => void
+  readonly runningCompanyId: string | null
+  readonly onManage: () => void
 }
 
 // Elige qué compañía se ve (y con cuál se inicia el próximo trabajo)
-function CompanySwitcher({ value, onChange, runningCompany, hourlyRate }: CompanySwitcherProps) {
-  const subtitle = (id: CompanyId) => {
-    const rules = COMPANIES[id].overtime
-    const week = id === 'tecnofuel' ? 'Dom–Sáb' : 'Lun–Dom'
-    return rules
-      ? `${week} · $${rules.baseRate}/h · +${rules.thresholdHours}h a ${rules.multiplier}x`
-      : `${week} · $${hourlyRate}/h por trabajo`
-  }
+function CompanySwitcher({ companies, value, onChange, runningCompanyId, onManage }: CompanySwitcherProps) {
+  const today = getFloridaDateString()
   return (
-    <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Compañía">
-      {COMPANY_IDS.map(id => {
-        const active = value === id
-        return (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(id)}
-            className={`relative rounded-xl px-3 py-3 text-left transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white shadow-sm' : 'bg-white text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.04)]'}`}
-          >
-            <div className="text-[14px] font-semibold leading-tight">{COMPANIES[id].name}</div>
-            <div className={`text-[11px] mt-0.5 ${active ? 'text-white/70' : 'text-[#787774]'}`}>{subtitle(id)}</div>
-            {runningCompany === id && (
-              <div className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold ${active ? 'text-emerald-300' : 'text-emerald-700'}`}>
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Turno en curso
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-medium uppercase tracking-wide text-[#787774]">Compañía</span>
+        <button
+          type="button"
+          onClick={onManage}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-[4px] text-[12px] font-semibold text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] transition-colors touch-manipulation"
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          Configurar
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Compañía">
+        {companies.map(company => {
+          const active = value === company.id
+          return (
+            <button
+              key={company.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onChange(company.id)}
+              className={`relative overflow-hidden rounded-xl pl-4 pr-3 py-3 text-left transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white shadow-sm' : 'bg-white text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.04)]'}`}
+            >
+              <span className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: company.color }} />
+              <div className="text-[14px] font-semibold leading-tight truncate">{company.name}</div>
+              <div className={`text-[11px] mt-0.5 ${active ? 'text-white/70' : 'text-[#787774]'}`}>
+                {weekShortLabel(company.weekStartsOn)} · {describeRule(ruleFor(company, today))}
               </div>
-            )}
-          </button>
-        )
-      })}
+              {runningCompanyId === company.id && (
+                <div className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold ${active ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Turno en curso
+                </div>
+              )}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -123,37 +151,45 @@ export default function HourlyDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [company, setCompany] = useState<CompanyId>('larrys')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [managerOpen, setManagerOpen] = useState(false)
   // Al abrir la app con un turno en curso se muestra la compañía de ese turno
   const followedRunningEntry = useRef(false)
 
-  // Recordar la última compañía elegida en este dispositivo
+  const companies = useCompanies()
+  const activeCompanies = companies?.filter(c => !c.archived) ?? []
+  const company = activeCompanies.find(c => c.id === selectedId) ?? activeCompanies[0] ?? null
+  const companyId = company?.id ?? null
+
+  // Al entrar: compañías frescas (pudo cambiar el usuario) y la última elegida
   useEffect(() => {
+    refreshCompanies().catch(err => console.error('Error loading companies:', err))
     try {
       const saved = localStorage.getItem(COMPANY_STORAGE_KEY)
-      if (isCompanyId(saved)) setCompany(saved)
+      if (saved) setSelectedId(saved)
     } catch { /* sin almacenamiento disponible */ }
   }, [])
 
-  const handleCompanyChange = (next: CompanyId) => {
-    setCompany(next)
+  const handleCompanyChange = (next: string) => {
+    setSelectedId(next)
     try {
       localStorage.setItem(COMPANY_STORAGE_KEY, next)
     } catch { /* sin almacenamiento disponible */ }
   }
 
   const fetchDashboard = useCallback(async () => {
+    if (!companyId) return
     try {
-      const res = await fetch(`/api/dashboard?company=${company}`)
+      const res = await fetch(`/api/dashboard?companyId=${encodeURIComponent(companyId)}`)
       const result = await res.json()
-      
+
       if (result.success) {
         setData(result.data)
         setError(null)
         if (!followedRunningEntry.current) {
           followedRunningEntry.current = true
-          const running: CompanyId | null = result.data.runningCompany
-          if (running) setCompany(running)
+          const running: string | null = result.data.runningCompanyId
+          if (running && running !== companyId) setSelectedId(running)
         }
       } else {
         setError(result.error || 'Error al cargar datos')
@@ -164,7 +200,7 @@ export default function HourlyDashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [company])
+  }, [companyId])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -189,12 +225,23 @@ export default function HourlyDashboardPage() {
     setRefreshKey(prev => prev + 1) // Forzar refresh del resumen semanal
   }
 
+  // Cambiar la tarifa crea una versión nueva del esquema de pago desde esta semana
+  const handleSaveRate = async (rate: number): Promise<string | null> => {
+    if (!company) return 'No hay compañía seleccionada'
+    const saveError = await saveCompanyRate(company, rate)
+    if (!saveError) {
+      await refreshCompanies()
+      handleEntryUpdate()
+    }
+    return saveError
+  }
+
   const handleLogout = async () => {
     await signOut({ redirect: false })
     router.push('/login')
   }
 
-  if (status === 'loading' || isLoading) {
+  if (status === 'loading' || isLoading || !company) {
     return (
       <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
         <div className="w-5 h-5 border-2 border-[#37352f] border-t-transparent rounded-full animate-spin" />
@@ -225,6 +272,8 @@ export default function HourlyDashboardPage() {
   if (!data) {
     return null
   }
+
+  const today = getFloridaDateString()
 
   return (
     <div className="min-h-[100dvh] bg-[#ffffff] font-notion">
@@ -267,10 +316,11 @@ export default function HourlyDashboardPage() {
         {/* Compañía */}
         <section className="mb-4">
           <CompanySwitcher
-            value={company}
+            companies={activeCompanies}
+            value={company.id}
             onChange={handleCompanyChange}
-            runningCompany={data.runningCompany}
-            hourlyRate={data.hourlyRate}
+            runningCompanyId={data.runningCompanyId}
+            onManage={() => setManagerOpen(true)}
           />
         </section>
 
@@ -280,20 +330,16 @@ export default function HourlyDashboardPage() {
             onTimerStop={handleTimerStop}
             initialState={data.timerState}
             hourlyRate={data.hourlyRate}
-            company={company}
-            tecnofuelPriorSeconds={data.tecnofuel.completedSeconds}
+            companies={companies ?? []}
+            company={company.id}
+            overtime={data.companyId === company.id ? data.overtime : undefined}
             onCompanyChange={handleEntryUpdate}
             onSwitchView={handleCompanyChange}
-            onRateChange={(newRate) => {
-              setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
-              fetchDashboard()
-            }}
+            onSaveRate={handleSaveRate}
           />
         </section>
 
-        {company === 'tecnofuel' ? (
-          <TecnofuelPanel refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} />
-        ) : (
+        {usesJobsView(company, today) ? (
           <>
             {/* Summary Cards */}
             <section className="mb-6">
@@ -302,10 +348,7 @@ export default function HourlyDashboardPage() {
                 currentWeek={data.currentWeek}
                 monthSummary={data.monthSummary}
                 hourlyRate={data.hourlyRate}
-                onRateChange={(newRate) => {
-                  setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
-                  fetchDashboard()
-                }}
+                onSaveRate={handleSaveRate}
               />
             </section>
 
@@ -362,20 +405,20 @@ export default function HourlyDashboardPage() {
               <TabsContent value="weeks">
                 <div className="space-y-4">
                   <HourlyEntrySearch hourlyRate={data.hourlyRate} />
-                  <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} company="larrys" />
+                  <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} companyId={company.id} />
                 </div>
               </TabsContent>
 
               <TabsContent value="months">
                 <div className="space-y-4">
                   <HourlyEntrySearch hourlyRate={data.hourlyRate} />
-                  <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} company="larrys" />
-                  <ExportCard company="larrys" />
+                  <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} companyId={company.id} />
+                  <ExportCard company={company} />
                 </div>
               </TabsContent>
 
               <TabsContent value="calculator">
-                <RateCalculator onSave={fetchDashboard} hourlyRate={data.hourlyRate} />
+                <RateCalculator onSave={handleEntryUpdate} hourlyRate={data.hourlyRate} companyId={company.id} />
               </TabsContent>
 
               <TabsContent value="search">
@@ -383,12 +426,22 @@ export default function HourlyDashboardPage() {
               </TabsContent>
             </Tabs>
           </>
+        ) : (
+          <CompanyHoursPanel company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
         )}
 
         <footer className="text-center mt-8 text-[12px] text-[#787774] pb-8">
-          Las semanas de {COMPANIES[company].name} van de {COMPANIES[company].weekLabel}
+          Las semanas de pago de {company.name} van de {weekLabel(company.weekStartsOn)}
         </footer>
       </div>
+
+      {managerOpen && companies && (
+        <CompanyManager
+          companies={companies}
+          onClose={() => setManagerOpen(false)}
+          onChanged={handleEntryUpdate}
+        />
+      )}
 
       <InstallPWA />
     </div>

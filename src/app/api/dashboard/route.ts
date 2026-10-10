@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { HOURLY_RATE, getWeekStartEnd, getISOWeekAndYear, getFloridaDateComponents } from '@/lib/utils'
-import { COMPANIES, dateKeyToUTC, detectCompany, getPayPeriod, isCompanyId } from '@/lib/companies'
+import { getWeekStartEnd, getISOWeekAndYear, getFloridaDateComponents } from '@/lib/utils'
+import { dateKeyToUTC, getPayPeriod, overtimeRulesOf, payScopeOf, ruleFor } from '@/lib/companies'
+import { getUserCompanies } from '@/lib/company-store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,7 +21,8 @@ function sumHours(entries: DurationEntry[]): number {
   return entries.reduce((sum, e) => sum + (e.duration ?? 0), 0) / 3600
 }
 
-// GET - Dashboard con datos actuales (?company= filtra hoy/semana/mes por compañía)
+// GET - Dashboard de una compañía (?companyId=; por defecto la primera):
+// hoy, semana y mes solo con sus trabajos
 export async function GET(request: NextRequest) {
   try {
     const authResult = await validateSession()
@@ -29,11 +31,11 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = authResult.user.id
-    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
-    const companyParam = new URL(request.url).searchParams.get('company')
-    const company = isCompanyId(companyParam) ? companyParam : null
-    const ofCompany = <T extends { observation: string | null }>(list: T[]): T[] =>
-      company ? list.filter(e => detectCompany(e.observation) === company) : list
+    const companies = await getUserCompanies(userId)
+    const companyId = new URL(request.url).searchParams.get('companyId')
+    const company = companies.find(c => c.id === companyId) ?? companies.find(c => !c.archived) ?? companies[0]
+    const ofCompany = <T extends { companyId: string | null }>(list: T[]): T[] =>
+      list.filter(e => e.companyId === company.id)
 
     // Usar timestamp real y calcular componentes de Florida directamente
     // IMPORTANTE: No usar getFloridaDate() + getWeekNumber() porque causa doble conversión
@@ -70,17 +72,6 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Resumen del mes actual
-    const monthSummary = await prisma.monthSummary.findUnique({
-      where: {
-        year_month_userId: {
-          year,
-          month,
-          userId
-        }
-      }
-    })
-
     // Entradas de hoy - usar componentes de Florida para UTC midnight
     const todayLocal = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
     const tomorrowLocal = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day + 1))
@@ -104,35 +95,36 @@ export async function GET(request: NextRequest) {
       0
     )
     const todayHours = todayTotalSeconds / 3600
-    const todayEarnings = company ? sumEarnings(todayEntries, userHourlyRate) : todayHours * userHourlyRate
-
-    // Con compañía: semana y mes solo con sus trabajos y los totales recalculados
-    let weekData = currentWeek
-    let monthData: { year: number; month: number; totalHours: number; earnings: number } | null = monthSummary
-    if (company) {
-      if (currentWeek) {
-        const entries = ofCompany(currentWeek.entries)
-        const completed = entries.filter(e => e.duration !== null)
-        weekData = { ...currentWeek, entries, totalHours: sumHours(completed), earnings: sumEarnings(completed, userHourlyRate) }
-      }
-      const monthEntries = ofCompany(await prisma.timeEntry.findMany({
-        where: { userId, duration: { not: null }, week: { year, month } }
-      }))
-      monthData = { year, month, totalHours: sumHours(monthEntries), earnings: sumEarnings(monthEntries, userHourlyRate) }
-    }
-
-    // Horas de Tecnofuel ya cerradas en su semana de pago actual (domingo a sábado),
-    // para que el cronómetro calcule el overtime en vivo
     const todayKey = `${floridaComponents.year}-${String(floridaComponents.month).padStart(2, '0')}-${String(floridaComponents.day).padStart(2, '0')}`
-    const tecnofuelPeriod = getPayPeriod(todayKey, 'tecnofuel')
-    const tecnofuelEntries = (await prisma.timeEntry.findMany({
+    const currentRule = ruleFor(company, todayKey)
+    const hourlyRate = currentRule.hourlyRate
+    const todayEarnings = sumEarnings(todayEntries, hourlyRate)
+
+    // Semana y mes solo con los trabajos de la compañía y los totales recalculados
+    let weekData = currentWeek
+    if (currentWeek) {
+      const entries = ofCompany(currentWeek.entries)
+      const completed = entries.filter(e => e.duration !== null)
+      weekData = { ...currentWeek, entries, totalHours: sumHours(completed), earnings: sumEarnings(completed, hourlyRate) }
+    }
+    const monthEntries = ofCompany(await prisma.timeEntry.findMany({
+      where: { userId, duration: { not: null }, week: { year, month } }
+    }))
+    const monthData = { year, month, totalHours: sumHours(monthEntries), earnings: sumEarnings(monthEntries, hourlyRate) }
+
+    // Horas ya cerradas en el grupo de overtime actual (semana de pago o día),
+    // para que el cronómetro calcule el overtime en vivo
+    const scope = payScopeOf(company, todayKey, '')
+    const period = getPayPeriod(todayKey, company.weekStartsOn)
+    const overtimeEntries = scope.kind === 'entry' ? [] : await prisma.timeEntry.findMany({
       where: {
         userId,
+        companyId: company.id,
         endTime: { not: null },
-        date: { gte: dateKeyToUTC(tecnofuelPeriod.start), lte: dateKeyToUTC(tecnofuelPeriod.end) }
+        date: { gte: dateKeyToUTC(scope.start), lte: dateKeyToUTC(scope.end) }
       },
-      select: { duration: true, observation: true }
-    })).filter(e => detectCompany(e.observation) === 'tecnofuel')
+      select: { duration: true }
+    })
 
     // Estado del timer
     let timerState = {
@@ -161,12 +153,14 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         timerState,
-        runningCompany: activeEntry ? detectCompany(activeEntry.observation) : null,
-        tecnofuel: {
-          periodStart: tecnofuelPeriod.start,
-          periodEnd: tecnofuelPeriod.end,
-          completedSeconds: tecnofuelEntries.reduce((sum, e) => sum + (e.duration ?? 0), 0),
-          rules: COMPANIES.tecnofuel.overtime
+        companyId: company.id,
+        runningCompanyId: activeEntry?.companyId ?? null,
+        overtime: {
+          kind: scope.kind,
+          periodStart: period.start,
+          periodEnd: period.end,
+          completedSeconds: overtimeEntries.reduce((sum, e) => sum + (e.duration ?? 0), 0),
+          rules: overtimeRulesOf(currentRule)
         },
         today: {
           date: todayDateString,
@@ -185,13 +179,8 @@ export async function GET(request: NextRequest) {
           earnings: 0,
           entries: []
         },
-        monthSummary: monthData ?? {
-          year,
-          month,
-          totalHours: 0,
-          earnings: 0
-        },
-        hourlyRate: userHourlyRate
+        monthSummary: monthData,
+        hourlyRate
       }
     })
   } catch (error) {

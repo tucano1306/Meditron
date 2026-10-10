@@ -2,22 +2,20 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, ChevronLeft, Clock, Plus, Flame, FileText, X } from 'lucide-react'
-import { COMPANIES } from '@/lib/companies'
+import { overtimeRulesOf, weekLabel, type Company, type PayRule } from '@/lib/companies'
 import { floridaShiftToUTC, getFloridaDateString } from '@/lib/utils'
-import { formatKeyShort, formatTime12, hoursDecimal, money, noteWithoutTag } from '@/lib/report-format'
+import { formatKeyShort, formatTime12, hoursDecimal, money, noteText } from '@/lib/report-format'
 import type { PayPeriodSummary, PeriodEntry } from '@/lib/pay-periods'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 import { WeeklyPdfButton } from './WeeklyPdfButton'
 import { ExportCard } from './ExportCard'
 
 const ITEMS_PER_PAGE = 5
-const RULES = COMPANIES.tecnofuel.overtime ?? { baseRate: 28, thresholdHours: 40, multiplier: 1.5 }
-const OVERTIME_RATE = RULES.baseRate * RULES.multiplier
 
-interface TecnofuelPanelProps {
+interface CompanyHoursPanelProps {
+  readonly company: Company
   readonly refreshTrigger?: number
   readonly onRefresh?: () => void
-  readonly hourlyRate: number
 }
 
 interface PeriodsData {
@@ -27,8 +25,11 @@ interface PeriodsData {
 
 // ── Semana actual ─────────────────────────────────────────────────────────────
 
+/** Barra hacia el límite de overtime (solo con overtime semanal) */
 function OvertimeMeter({ period }: { readonly period: PayPeriodSummary }) {
-  const threshold = RULES.thresholdHours * 3600
+  const ot = overtimeRulesOf(period.rule)
+  if (!ot || period.rule.payType !== 'weekly_overtime') return null
+  const threshold = ot.thresholdHours * 3600
   const percent = Math.min(period.totalSeconds / threshold, 1) * 100
   const remaining = threshold - period.totalSeconds
   const inOvertime = remaining <= 0
@@ -44,10 +45,10 @@ function OvertimeMeter({ period }: { readonly period: PayPeriodSummary }) {
         <span>0 h</span>
         <span className={inOvertime ? 'font-semibold text-[#9a4a0b]' : ''}>
           {inOvertime
-            ? `${hoursDecimal(-remaining)} h en overtime (${RULES.multiplier}x)`
+            ? `${hoursDecimal(-remaining)} h en overtime (${ot.multiplier}x)`
             : `Faltan ${hoursDecimal(remaining)} h para overtime`}
         </span>
-        <span>{RULES.thresholdHours} h</span>
+        <span>{ot.thresholdHours} h</span>
       </div>
     </div>
   )
@@ -63,17 +64,34 @@ function Stat({ label, value, sub, accent = false }: { readonly label: string; r
   )
 }
 
+function rateLabel(rule: PayRule): { regular: string; extra: string | null } {
+  const ot = overtimeRulesOf(rule)
+  return {
+    regular: `Regular · $${rule.hourlyRate}`,
+    extra: ot ? `Extra · $${ot.baseRate * ot.multiplier}` : null,
+  }
+}
+
 function PayBreakdown({ period }: { readonly period: PayPeriodSummary }) {
+  const labels = rateLabel(period.rule)
+  if (!labels.extra && period.overtimeSeconds === 0) {
+    return (
+      <div className="grid grid-cols-2 divide-x divide-[rgba(55,53,47,0.08)] rounded-lg bg-[rgba(55,53,47,0.03)]">
+        <Stat label="Horas" value={`${hoursDecimal(period.totalSeconds)} h`} />
+        <Stat label="Total" value={money(period.totalPay)} />
+      </div>
+    )
+  }
   return (
     <div className="grid grid-cols-3 divide-x divide-[rgba(55,53,47,0.08)] rounded-lg bg-[rgba(55,53,47,0.03)]">
-      <Stat label={`Regular · $${RULES.baseRate}`} value={`${hoursDecimal(period.regularSeconds)} h`} sub={money(period.regularPay)} />
-      <Stat label={`Extra · $${OVERTIME_RATE}`} value={`${hoursDecimal(period.overtimeSeconds)} h`} sub={money(period.overtimePay)} accent={period.overtimeSeconds > 0} />
+      <Stat label={labels.regular} value={`${hoursDecimal(period.regularSeconds)} h`} sub={money(period.regularPay)} />
+      <Stat label={labels.extra ?? 'Extra'} value={`${hoursDecimal(period.overtimeSeconds)} h`} sub={money(period.overtimePay)} accent={period.overtimeSeconds > 0} />
       <Stat label="Total" value={money(period.totalPay)} />
     </div>
   )
 }
 
-function CurrentWeekCard({ period }: { readonly period: PayPeriodSummary }) {
+function CurrentWeekCard({ period, company }: { readonly period: PayPeriodSummary; readonly company: Company }) {
   return (
     <div className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -83,7 +101,7 @@ function CurrentWeekCard({ period }: { readonly period: PayPeriodSummary }) {
             {formatKeyShort(period.start)} → {formatKeyShort(period.end)}
           </div>
         </div>
-        <WeeklyPdfButton company="tecnofuel" date={period.start} />
+        <WeeklyPdfButton companyId={company.id} date={period.start} />
       </div>
       <div className="mt-2 text-[30px] font-bold leading-tight text-[#37352f]">
         {hoursDecimal(period.totalSeconds)} h
@@ -103,7 +121,7 @@ function CurrentWeekCard({ period }: { readonly period: PayPeriodSummary }) {
 
 // ── Agregar horas (entrada y salida) ──────────────────────────────────────────
 
-function AddHoursForm({ onSaved }: { readonly onSaved: () => void }) {
+function AddHoursForm({ company, onSaved }: { readonly company: Company; readonly onSaved: () => void }) {
   const [open, setOpen] = useState(false)
   const [date, setDate] = useState(getFloridaDateString())
   const [start, setStart] = useState('08:00')
@@ -129,7 +147,7 @@ function AddHoursForm({ onSaved }: { readonly onSaved: () => void }) {
         body: JSON.stringify({
           startTime: times.start.toISOString(),
           endTime: times.end.toISOString(),
-          company: 'tecnofuel',
+          companyId: company.id,
           observation: note.trim() || null,
         }),
       })
@@ -186,7 +204,7 @@ function AddHoursForm({ onSaved }: { readonly onSaved: () => void }) {
       </div>
       <label className="block text-[11px] text-[#787774]">
         Nota (opcional)
-        <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Ej: Puerto de Miami, ISO tank" className={inputClass} style={{ fontSize: '16px' }} />
+        <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Ej: lugar, cliente, carga..." className={inputClass} style={{ fontSize: '16px' }} />
       </label>
       <div className="flex items-center justify-between text-[13px]">
         <span className="text-[#787774]">Total del turno</span>
@@ -207,8 +225,9 @@ function AddHoursForm({ onSaved }: { readonly onSaved: () => void }) {
 
 // ── Lista de semanas ──────────────────────────────────────────────────────────
 
-function EntryRow({ entry, onOpen }: { readonly entry: PeriodEntry; readonly onOpen: (entry: PeriodEntry) => void }) {
-  const note = noteWithoutTag(entry.observation)
+function EntryRow({ entry, rule, onOpen }: { readonly entry: PeriodEntry; readonly rule: PayRule; readonly onOpen: (entry: PeriodEntry) => void }) {
+  const note = noteText(entry.observation)
+  const ot = overtimeRulesOf(rule)
   return (
     <button
       type="button"
@@ -219,6 +238,7 @@ function EntryRow({ entry, onOpen }: { readonly entry: PeriodEntry; readonly onO
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9b9a97]">
             {formatKeyShort(entry.date.slice(0, 10))}
+            {entry.jobNumber && <span className="ml-1.5 normal-case font-mono text-[#37352f]">#{entry.jobNumber}</span>}
           </div>
           <div className="font-mono text-[14px] font-semibold text-[#37352f]">
             {formatTime12(entry.startTime)}
@@ -234,7 +254,7 @@ function EntryRow({ entry, onOpen }: { readonly entry: PeriodEntry; readonly onO
       {entry.overtimeSeconds > 0 && (
         <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#9a4a0b]">
           <Flame className="h-3 w-3" />
-          {hoursDecimal(entry.overtimeSeconds)} h de overtime a ${OVERTIME_RATE}/h
+          {hoursDecimal(entry.overtimeSeconds)} h de overtime{ot ? ` a $${ot.baseRate * ot.multiplier}/h` : ''}
         </div>
       )}
       {note && (
@@ -249,12 +269,13 @@ function EntryRow({ entry, onOpen }: { readonly entry: PeriodEntry; readonly onO
 
 interface PeriodCardProps {
   readonly period: PayPeriodSummary
+  readonly company: Company
   readonly expanded: boolean
   readonly onToggle: () => void
   readonly onOpenEntry: (entry: PeriodEntry) => void
 }
 
-function PeriodCard({ period, expanded, onToggle, onOpenEntry }: PeriodCardProps) {
+function PeriodCard({ period, company, expanded, onToggle, onOpenEntry }: PeriodCardProps) {
   return (
     <div className={`rounded-xl overflow-hidden transition-all duration-200 ${expanded ? 'bg-white shadow-md ring-2 ring-[#37352f]' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
       <button
@@ -295,12 +316,12 @@ function PeriodCard({ period, expanded, onToggle, onOpenEntry }: PeriodCardProps
         <div className="border-t bg-[#fbfbfa] p-2.5 space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <span className="text-[12px] font-semibold text-[#37352f]">Detalle de horas</span>
-            <WeeklyPdfButton company="tecnofuel" date={period.start} label="Descargar PDF" />
+            <WeeklyPdfButton companyId={company.id} date={period.start} label="Descargar PDF" />
           </div>
           {period.entries.length > 0 ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {period.entries.map(entry => (
-                <EntryRow key={entry.id} entry={entry} onOpen={onOpenEntry} />
+                <EntryRow key={entry.id} entry={entry} rule={period.rule} onOpen={onOpenEntry} />
               ))}
             </div>
           ) : (
@@ -317,7 +338,12 @@ function PeriodCard({ period, expanded, onToggle, onOpenEntry }: PeriodCardProps
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
-export function TecnofuelPanel({ refreshTrigger = 0, onRefresh, hourlyRate }: TecnofuelPanelProps) {
+/**
+ * Vista de una compañía centrada en horas: semana de pago actual (con el
+ * avance hacia el overtime), registro de entrada/salida, semanas anteriores,
+ * PDF semanal y exportación.
+ */
+export function CompanyHoursPanel({ company, refreshTrigger = 0, onRefresh }: CompanyHoursPanelProps) {
   const [data, setData] = useState<PeriodsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -327,20 +353,20 @@ export function TecnofuelPanel({ refreshTrigger = 0, onRefresh, hourlyRate }: Te
 
   const fetchPeriods = useCallback(async () => {
     try {
-      const res = await fetch('/api/pay-periods?company=tecnofuel')
+      const res = await fetch(`/api/pay-periods?companyId=${encodeURIComponent(company.id)}`)
       const result = await res.json()
       if (result.success) {
         setData(result.data)
         setError(null)
       } else {
-        setError(result.error || 'Error al cargar Tecnofuel')
+        setError(result.error || `Error al cargar ${company.name}`)
       }
     } catch {
       setError('Error de conexión')
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [company.id, company.name])
 
   useEffect(() => {
     fetchPeriods()
@@ -352,7 +378,7 @@ export function TecnofuelPanel({ refreshTrigger = 0, onRefresh, hourlyRate }: Te
   }
 
   if (isLoading) {
-    return <div className="py-8 text-center text-[13px] text-[#787774]">Cargando Tecnofuel...</div>
+    return <div className="py-8 text-center text-[13px] text-[#787774]">Cargando {company.name}...</div>
   }
   if (error || !data) {
     return <div className="py-8 text-center text-[13px] text-[#dc2626]">{error ?? 'Sin datos'}</div>
@@ -364,18 +390,18 @@ export function TecnofuelPanel({ refreshTrigger = 0, onRefresh, hourlyRate }: Te
 
   return (
     <div className="space-y-4">
-      <CurrentWeekCard period={data.current} />
-      <AddHoursForm onSaved={handleChanged} />
+      <CurrentWeekCard period={data.current} company={company} />
+      <AddHoursForm company={company} onSaved={handleChanged} />
 
       <section className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-3 sm:p-4 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           <Clock className="h-4 w-4 text-[#787774]" />
-          <span className="text-[14px] font-semibold text-[#37352f]">Semanas de Tecnofuel</span>
-          <span className="text-[11px] text-[#787774]">({COMPANIES.tecnofuel.weekLabel.toLowerCase()})</span>
+          <span className="text-[14px] font-semibold text-[#37352f]">Semanas de {company.name}</span>
+          <span className="text-[11px] text-[#787774]">({weekLabel(company.weekStartsOn).toLowerCase()})</span>
         </div>
         {visible.length === 0 ? (
           <div className="py-6 text-center text-[13px] text-[#787774]">
-            Aún no hay horas de Tecnofuel. Inicia el cronómetro con Tecnofuel o agrega horas.
+            Aún no hay horas de {company.name}. Inicia el cronómetro o agrega horas.
           </div>
         ) : (
           <div className="space-y-2">
@@ -383,6 +409,7 @@ export function TecnofuelPanel({ refreshTrigger = 0, onRefresh, hourlyRate }: Te
               <PeriodCard
                 key={period.start}
                 period={period}
+                company={company}
                 expanded={expanded === period.start}
                 onToggle={() => setExpanded(prev => (prev === period.start ? null : period.start))}
                 onOpenEntry={entry => setSelectedEntry(entry)}
@@ -403,12 +430,12 @@ export function TecnofuelPanel({ refreshTrigger = 0, onRefresh, hourlyRate }: Te
         )}
       </section>
 
-      <ExportCard company="tecnofuel" />
+      <ExportCard company={company} />
 
       {selectedEntry && (
         <EntryDetailModal
           entry={selectedEntry}
-          hourlyRate={hourlyRate}
+          hourlyRate={company.payRules[company.payRules.length - 1]?.hourlyRate ?? 0}
           onClose={() => setSelectedEntry(null)}
           onUpdate={handleChanged}
         />

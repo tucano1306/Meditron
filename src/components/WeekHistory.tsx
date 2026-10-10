@@ -7,7 +7,6 @@ import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer, CheckCircle2
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
 import { WeeklyPdfButton } from './WeeklyPdfButton'
-import type { CompanyId } from '@/lib/companies'
 
 const ITEMS_PER_PAGE = 5
 
@@ -44,10 +43,10 @@ interface WeekHistoryProps {
   readonly onRefresh?: () => void
   readonly refreshTrigger?: number
   /** Solo las semanas y trabajos de esta compañía */
-  readonly company?: CompanyId
+  readonly companyId?: string
 }
 
-export function WeekHistory({ onRefresh, refreshTrigger = 0, company }: Readonly<WeekHistoryProps>) {
+export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readonly<WeekHistoryProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -57,8 +56,8 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, company }: Readonly
   const fetchWeeks = async () => {
     try {
       const [weeksRes, dashboardRes] = await Promise.all([
-        fetch(company ? `/api/weeks?company=${company}` : '/api/weeks'),
-        fetch('/api/dashboard')
+        fetch(companyId ? `/api/weeks?companyId=${encodeURIComponent(companyId)}` : '/api/weeks'),
+        fetch(companyId ? `/api/dashboard?companyId=${encodeURIComponent(companyId)}` : '/api/dashboard')
       ])
       const weeksData = await weeksRes.json()
       const dashboardData = await dashboardRes.json()
@@ -78,7 +77,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, company }: Readonly
 
   useEffect(() => {
     fetchWeeks()
-  }, [refreshTrigger, company])
+  }, [refreshTrigger, companyId])
 
   const handleEntryDelete = () => {
     fetchWeeks()
@@ -339,9 +338,9 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, company }: Readonly
               
               {expandedWeek === week.id && week.entries.length > 0 && (
                 <div className="p-3 sm:p-4 pt-0 border-t bg-gray-50">
-                  {company && (
+                  {companyId && (
                     <div className="mt-3 flex justify-end">
-                      <WeeklyPdfButton company={company} date={week.startDate} label="PDF de la semana" />
+                      <WeeklyPdfButton companyId={companyId} date={week.startDate} label="PDF de la semana" />
                     </div>
                   )}
                   <div className="mt-3">

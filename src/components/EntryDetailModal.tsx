@@ -11,7 +11,8 @@ import {
   formatCurrency, formatDuration, formatShortDateFlorida,
   formatTimeInFlorida, getFloridaDateComponents, floridaShiftToUTC
 } from '@/lib/utils'
-import { COMPANIES, COMPANY_IDS, detectCompany, type CompanyId } from '@/lib/companies'
+import { companyOfEntry, overtimeRulesOf, payScopeOf, ruleFor, weekLabel, type Company } from '@/lib/companies'
+import { useCompanies } from '@/hooks/useCompanies'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ export interface ModalEntry {
   vehicle?: string | null
   serviceType?: string | null
   observation?: string | null
+  companyId?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
   companyPaid?: number | null
@@ -192,6 +194,7 @@ function TimeSection({ entry, editing, editDate, editStart, editEnd, onDateChang
 
 interface JobSectionProps {
   readonly entry: ModalEntry
+  readonly company: Company
   readonly editing: boolean
   readonly jobNumber: string
   readonly vehicle: string
@@ -201,7 +204,7 @@ interface JobSectionProps {
   readonly onServiceChange: (v: string) => void
 }
 
-function JobSection({ entry, editing, jobNumber, vehicle, serviceType, onJobChange, onVehicleChange, onServiceChange }: JobSectionProps) {
+function JobSection({ entry, company, editing, jobNumber, vehicle, serviceType, onJobChange, onVehicleChange, onServiceChange }: JobSectionProps) {
   const sc = 'mt-0.5 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-gray-900'
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
@@ -212,10 +215,13 @@ function JobSection({ entry, editing, jobNumber, vehicle, serviceType, onJobChan
       {editing ? (
         <div className="p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
+            {company.trackJobNumber && (
             <div>
               <label htmlFor="edit-job" className="text-[11px] text-gray-500">N° Trabajo</label>
               <input id="edit-job" type="text" inputMode="numeric" value={jobNumber} onChange={e => onJobChange(e.target.value)} placeholder="123456" className={sc} style={{ fontSize: '16px' }} />
             </div>
+            )}
+            {company.trackVehicle && (
             <div>
               <label htmlFor="edit-vehicle" className="text-[11px] text-gray-500">Vehículo</label>
               <select id="edit-vehicle" value={vehicle} onChange={e => onVehicleChange(e.target.value)} className={sc} style={{ fontSize: '16px' }}>
@@ -225,7 +231,9 @@ function JobSection({ entry, editing, jobNumber, vehicle, serviceType, onJobChan
                 <option value="motorcoach">Motorcoach</option>
               </select>
             </div>
+            )}
           </div>
+          {company.trackServiceType && (
           <div>
             <label htmlFor="edit-service" className="text-[11px] text-gray-500">Tipo de servicio</label>
             <select id="edit-service" value={serviceType} onChange={e => onServiceChange(e.target.value)} className={sc} style={{ fontSize: '16px' }}>
@@ -234,6 +242,7 @@ function JobSection({ entry, editing, jobNumber, vehicle, serviceType, onJobChan
               <option value="hourly">Hourly</option>
             </select>
           </div>
+          )}
         </div>
       ) : (
         <div className="px-3 py-2.5 flex items-center gap-4 flex-wrap">
@@ -266,6 +275,7 @@ function JobSection({ entry, editing, jobNumber, vehicle, serviceType, onJobChan
 
 interface AmountSectionProps {
   readonly entry: ModalEntry
+  readonly showPaid: boolean
   readonly calc: number
   readonly editing: boolean
   readonly customAmount: string
@@ -274,7 +284,7 @@ interface AmountSectionProps {
   readonly onPaidChange: (v: string) => void
 }
 
-function AmountSection({ entry, calc, editing, customAmount, paidAmount, onAmountChange, onPaidChange }: AmountSectionProps) {
+function AmountSection({ entry, showPaid, calc, editing, customAmount, paidAmount, onAmountChange, onPaidChange }: AmountSectionProps) {
   const companyPaid = entry.companyPaid ?? null
   const hasCompanyPaid = companyPaid !== null
   const diff = hasCompanyPaid ? companyPaid - calc : null
@@ -287,22 +297,29 @@ function AmountSection({ entry, calc, editing, customAmount, paidAmount, onAmoun
       </div>
       {editing ? (
         <div className="p-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${showPaid ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <div>
               <label htmlFor="edit-calc" className="text-[11px] text-gray-500">Calculado ($)</label>
               <input id="edit-calc" type="number" inputMode="decimal" step="0.01" value={customAmount} onChange={e => onAmountChange(e.target.value)} className="mt-0.5 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-gray-900 text-right font-semibold" style={{ fontSize: '16px' }} />
             </div>
+            {showPaid && (
             <div>
               <label htmlFor="edit-paid" className="text-[11px] text-gray-500">Pagado ($)</label>
               <input id="edit-paid" type="number" inputMode="decimal" step="0.01" value={paidAmount} onChange={e => onPaidChange(e.target.value)} placeholder="0.00" className="mt-0.5 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-gray-900 text-right" style={{ fontSize: '16px' }} />
             </div>
+            )}
           </div>
-          {paidAmount && Number.parseFloat(paidAmount) > 0 && (
+          {showPaid && paidAmount && Number.parseFloat(paidAmount) > 0 && (
             <div className={`mt-2 text-center py-2 rounded-lg text-sm font-bold ${Number.parseFloat(paidAmount) >= Number.parseFloat(customAmount) ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
               {Number.parseFloat(paidAmount) >= Number.parseFloat(customAmount) ? '+' : ''}
               {formatCurrency(Number.parseFloat(paidAmount) - Number.parseFloat(customAmount))}
             </div>
           )}
+        </div>
+      ) : !showPaid ? (
+        <div className="px-3 py-2.5">
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide">Calculado</div>
+          <div className="text-sm font-bold text-gray-800 mt-0.5">{formatCurrency(calc)}</div>
         </div>
       ) : (
         <div className="grid grid-cols-3 divide-x divide-gray-100">
@@ -338,12 +355,14 @@ function AmountSection({ entry, calc, editing, customAmount, paidAmount, onAmoun
 }
 
 interface CompanySectionProps {
-  readonly company: CompanyId
-  readonly onChange: (company: CompanyId) => void
+  readonly companies: Company[]
+  readonly company: Company
+  readonly onChange: (company: Company) => void
 }
 
-// La compañía se guarda en la nota: al cambiarla, el servidor reescribe la etiqueta
-function CompanySection({ company, onChange }: CompanySectionProps) {
+function CompanySection({ companies, company, onChange }: CompanySectionProps) {
+  // Las archivadas no se ofrecen, salvo la del propio trabajo
+  const options = companies.filter(c => !c.archived || c.id === company.id)
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-white">
@@ -351,14 +370,14 @@ function CompanySection({ company, onChange }: CompanySectionProps) {
         <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Compañía</span>
       </div>
       <div className="p-3 grid grid-cols-2 gap-2">
-        {COMPANY_IDS.map(id => (
+        {options.map(option => (
           <button
-            key={id}
+            key={option.id}
             type="button"
-            onClick={() => onChange(id)}
-            className={`py-2 rounded-lg text-sm font-semibold transition-colors touch-manipulation ${company === id ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+            onClick={() => onChange(option)}
+            className={`py-2 px-2 rounded-lg text-sm font-semibold transition-colors touch-manipulation truncate ${company.id === option.id ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
           >
-            {COMPANIES[id].name}
+            {option.name}
           </button>
         ))}
       </div>
@@ -366,9 +385,11 @@ function CompanySection({ company, onChange }: CompanySectionProps) {
   )
 }
 
-// Tecnofuel: el monto no se edita, sale del overtime semanal
-function OvertimeAmountSection({ calc }: { readonly calc: number }) {
-  const rules = COMPANIES.tecnofuel.overtime
+// Compañías con overtime: el monto no se edita, lo calcula el sistema
+function OvertimeAmountSection({ calc, company, dateKey }: { readonly calc: number; readonly company: Company; readonly dateKey: string }) {
+  const rule = payScopeOf(company, dateKey, '').rule
+  const rules = overtimeRulesOf(rule)
+  const scope = rule.payType === 'daily_overtime' ? 'del día' : `de la semana (${weekLabel(company.weekStartsOn).toLowerCase()})`
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-white">
@@ -379,7 +400,7 @@ function OvertimeAmountSection({ calc }: { readonly calc: number }) {
         <div className="text-sm font-bold text-gray-800">{formatCurrency(calc)}</div>
         {rules && (
           <div className="text-[11px] text-gray-500 mt-0.5">
-            Automático: primeras {rules.thresholdHours} h de la semana ({COMPANIES.tecnofuel.weekLabel.toLowerCase()}) a ${rules.baseRate}/h y el resto a ${rules.baseRate * rules.multiplier}/h
+            Automático: primeras {rules.thresholdHours} h {scope} a ${rules.baseRate}/h y el resto a ${rules.baseRate * rules.multiplier}/h
           </div>
         )}
       </div>
@@ -512,29 +533,34 @@ function DetailActions({ editing, saving, deleting, confirmDelete, onSave, onCan
 
 interface DetailTabProps {
   readonly entry: ModalEntry
+  readonly companies: Company[]
   readonly hourlyRate: number
   readonly startInEditMode?: boolean
   readonly onUpdate: () => void
   readonly onClose: () => void
 }
 
-function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClose }: DetailTabProps) {
-  const calc = entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
-
+function DetailTab({ entry, companies, hourlyRate: fallbackRate, startInEditMode = false, onUpdate, onClose }: DetailTabProps) {
   // edit mode
   const [editing, setEditing] = useState(startInEditMode)
   const [jobNumber, setJobNumber] = useState(entry.jobNumber ?? '')
   const [vehicle, setVehicle] = useState(entry.vehicle ?? '')
   const [serviceType, setServiceType] = useState(entry.serviceType ?? '')
-  const [customAmount, setCustomAmount] = useState(calc.toFixed(2))
   const [paidAmount, setPaidAmount] = useState(entry.paidAmount?.toString() ?? '')
   const [observation, setObservation] = useState(entry.observation ?? '')
-  const [company, setCompany] = useState<CompanyId>(() => detectCompany(entry.observation))
-  const tracksJobDetails = COMPANIES[company].tracksJobDetails
+  const entryCompany = companyOfEntry(entry.companyId, companies)
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
+  const company = companies.find(c => c.id === selectedCompanyId) ?? entryCompany
   const [editDate, setEditDate] = useState(() => {
     const d = typeof entry.date === 'string' ? entry.date : new Date(entry.date).toISOString()
     return d.split('T')[0]
   })
+  // Tarifa vigente de la compañía en el día del trabajo y si paga overtime
+  const hourlyRate = company ? ruleFor(company, editDate).hourlyRate : fallbackRate
+  const hasOvertime = company ? payScopeOf(company, editDate, entry.id).kind !== 'entry' : false
+  const tracksJobDetails = company ? company.trackJobNumber || company.trackVehicle || company.trackServiceType : false
+  const calc = entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
+  const [customAmount, setCustomAmount] = useState(calc.toFixed(2))
   const [editStart, setEditStart] = useState(() => {
     const c = getFloridaDateComponents(new Date(entry.startTime))
     return `${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`
@@ -581,12 +607,12 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
     setCustomAmount(v)
   }
 
-  const handleCompanyChange = (next: CompanyId) => {
-    setCompany(next)
-    // Al pasar a Larry's vuelve a la tarifa por hora (salvo monto editado a mano)
-    if (!COMPANIES[next].overtime && !amountTouched) {
+  const handleCompanyChange = (next: Company) => {
+    setSelectedCompanyId(next.id)
+    // Al pasar a una compañía por hora se usa su tarifa (salvo monto editado a mano)
+    if (payScopeOf(next, editDate, entry.id).kind === 'entry' && !amountTouched) {
       const dur = computeDurationSeconds(editDate, editStart, editEnd) ?? entry.duration ?? 0
-      setCustomAmount(((dur / 3600) * hourlyRate).toFixed(2))
+      setCustomAmount(((dur / 3600) * ruleFor(next, editDate).hourlyRate).toFixed(2))
     }
   }
 
@@ -610,10 +636,10 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
           vehicle: vehicle || null,
           serviceType: serviceType || null,
           observation: observation || null,
-          company,
-          // Tecnofuel solo registra horas: el monto lo calcula el servidor
-          paidAmount: tracksJobDetails ? (paidAmount ? Number.parseFloat(paidAmount) : null) : undefined,
-          calculatedAmount: tracksJobDetails && customAmount ? Number.parseFloat(customAmount) : undefined,
+          companyId: company?.id,
+          paidAmount: company?.trackCompanyPaid ? (paidAmount ? Number.parseFloat(paidAmount) : null) : undefined,
+          // Con overtime el monto lo calcula el servidor
+          calculatedAmount: !hasOvertime && customAmount ? Number.parseFloat(customAmount) : undefined,
           startTime: newStart.toISOString(),
           endTime: newEnd.toISOString(),
         }),
@@ -649,15 +675,15 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
 
   return (
     <div className="space-y-4">
-      {editing && <CompanySection company={company} onChange={handleCompanyChange} />}
+      {editing && company && companies.length > 1 && <CompanySection companies={companies} company={company} onChange={handleCompanyChange} />}
       <TimeSection entry={entry} editing={editing} editDate={editDate} editStart={editStart} editEnd={editEnd} onDateChange={setEditDate} onStartChange={setEditStart} onEndChange={setEditEnd} />
-      {tracksJobDetails && (
-        <JobSection entry={entry} editing={editing} jobNumber={jobNumber} vehicle={vehicle} serviceType={serviceType} onJobChange={setJobNumber} onVehicleChange={setVehicle} onServiceChange={setServiceType} />
+      {company && tracksJobDetails && (
+        <JobSection entry={entry} company={company} editing={editing} jobNumber={jobNumber} vehicle={vehicle} serviceType={serviceType} onJobChange={setJobNumber} onVehicleChange={setVehicle} onServiceChange={setServiceType} />
       )}
-      {tracksJobDetails ? (
-        <AmountSection entry={entry} calc={calc} editing={editing} customAmount={customAmount} paidAmount={paidAmount} onAmountChange={handleAmountChange} onPaidChange={setPaidAmount} />
+      {company && hasOvertime ? (
+        <OvertimeAmountSection calc={calc} company={company} dateKey={editDate} />
       ) : (
-        <OvertimeAmountSection calc={calc} />
+        <AmountSection entry={entry} showPaid={company?.trackCompanyPaid ?? true} calc={calc} editing={editing} customAmount={customAmount} paidAmount={paidAmount} onAmountChange={handleAmountChange} onPaidChange={setPaidAmount} />
       )}
       <ObsSection entry={entry} editing={editing} observation={observation} isOpen={noteSheetOpen} sheetValue={noteSheetValue} noteRef={noteRef} onTrigger={openNote} onSheetValueChange={setNoteSheetValue} onCommit={commitNote} />
       <SaveStatus error={saveError} saved={justSaved} />
@@ -667,7 +693,7 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
         deleting={deleting}
         confirmDelete={confirmDelete}
         onSave={handleSave}
-        onCancelEdit={() => { setAmountTouched(false); setSaveError(null); setCompany(detectCompany(entry.observation)); setEditing(false) }}
+        onCancelEdit={() => { setAmountTouched(false); setSaveError(null); setSelectedCompanyId(null); setEditing(false) }}
         onEdit={() => { setAmountTouched(false); setSaveError(null); setJustSaved(false); setEditing(true) }}
         onDeleteRequest={() => setConfirmDelete(true)}
         onDeleteConfirm={handleDelete}
@@ -962,6 +988,7 @@ function CorrectionForm({ title, placeholder, color, note, saving, onNoteChange,
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
 export function EntryDetailModal({ entry, hourlyRate = 25, startInEditMode = false, onClose, onUpdate }: EntryDetailModalProps) {
+  const companies = useCompanies() ?? []
   const [activeTab, setActiveTab] = useState<ActiveTab>('detail')
   const [mounted, setMounted] = useState(false)
   // Refresh local copy on update
@@ -986,7 +1013,7 @@ export function EntryDetailModal({ entry, hourlyRate = 25, startInEditMode = fal
   const calc = localEntry.calculatedAmount ?? ((localEntry.duration ?? 0) / 3600) * hourlyRate
   const resolvedBadge = isResolved ? '✓' : undefined
   const corrBadge = isPending ? 'pendiente' : resolvedBadge
-  const entryCompany = detectCompany(localEntry.observation)
+  const entryCompany = companyOfEntry(localEntry.companyId, companies)
 
   if (!mounted) return null
 
@@ -1018,9 +1045,11 @@ export function EntryDetailModal({ entry, hourlyRate = 25, startInEditMode = fal
               <h2 className="text-base font-bold text-gray-900">
                 {localEntry.jobNumber ? `Trabajo #${localEntry.jobNumber}` : 'Entrada'}
               </h2>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${entryCompany === 'tecnofuel' ? 'bg-[#fbecdd] text-[#9a4a0b]' : 'bg-gray-100 text-gray-600'}`}>
-                {COMPANIES[entryCompany].name}
-              </span>
+              {entryCompany && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: entryCompany.color }}>
+                  {entryCompany.name}
+                </span>
+              )}
               {statusBadge(isPending, isResolved)}
             </div>
             <div className="flex items-center gap-3 mt-1">
@@ -1062,7 +1091,9 @@ export function EntryDetailModal({ entry, hourlyRate = 25, startInEditMode = fal
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {activeTab === 'detail' && (
             <DetailTab
+              key={companies.length}
               entry={localEntry}
+              companies={companies}
               hourlyRate={hourlyRate}
               startInEditMode={startInEditMode}
               onUpdate={handleUpdate}

@@ -1,10 +1,9 @@
 'use client'
 
 import { FileDown } from 'lucide-react'
-import type { CompanyId } from '@/lib/companies'
 
 interface WeeklyPdfButtonProps {
-  readonly company: CompanyId
+  readonly companyId: string
   /** Cualquier día (YYYY-MM-DD) de la semana de pago a imprimir */
   readonly date: string
   readonly label?: string
@@ -13,8 +12,8 @@ interface WeeklyPdfButtonProps {
 
 // Abre el PDF de la semana de pago (lo genera el servidor). En el móvil se ve
 // en el visor del sistema, desde donde se puede guardar, imprimir o compartir.
-export function WeeklyPdfButton({ company, date, label = 'PDF', className = '' }: WeeklyPdfButtonProps) {
-  const href = `/api/reports/weekly-pdf?company=${company}&date=${date.slice(0, 10)}`
+export function WeeklyPdfButton({ companyId, date, label = 'PDF', className = '' }: WeeklyPdfButtonProps) {
+  const href = `/api/reports/weekly-pdf?companyId=${encodeURIComponent(companyId)}&date=${date.slice(0, 10)}`
   return (
     <a
       href={href}

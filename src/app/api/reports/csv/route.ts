@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateSession } from '@/lib/auth-utils'
-import { COMPANIES, isCompanyId } from '@/lib/companies'
+import { getUserCompany } from '@/lib/company-store'
 import { getPayPeriods } from '@/lib/pay-periods'
-import { dayName, formatKeyUS, formatTime12, hoursDecimal, noteWithoutTag } from '@/lib/report-format'
-import { HOURLY_RATE } from '@/lib/utils'
+import { companyFileSlug } from '@/lib/weekly-report-pdf'
+import { dayName, formatKeyUS, formatTime12, hoursDecimal, noteText } from '@/lib/report-format'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,7 @@ function csvCell(value: string | number | null | undefined): string {
   return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
 }
 
-// GET - Exporta a CSV los trabajos de una compañía entre ?from y ?to (YYYY-MM-DD)
+// GET - Exporta a CSV los trabajos de una compañía (?companyId) entre ?from y ?to (YYYY-MM-DD)
 export async function GET(request: NextRequest) {
   try {
     const authResult = await validateSession()
@@ -24,9 +24,10 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const company = searchParams.get('company')
-    if (!isCompanyId(company)) {
-      return NextResponse.json({ success: false, error: 'Compañía inválida' }, { status: 400 })
+    const { user } = authResult
+    const company = await getUserCompany(user.id, searchParams.get('companyId'))
+    if (!company) {
+      return NextResponse.json({ success: false, error: 'Compañía no encontrada' }, { status: 404 })
     }
     const from = searchParams.get('from') ?? ''
     const to = searchParams.get('to') ?? ''
@@ -34,8 +35,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Rango de fechas inválido' }, { status: 400 })
     }
 
-    const { user } = authResult
-    const periods = await getPayPeriods(user.id, company, user.hourlyRate ?? HOURLY_RATE, { from, to })
+    const periods = await getPayPeriods(user.id, company, { from, to })
 
     const header = [
       'Compañía', 'Semana de pago', 'Fecha', 'Día', 'Entrada', 'Salida', 'Horas',
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         // Las semanas se agrupan completas; aquí solo van los días del rango pedido
         if (day < from || day > to) continue
         rows.push([
-          COMPANIES[company].name,
+          company.name,
           `${period.start} al ${period.end}`,
           formatKeyUS(day),
           dayName(day),
@@ -62,18 +62,17 @@ export async function GET(request: NextRequest) {
           e.vehicle ?? '',
           e.serviceType ?? '',
           e.companyPaid == null ? '' : e.companyPaid.toFixed(2),
-          noteWithoutTag(e.observation),
+          noteText(e.observation),
         ])
       }
     }
 
     // BOM para que Excel abra bien los acentos
-    const csv = '﻿' + [header, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n')
-    const prefix = company === 'tecnofuel' ? 'Tecnofuel' : 'Larrys-Private'
+    const csv = String.fromCharCode(0xfeff) + [header, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n')
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${prefix}_${from}_al_${to}.csv"`,
+        'Content-Disposition': `attachment; filename="${companyFileSlug(company)}_${from}_al_${to}.csv"`,
         'Cache-Control': 'no-store',
       },
     })

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, getOrCreateWeekFromCalendarDate, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
-import { getFloridaDateComponents, HOURLY_RATE } from '@/lib/utils'
-import { detectCompany, isCompanyId, toDateKey, withCompanyTag } from '@/lib/companies'
-import { recalculateTecnofuelPeriod } from '@/lib/pay-periods'
+import { getFloridaDateComponents } from '@/lib/utils'
+import { payScopeOf, ruleFor, toDateKey, type Company } from '@/lib/companies'
+import { recalculateCompanyAmounts } from '@/lib/pay-periods'
+import { getUserCompany, resolveWriteCompany } from '@/lib/company-store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -112,9 +113,10 @@ export async function DELETE(request: NextRequest) {
     }
     await updateMonthSummary(entryDate.getFullYear(), entryDate.getMonth() + 1, userId)
 
-    // Tecnofuel: al quitar horas cambia el overtime del resto de la semana
-    if (detectCompany(entry.observation) === 'tecnofuel') {
-      await recalculateTecnofuelPeriod(userId, toDateKey(entry.date))
+    // Con overtime, al quitar horas cambia el monto del resto de la semana o del día
+    const company = await getUserCompany(userId, entry.companyId)
+    if (company) {
+      await recalculateCompanyAmounts(userId, company, [toDateKey(entry.date)])
     }
 
     return NextResponse.json({
@@ -140,11 +142,16 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { hours, minutes, payment, hourlyRate, date, jobNumber, vehicle, calculatedAmount, paidAmount, company, observation } = body
+    const { hours, minutes, payment, hourlyRate, date, jobNumber, vehicle, calculatedAmount, paidAmount, observation } = body
 
-    // Entrada con hora de entrada y salida exactas (p. ej. horas de Tecnofuel)
+    const company = await resolveWriteCompany(userId, body.companyId)
+    if (!company) {
+      return NextResponse.json({ success: false, error: 'Compañía no encontrada' }, { status: 400 })
+    }
+
+    // Entrada con hora de entrada y salida exactas
     if (body.startTime && body.endTime) {
-      return createTimedEntry(userId, authResult.user.hourlyRate ?? HOURLY_RATE, body)
+      return createTimedEntry(userId, company, body)
     }
 
     if (hours === undefined || minutes === undefined || payment === undefined) {
@@ -189,21 +196,16 @@ export async function POST(request: NextRequest) {
     const entryExtraData: Record<string, unknown> = {}
     if (jobNumber) entryExtraData.jobNumber = String(jobNumber)
     if (vehicle) entryExtraData.vehicle = String(vehicle)
-    // Si no viene calculatedAmount del body, calcularlo con la tasa real del usuario
-    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
+    // Si no viene calculatedAmount del body, calcularlo con la tarifa vigente de la compañía
     const resolvedCalculatedAmount = calculatedAmount === undefined
-      ? (totalSeconds / 3600) * userHourlyRate
+      ? (totalSeconds / 3600) * ruleFor(company, toDateKey(targetDate)).hourlyRate
       : Number(calculatedAmount)
     entryExtraData.calculatedAmount = resolvedCalculatedAmount
     if (paidAmount !== undefined) {
       entryExtraData.paidAmount = Number(paidAmount)
       entryExtraData.companyPaid = Number(paidAmount)
     }
-    if (isCompanyId(company)) {
-      entryExtraData.observation = withCompanyTag(observation, company)
-    } else if (observation) {
-      entryExtraData.observation = String(observation)
-    }
+    if (observation) entryExtraData.observation = String(observation)
 
     const entry = await prisma.timeEntry.create({
       data: {
@@ -213,6 +215,7 @@ export async function POST(request: NextRequest) {
         date: targetDate,
         weekId: week.id,
         userId,
+        companyId: company.id,
         ...entryExtraData,
       }
     })
@@ -220,9 +223,7 @@ export async function POST(request: NextRequest) {
     // Actualizar totales
     await updateWeekTotals(week.id, userId)
     await updateMonthSummary(targetYear, targetMonth, userId)
-    if (detectCompany(entry.observation) === 'tecnofuel') {
-      await recalculateTecnofuelPeriod(userId, toDateKey(targetDate))
-    }
+    await recalculateCompanyAmounts(userId, company, [toDateKey(targetDate)])
 
     return NextResponse.json({
       success: true,
@@ -245,7 +246,7 @@ export async function POST(request: NextRequest) {
 
 // Crea una entrada a partir de su hora de entrada y salida (instantes UTC que el
 // cliente calcula desde la hora de Florida). El día es el de la entrada en Florida.
-async function createTimedEntry(userId: string, userHourlyRate: number, body: Record<string, unknown>) {
+async function createTimedEntry(userId: string, company: Company, body: Record<string, unknown>) {
   const start = new Date(String(body.startTime))
   const end = new Date(String(body.endTime))
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
@@ -263,8 +264,7 @@ async function createTimedEntry(userId: string, userHourlyRate: number, body: Re
   const date = new Date(Date.UTC(day.year, day.month - 1, day.day))
   const week = await getOrCreateWeekFromCalendarDate(day.year, day.month, day.day, userId)
 
-  const note = typeof body.observation === 'string' ? body.observation : null
-  const observation = isCompanyId(body.company) ? withCompanyTag(note, body.company) : note
+  const observation = typeof body.observation === 'string' && body.observation.trim() ? body.observation.trim() : null
 
   const entry = await prisma.timeEntry.create({
     data: {
@@ -274,17 +274,16 @@ async function createTimedEntry(userId: string, userHourlyRate: number, body: Re
       date,
       weekId: week.id,
       userId,
+      companyId: company.id,
       observation,
-      // Larry's: tarifa por hora del usuario. Tecnofuel: lo fija el recálculo semanal.
-      calculatedAmount: (duration / 3600) * userHourlyRate,
+      // Tarifa vigente; si la compañía paga overtime lo ajusta el recálculo de abajo
+      calculatedAmount: (duration / 3600) * ruleFor(company, toDateKey(date)).hourlyRate,
     }
   })
 
   await updateWeekTotals(week.id, userId)
   await updateMonthSummary(week.year, week.month, userId)
-  if (detectCompany(observation) === 'tecnofuel') {
-    await recalculateTecnofuelPeriod(userId, toDateKey(date))
-  }
+  await recalculateCompanyAmounts(userId, company, [toDateKey(date)])
 
   const saved = await prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })
   return NextResponse.json({ success: true, data: { entry: saved } })
@@ -324,25 +323,23 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { startTime, endTime, jobNumber, vehicle, paidAmount, serviceType, company } = body
-    let { calculatedAmount, observation } = body
+    const { startTime, endTime, jobNumber, vehicle, paidAmount, serviceType, observation } = body
+    let { calculatedAmount } = body
 
-    // La compañía va en la nota: si se pide cambiarla, se reescribe la etiqueta
-    if (isCompanyId(company)) {
-      observation = withCompanyTag(observation === undefined ? entry.observation : observation, company)
+    // Compañía actual del trabajo y, si se pide moverlo, la nueva
+    const oldCompany = await resolveWriteCompany(userId, entry.companyId)
+    const newCompany = body.companyId === undefined ? oldCompany : await getUserCompany(userId, body.companyId)
+    if (!oldCompany || !newCompany) {
+      return NextResponse.json({ success: false, error: 'Compañía no encontrada' }, { status: 400 })
     }
-    const oldCompany = detectCompany(entry.observation)
-    const newCompany = detectCompany(observation === undefined ? entry.observation : observation)
-    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
-    if (newCompany === 'tecnofuel') {
-      // El monto de Tecnofuel lo calcula el overtime semanal, no se edita a mano
-      calculatedAmount = undefined
-    }
+    const companyChanged = newCompany.id !== oldCompany.id
 
-    // Recalcula el overtime de Tecnofuel en las semanas afectadas por el cambio
-    const recalcTecnofuel = async (newDateKey: string) => {
-      if (oldCompany === 'tecnofuel') await recalculateTecnofuelPeriod(userId, toDateKey(entry.date))
-      if (newCompany === 'tecnofuel') await recalculateTecnofuelPeriod(userId, newDateKey)
+    // Recalcula el overtime en los grupos (semana o día) afectados por el cambio
+    const recalcAmounts = async (newDateKey: string) => {
+      await recalculateCompanyAmounts(userId, oldCompany, [toDateKey(entry.date)])
+      if (companyChanged || newDateKey !== toDateKey(entry.date)) {
+        await recalculateCompanyAmounts(userId, newCompany, [newDateKey])
+      }
     }
 
     // Si los tiempos no cambiaron, solo actualizar campos de trabajo
@@ -350,13 +347,20 @@ export async function PATCH(request: NextRequest) {
                             endTime === entry.endTime?.toISOString()
 
     if (isOnlyJobUpdate) {
-      if (oldCompany === 'tecnofuel' && newCompany !== 'tecnofuel' && calculatedAmount === undefined) {
-        // Pasa a Larry's: vuelve a la tarifa por hora del usuario
-        calculatedAmount = ((entry.duration ?? 0) / 3600) * userHourlyRate
+      const dateKey = toDateKey(entry.date)
+      if (payScopeOf(newCompany, dateKey, id).kind !== 'entry') {
+        // Con overtime el monto lo calcula el sistema, no se edita a mano
+        calculatedAmount = undefined
+      } else if (companyChanged && calculatedAmount === undefined) {
+        // Pasa a una compañía por hora: su tarifa vigente
+        calculatedAmount = ((entry.duration ?? 0) / 3600) * ruleFor(newCompany, dateKey).hourlyRate
       }
       let updatedEntry = await prisma.timeEntry.update({
         where: { id },
-        data: buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation, serviceType)
+        data: {
+          companyId: newCompany.id,
+          ...buildJobUpdateData(jobNumber, vehicle, calculatedAmount, paidAmount, observation, serviceType)
+        }
       })
       // Actualizar totales de semana y mes para mantener consistencia
       if (entry.weekId) {
@@ -364,10 +368,8 @@ export async function PATCH(request: NextRequest) {
       }
       const entryDateForSummary = new Date(entry.date)
       await updateMonthSummary(entryDateForSummary.getFullYear(), entryDateForSummary.getMonth() + 1, userId)
-      if (oldCompany === 'tecnofuel' || newCompany === 'tecnofuel') {
-        await recalcTecnofuel(toDateKey(entry.date))
-        updatedEntry = await prisma.timeEntry.findUniqueOrThrow({ where: { id } })
-      }
+      await recalcAmounts(dateKey)
+      updatedEntry = await prisma.timeEntry.findUniqueOrThrow({ where: { id } })
       return NextResponse.json({ success: true, data: updatedEntry })
     }
 
@@ -393,10 +395,12 @@ export async function PATCH(request: NextRequest) {
     const newWeek = await getOrCreateWeek(newStart, userId)
     const oldWeekId = entry.weekId
 
-    // Si no se mandó calculatedAmount explícito, recalcular con la tasa del usuario
+    // Si no se mandó calculatedAmount explícito (o la compañía paga overtime),
+    // calcular con la tarifa vigente; el overtime se ajusta después
+    const newDateKey = toDateKey(entryDate)
     let resolvedCalculatedAmount: number
-    if (calculatedAmount === undefined) {
-      resolvedCalculatedAmount = (duration / 3600) * userHourlyRate
+    if (calculatedAmount === undefined || payScopeOf(newCompany, newDateKey, id).kind !== 'entry') {
+      resolvedCalculatedAmount = (duration / 3600) * ruleFor(newCompany, newDateKey).hourlyRate
     } else {
       resolvedCalculatedAmount = Number(calculatedAmount)
     }
@@ -414,6 +418,7 @@ export async function PATCH(request: NextRequest) {
         accumulatedSeconds: 0,
         pausedAt: null,
         lastResumeTime: null,
+        companyId: newCompany.id,
         ...buildJobUpdateData(jobNumber, vehicle, resolvedCalculatedAmount, paidAmount, observation, serviceType)
       }
     })
@@ -424,10 +429,8 @@ export async function PATCH(request: NextRequest) {
     }
     await updateWeekTotals(newWeek.id, userId)
     await updateMonthSummary(floridaComponents.year, floridaComponents.month, userId)
-    if (oldCompany === 'tecnofuel' || newCompany === 'tecnofuel') {
-      await recalcTecnofuel(toDateKey(entryDate))
-      updatedEntry = await prisma.timeEntry.findUniqueOrThrow({ where: { id } })
-    }
+    await recalcAmounts(newDateKey)
+    updatedEntry = await prisma.timeEntry.findUniqueOrThrow({ where: { id } })
 
     return NextResponse.json({ success: true, data: updatedEntry })
   } catch (error) {

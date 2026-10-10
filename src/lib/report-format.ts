@@ -3,7 +3,7 @@
 // se muestran en hora de Florida.
 
 import { getFloridaDateComponents } from './utils'
-import { dateKeyToUTC, withCompanyTag } from './companies'
+import { dateKeyToUTC } from './companies'
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const DAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
@@ -44,9 +44,9 @@ export function money(amount: number): string {
   return moneyFormatter.format(amount)
 }
 
-/** La nota sin la etiqueta "Tecnofuel" (en el reporte ya se sabe la compañía). */
-export function noteWithoutTag(note: string | null | undefined): string {
-  return withCompanyTag(note, 'larrys') ?? ''
+/** La nota en una sola línea para tablas y exportaciones */
+export function noteText(note: string | null | undefined): string {
+  return (note ?? '').replaceAll(/\s+/g, ' ').trim()
 }
 
 /** "dom 4 oct" */

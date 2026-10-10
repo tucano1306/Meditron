@@ -9,6 +9,8 @@ import { HOURLY_RATE } from '@/lib/utils'
 interface RateCalculatorProps {
   readonly onSave?: () => void
   readonly hourlyRate?: number
+  /** Compañía a la que se guarda el trabajo */
+  readonly companyId?: string
 }
 
 // Función para obtener fecha en formato YYYY-MM-DD
@@ -19,7 +21,7 @@ const getLocalDateString = (date: Date) => {
   return `${year}-${month}-${day}`
 }
 
-export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalculatorProps) {
+export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE, companyId }: RateCalculatorProps) {
   const [hours, setHours] = useState('')
   const [minutes, setMinutes] = useState('')
   const [selectedDate, setSelectedDate] = useState(getLocalDateString(new Date()))
@@ -59,7 +61,8 @@ export function RateCalculator({ onSave, hourlyRate = HOURLY_RATE }: RateCalcula
           minutes: Number.parseFloat(minutes || '0'),
           payment: result.paymentAmount,
           hourlyRate: hourlyRate,
-          date: selectedDate
+          date: selectedDate,
+          companyId
         })
       })
 

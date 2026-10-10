@@ -7,7 +7,6 @@ import { formatCurrency, formatShortDateFlorida, formatDuration, getMonthName, p
 import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2, ExternalLink, Pencil } from 'lucide-react'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 import { WeeklyPdfButton } from './WeeklyPdfButton'
-import type { CompanyId } from '@/lib/companies'
 
 const ITEMS_PER_PAGE = 5
 
@@ -51,7 +50,7 @@ interface WeeklySummaryCardProps {
   readonly onRefresh?: () => void
   readonly hourlyRate?: number
   /** Solo las semanas y trabajos de esta compañía */
-  readonly company?: CompanyId
+  readonly companyId?: string
 }
 
 interface EntryCardProps {
@@ -361,7 +360,7 @@ function RunningBadge({ jobNumber }: { readonly jobNumber: string | null }) {
   )
 }
 
-export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 25, company }: Readonly<WeeklySummaryCardProps>) {
+export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 25, companyId }: Readonly<WeeklySummaryCardProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -455,6 +454,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
         payment: calc ?? 0,
         hourlyRate: 0,
         date,
+        companyId,
       }
       if (jobNumber.trim()) body.jobNumber = jobNumber.trim()
       if (vehicle.trim()) body.vehicle = vehicle.trim()
@@ -484,7 +484,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
 
   const fetchWeeks = useCallback(async () => {
     try {
-      const res = await fetch(company ? `/api/weeks?company=${company}` : '/api/weeks')
+      const res = await fetch(companyId ? `/api/weeks?companyId=${encodeURIComponent(companyId)}` : '/api/weeks')
       const data = await res.json()
       
       if (data.success) {
@@ -511,7 +511,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
     } finally {
       setIsLoading(false)
     }
-  }, [company])
+  }, [companyId])
 
   useEffect(() => {
     fetchWeeks()
@@ -646,7 +646,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {company && <WeeklyPdfButton company={company} date={week.startDate} />}
+                        {companyId && <WeeklyPdfButton companyId={companyId} date={week.startDate} />}
                         <button
                           type="button"
                           onClick={() => {

@@ -41,9 +41,11 @@ interface SummaryCardsProps {
   readonly monthSummary: MonthSummaryData
   readonly hourlyRate: number
   readonly onRateChange?: (newRate: number) => void
+  /** Guarda la tarifa de la compañía vista; devuelve un error o null */
+  readonly onSaveRate?: (rate: number) => Promise<string | null>
 }
 
-export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onRateChange }: Readonly<SummaryCardsProps>) {
+export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onRateChange, onSaveRate }: Readonly<SummaryCardsProps>) {
   const [isEditingRate, setIsEditingRate] = useState(false)
   const [tempRate, setTempRate] = useState(hourlyRate.toString())
   const [isSaving, setIsSaving] = useState(false)
@@ -55,6 +57,17 @@ export function SummaryCards({ today, currentWeek, monthSummary, hourlyRate, onR
     }
     
     setIsSaving(true)
+    if (onSaveRate) {
+      const saveError = await onSaveRate(newRate)
+      setIsSaving(false)
+      if (saveError) {
+        console.error('Error saving rate:', saveError)
+      } else {
+        setIsEditingRate(false)
+        onRateChange?.(newRate)
+      }
+      return
+    }
     try {
       const res = await fetch('/api/dashboard', {
         method: 'PATCH',

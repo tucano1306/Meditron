@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import { Download } from 'lucide-react'
-import { COMPANIES, type CompanyId } from '@/lib/companies'
+import type { Company } from '@/lib/companies'
 import { getFloridaDateString } from '@/lib/utils'
 
 interface ExportCardProps {
-  readonly company: CompanyId
+  readonly company: Company
 }
 
 function firstDayOfMonth(key: string): string {
@@ -19,14 +19,14 @@ export function ExportCard({ company }: ExportCardProps) {
   const [from, setFrom] = useState(firstDayOfMonth(today))
   const [to, setTo] = useState(today)
   const isValid = Boolean(from && to && from <= to)
-  const href = `/api/reports/csv?company=${company}&from=${from}&to=${to}`
+  const href = `/api/reports/csv?companyId=${encodeURIComponent(company.id)}&from=${from}&to=${to}`
   const inputClass = 'mt-0.5 w-full px-2 py-1.5 text-[13px] border border-[rgba(55,53,47,0.16)] rounded-[4px] bg-white focus:outline-none focus:border-[#37352f]'
 
   return (
     <div className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
         <Download className="h-4 w-4 text-[#787774]" />
-        <span className="text-[14px] font-semibold text-[#37352f]">Exportar {COMPANIES[company].name}</span>
+        <span className="text-[14px] font-semibold text-[#37352f]">Exportar {company.name}</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <label className="text-[11px] text-[#787774]">

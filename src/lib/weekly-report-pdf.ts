@@ -1,8 +1,8 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
-import { COMPANIES } from './companies'
+import { overtimeRulesOf, tracksJobDetails, weekLabel, type Company } from './companies'
 import type { PayPeriodSummary, PeriodEntry } from './pay-periods'
 import {
-  dayName, formatKeyLong, formatKeyUS, formatTime12, hoursDecimal, money, noteWithoutTag,
+  dayName, formatKeyLong, formatKeyUS, formatTime12, hoursDecimal, money, noteText,
 } from './report-format'
 
 // Hoja carta vertical
@@ -14,6 +14,7 @@ const ROW_HEIGHT = 18
 const FONT_SIZE = 9
 const CELL_PADDING = 4
 const FOOTER_SPACE = 36
+const MIN_NOTE_WIDTH = 60
 
 const INK = rgb(0.216, 0.208, 0.184) // #37352f
 const MUTED = rgb(0.47, 0.467, 0.455) // #787774
@@ -30,29 +31,46 @@ interface Column {
   value: (entry: PeriodEntry) => string
 }
 
-const tecnofuelColumns: Column[] = [
-  { header: 'Fecha', width: 58, value: e => formatKeyUS(e.date.slice(0, 10)) },
-  { header: 'Día', width: 52, value: e => dayName(e.date.slice(0, 10)) },
-  { header: 'Entrada', width: 54, value: e => formatTime12(e.startTime) },
-  { header: 'Salida', width: 54, value: e => (e.endTime ? formatTime12(e.endTime) : '') },
-  { header: 'Horas', width: 42, align: 'right', value: e => hoursDecimal(e.duration ?? 0) },
-  { header: 'Regular', width: 46, align: 'right', value: e => hoursDecimal(e.regularSeconds) },
-  { header: 'Extra', width: 42, align: 'right', value: e => (e.overtimeSeconds > 0 ? hoursDecimal(e.overtimeSeconds) : '—') },
-  { header: 'Monto', width: 62, align: 'right', value: e => money(e.amount) },
-  { header: 'Nota', width: 122, value: e => noteWithoutTag(e.observation) },
-]
+const serviceLabel = (type: string | null) => {
+  if (!type) return ''
+  return type === 'point-to-point' ? 'P2P' : 'Hourly'
+}
 
-const larrysColumns: Column[] = [
-  { header: 'Fecha', width: 60, value: e => formatKeyUS(e.date.slice(0, 10)) },
-  { header: 'Job #', width: 56, value: e => e.jobNumber ?? '' },
-  { header: 'Vehículo', width: 70, value: e => e.vehicle ?? '' },
-  { header: 'Servicio', width: 50, value: e => (e.serviceType ? (e.serviceType === 'point-to-point' ? 'P2P' : 'Hourly') : '') },
-  { header: 'Entrada', width: 54, value: e => formatTime12(e.startTime) },
-  { header: 'Salida', width: 54, value: e => (e.endTime ? formatTime12(e.endTime) : '') },
-  { header: 'Horas', width: 44, align: 'right', value: e => hoursDecimal(e.duration ?? 0) },
-  { header: 'Calculado', width: 72, align: 'right', value: e => money(e.amount) },
-  { header: 'Pagado', width: 72, align: 'right', value: e => (e.companyPaid == null ? '—' : money(e.companyPaid)) },
-]
+/** Columnas según lo que registra la compañía; la nota ocupa el espacio que sobra. */
+function buildColumns(company: Company, period: PayPeriodSummary): Column[] {
+  const hasOvertime = overtimeRulesOf(period.rule) !== null || period.overtimeSeconds > 0
+  const columns: Column[] = [{ header: 'Fecha', width: 58, value: e => formatKeyUS(e.date.slice(0, 10)) }]
+  if (!tracksJobDetails(company)) columns.push({ header: 'Día', width: 52, value: e => dayName(e.date.slice(0, 10)) })
+  if (company.trackJobNumber) columns.push({ header: 'Job #', width: 54, value: e => e.jobNumber ?? '' })
+  if (company.trackVehicle) columns.push({ header: 'Vehículo', width: 64, value: e => e.vehicle ?? '' })
+  if (company.trackServiceType) columns.push({ header: 'Servicio', width: 46, value: e => serviceLabel(e.serviceType) })
+  columns.push(
+    { header: 'Entrada', width: 54, value: e => formatTime12(e.startTime) },
+    { header: 'Salida', width: 54, value: e => (e.endTime ? formatTime12(e.endTime) : '') },
+    { header: 'Horas', width: 42, align: 'right', value: e => hoursDecimal(e.duration ?? 0) },
+  )
+  if (hasOvertime) {
+    columns.push(
+      { header: 'Regular', width: 46, align: 'right', value: e => hoursDecimal(e.regularSeconds) },
+      { header: 'Extra', width: 42, align: 'right', value: e => (e.overtimeSeconds > 0 ? hoursDecimal(e.overtimeSeconds) : '—') },
+    )
+  }
+  columns.push({ header: 'Monto', width: 62, align: 'right', value: e => money(e.amount) })
+  if (company.trackCompanyPaid) {
+    columns.push({ header: 'Pagado', width: 62, align: 'right', value: e => (e.companyPaid == null ? '—' : money(e.companyPaid)) })
+  }
+
+  const used = columns.reduce((sum, c) => sum + c.width, 0)
+  const remaining = CONTENT_WIDTH - used
+  if (remaining >= MIN_NOTE_WIDTH) {
+    columns.push({ header: 'Nota', width: remaining, value: e => noteText(e.observation) })
+  } else {
+    // Sin espacio para la nota: las columnas se ensanchan para llenar la hoja
+    const scale = CONTENT_WIDTH / used
+    for (const c of columns) c.width *= scale
+  }
+  return columns
+}
 
 interface Fonts {
   regular: PDFFont
@@ -95,13 +113,38 @@ function drawHeaderRow(page: PDFPage, columns: Column[], top: number, fonts: Fon
   }
 }
 
+function summaryRows(company: Company, period: PayPeriodSummary): { label: string; value: string; strong?: boolean }[] {
+  const ot = overtimeRulesOf(period.rule)
+  if (ot) {
+    const unit = period.rule.payType === 'daily_overtime' ? 'día' : 'semana'
+    return [
+      { label: 'Horas totales', value: `${hoursDecimal(period.totalSeconds)} h` },
+      { label: `Horas regulares (hasta ${ot.thresholdHours} h/${unit}) × ${money(ot.baseRate)}`, value: `${hoursDecimal(period.regularSeconds)} h = ${money(period.regularPay)}` },
+      { label: `Horas extra (${ot.multiplier}x) × ${money(ot.baseRate * ot.multiplier)}`, value: `${hoursDecimal(period.overtimeSeconds)} h = ${money(period.overtimePay)}` },
+      { label: 'TOTAL A COBRAR', value: money(period.totalPay), strong: true },
+    ]
+  }
+  const rows: { label: string; value: string; strong?: boolean }[] = [
+    { label: 'Trabajos', value: String(period.entries.length) },
+    { label: 'Horas totales', value: `${hoursDecimal(period.totalSeconds)} h` },
+    { label: 'Total calculado', value: money(period.totalPay), strong: true },
+  ]
+  if (company.trackCompanyPaid && period.companyPaidTotal > 0) {
+    const diff = period.companyPaidTotal - period.totalPay
+    rows.push(
+      { label: 'Pagado por la empresa', value: money(period.companyPaidTotal) },
+      { label: 'Diferencia', value: `${diff >= 0 ? '+' : '-'}${money(Math.abs(diff))}` },
+    )
+  }
+  return rows
+}
+
 export async function buildWeeklyReportPdf(
   period: PayPeriodSummary,
-  options: { driverName?: string | null; hourlyRate: number }
+  company: Company,
+  options: { driverName?: string | null }
 ): Promise<Uint8Array> {
-  const company = COMPANIES[period.company]
-  const isTecnofuel = period.company === 'tecnofuel'
-  const columns = isTecnofuel ? tecnofuelColumns : larrysColumns
+  const columns = buildColumns(company, period)
 
   const pdf = await PDFDocument.create()
   pdf.setTitle(`${company.name} — ${period.start} al ${period.end}`)
@@ -117,16 +160,16 @@ export async function buildWeeklyReportPdf(
 
   // ── Encabezado ──
   page.drawText(clean(company.name.toUpperCase()), { x: MARGIN, y: y - 18, size: 20, font: fonts.bold, color: INK })
-  page.drawText(isTecnofuel ? 'Relación semanal de horas' : 'Relación semanal de trabajos', {
+  page.drawText(tracksJobDetails(company) ? 'Relación semanal de trabajos' : 'Relación semanal de horas', {
     x: MARGIN, y: y - 34, size: 11, font: fonts.regular, color: MUTED,
   })
   y -= 56
 
   const info: [string, string][] = [
     ['Periodo', `${formatKeyLong(period.start)} – ${formatKeyLong(period.end)}`],
-    ['Semana', company.weekLabel],
+    ['Semana', weekLabel(company.weekStartsOn)],
   ]
-  if (options.driverName) info.unshift(['Conductor', options.driverName])
+  if (options.driverName) info.unshift(['Nombre', options.driverName])
   for (const [label, value] of info) {
     page.drawText(`${label}:`, { x: MARGIN, y, size: 10, font: fonts.bold, color: INK })
     page.drawText(clean(value), { x: MARGIN + 70, y, size: 10, font: fonts.regular, color: INK })
@@ -173,31 +216,7 @@ export async function buildWeeklyReportPdf(
   y -= ROW_HEIGHT + 16
 
   // ── Resumen de pago ──
-  const summary: { label: string; value: string; strong?: boolean }[] = []
-  if (isTecnofuel && company.overtime) {
-    const { baseRate, thresholdHours, multiplier } = company.overtime
-    const overtimeRate = baseRate * multiplier
-    summary.push(
-      { label: 'Horas totales', value: `${hoursDecimal(period.totalSeconds)} h` },
-      { label: `Horas regulares (hasta ${thresholdHours} h) × ${money(baseRate)}`, value: `${hoursDecimal(period.regularSeconds)} h = ${money(period.regularPay)}` },
-      { label: `Horas extra (${multiplier}x) × ${money(overtimeRate)}`, value: `${hoursDecimal(period.overtimeSeconds)} h = ${money(period.overtimePay)}` },
-      { label: 'TOTAL A COBRAR', value: money(period.totalPay), strong: true },
-    )
-  } else {
-    summary.push(
-      { label: 'Trabajos', value: String(period.entries.length) },
-      { label: 'Horas totales', value: `${hoursDecimal(period.totalSeconds)} h` },
-      { label: 'Total calculado', value: money(period.totalPay), strong: true },
-    )
-    if (period.companyPaidTotal > 0) {
-      const diff = period.companyPaidTotal - period.totalPay
-      summary.push(
-        { label: 'Pagado por la empresa', value: money(period.companyPaidTotal) },
-        { label: 'Diferencia', value: `${diff >= 0 ? '+' : '-'}${money(Math.abs(diff))}` },
-      )
-    }
-  }
-
+  const summary = summaryRows(company, period)
   const boxHeight = summary.length * 18 + 16
   if (y - boxHeight < MARGIN + FOOTER_SPACE) {
     page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT])
@@ -227,7 +246,16 @@ export async function buildWeeklyReportPdf(
   return pdf.save()
 }
 
-export function weeklyReportFileName(period: PayPeriodSummary): string {
-  const prefix = period.company === 'tecnofuel' ? 'Tecnofuel' : 'Larrys-Private'
-  return `${prefix}_${period.start}_al_${period.end}.pdf`
+/** "Larrys-Private" — nombre de compañía apto para nombres de archivo */
+export function companyFileSlug(company: Company): string {
+  const slug = company.name
+    .normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '')
+    .replaceAll(/['’]/g, '')
+    .replaceAll(/[^a-zA-Z0-9]+/g, '-')
+    .replaceAll(/^-+|-+$/g, '')
+  return slug || 'compania'
+}
+
+export function weeklyReportFileName(period: PayPeriodSummary, company: Company): string {
+  return `${companyFileSlug(company)}_${period.start}_al_${period.end}.pdf`
 }

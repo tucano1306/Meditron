@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare, ArrowLeftRight, Repeat } from 'lucide-react'
-import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida } from '@/lib/utils'
-import { COMPANIES, COMPANY_IDS, isCompanyId, overtimeAmount, type CompanyId } from '@/lib/companies'
+import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, getFloridaDateString } from '@/lib/utils'
+import { describeRule, overtimeAmount, ruleFor, type Company, type OvertimeRules } from '@/lib/companies'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import type { TimerState } from '@/types'
@@ -24,17 +24,21 @@ interface TimerProps {
   readonly initialState?: TimerState
   readonly hourlyRate?: number
   readonly onRateChange?: (newRate: number) => void
-  /** Compañía con la que se inicia el próximo trabajo */
-  readonly company?: CompanyId
-  /** Segundos de Tecnofuel ya cerrados en la semana de pago actual (para el overtime en vivo) */
-  readonly tecnofuelPriorSeconds?: number
+  /** Compañías del usuario */
+  readonly companies?: Company[]
+  /** Compañía que se está viendo: con ella se inicia el próximo trabajo (vacío = la por defecto) */
+  readonly company?: string
+  /** Horas ya cerradas en el grupo de overtime actual (semana o día) de la compañía vista */
+  readonly overtime?: { kind: 'week' | 'day' | 'entry'; completedSeconds: number; rules: OvertimeRules | null }
   /** Avisa cuando cambia la compañía del trabajo en curso (al iniciarlo o al cambiarla) */
   readonly onCompanyChange?: () => void
   /** Pide a la página mostrar otra compañía (p. ej. la del turno en curso) */
-  readonly onSwitchView?: (company: CompanyId) => void
+  readonly onSwitchView?: (companyId: string) => void
+  /** Guarda una nueva tarifa por hora para la compañía vista; devuelve un error o null */
+  readonly onSaveRate?: (rate: number) => Promise<string | null>
 }
 
-export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onRateChange, company = 'larrys', tecnofuelPriorSeconds = 0, onCompanyChange, onSwitchView }: Readonly<TimerProps>) {
+export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onRateChange, companies = [], company = '', overtime, onCompanyChange, onSwitchView, onSaveRate }: Readonly<TimerProps>) {
   const [isRunning, setIsRunning] = useState(initialState?.isRunning || false)
   const [isPaused, setIsPaused] = useState(initialState?.isPaused || false)
   const [elapsedSeconds, setElapsedSeconds] = useState(initialState?.elapsedSeconds || 0)
@@ -53,9 +57,9 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [observation, setObservation] = useState('')
   const [isEditingObservation, setIsEditingObservation] = useState(false)
   const [observationInput, setObservationInput] = useState('')
-  const [result, setResult] = useState<{ duration: number; earnings: number; jobNumber?: string; vehicle?: string; company?: CompanyId } | null>(null)
+  const [result, setResult] = useState<{ duration: number; earnings: number; jobNumber?: string; vehicle?: string; company?: string } | null>(null)
   // Compañía del trabajo en curso (sale de su nota); sin trabajo en curso manda la vista elegida
-  const [entryCompany, setEntryCompany] = useState<CompanyId | null>(null)
+  const [entryCompany, setEntryCompany] = useState<string | null>(null)
   // Confirmación de "cambiar de trabajo" (detener el turno de una compañía y empezar el de la otra)
   const [confirmSwitch, setConfirmSwitch] = useState(false)
   
@@ -90,7 +94,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
           // accumulatedSeconds is already reflected in elapsedSeconds
         }
         
-        if (isCompanyId(data.data.company)) setEntryCompany(data.data.company)
+        if (typeof data.data.companyId === 'string') setEntryCompany(data.data.companyId)
         if (job) setJobNumber(job)
         if (vehicle) setVehicleType(vehicle)
         if (data.data.serviceType) setServiceType(data.data.serviceType)
@@ -127,10 +131,16 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setEntryCompany(null)
   }, [])
 
-  const activeCompany: CompanyId = (isRunning || isPaused) ? (entryCompany ?? company) : company
-  const overtimeRules = COMPANIES[activeCompany].overtime
+  const activeCompany: string = (isRunning || isPaused) ? (entryCompany ?? company) : company
+  const companyOf = (id: string) => companies.find(c => c.id === id)
+  const nameOf = (id: string) => companyOf(id)?.name ?? 'Compañía'
+  const activeConfig = companyOf(activeCompany)
+  // El overtime en vivo usa las horas ya cerradas de la compañía vista
+  const overtimeRules = activeCompany === company ? overtime?.rules ?? null : null
+  const priorSeconds = overtime?.completedSeconds ?? 0
+  const activeRate = activeConfig ? ruleFor(activeConfig, getFloridaDateString()).hourlyRate : hourlyRate
 
-  const handleStart = useCallback(async (target: CompanyId = company) => {
+  const handleStart = useCallback(async (target: string = company) => {
     setIsLoading(true)
     setError(null)
 
@@ -140,7 +150,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       const res = await fetch('/api/timer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime: new Date().toISOString(), company: target })
+        body: JSON.stringify({ clientTime: new Date().toISOString(), companyId: target })
       })
       const data = await res.json()
 
@@ -179,7 +189,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       const res = await fetch('/api/timer', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime: new Date().toISOString(), jobNumber, vehicle: vehicleType, observation, company: activeCompany })
+        body: JSON.stringify({ clientTime: new Date().toISOString(), jobNumber, vehicle: vehicleType, observation })
       })
       const data = await res.json()
 
@@ -189,7 +199,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         const savedCompany = activeCompany
         const finalDuration = elapsedSeconds
         // El servidor ya aplicó la tarifa (y el overtime de Tecnofuel)
-        const finalEarnings = data.data?.entry?.calculatedAmount ?? (elapsedSeconds / 3600) * hourlyRate
+        const finalEarnings = data.data?.entry?.calculatedAmount ?? (elapsedSeconds / 3600) * activeRate
                 
         resetTimerState()
         stopBackgroundTimer()
@@ -215,7 +225,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     } finally {
       setIsLoading(false)
     }
-  }, [onTimerStop, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType, observation, elapsedSeconds, hourlyRate, resetTimerState, activeCompany])
+  }, [onTimerStop, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType, observation, elapsedSeconds, activeRate, resetTimerState, activeCompany])
 
   // Cambiar de trabajo: cierra el turno de la otra compañía y empieza uno de la vista actual
   const handleSwitchJob = useCallback(async () => {
@@ -282,8 +292,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }, [elapsedSeconds])
 
   const currentEarnings = overtimeRules
-    ? overtimeAmount(tecnofuelPriorSeconds, elapsedSeconds, overtimeRules)
-    : (elapsedSeconds / 3600) * hourlyRate
+    ? overtimeAmount(priorSeconds, elapsedSeconds, overtimeRules)
+    : (elapsedSeconds / 3600) * activeRate
 
   function getTimerColor() {
     if (isRunning) return 'text-[#37352f]'
@@ -333,12 +343,11 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       const res = await fetch('/api/timer', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ observation: observationInput, company: activeCompany })
+        body: JSON.stringify({ observation: observationInput })
       })
       const data = await res.json()
       if (data.success) {
-        // El servidor mantiene la etiqueta de la compañía en la nota
-        setObservation(data.data?.entry?.observation ?? observationInput)
+        setObservation(observationInput)
         setIsEditingObservation(false)
       } else {
         setError(data.error || 'Error al guardar comentario')
@@ -347,21 +356,20 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       console.error('Error saving observation:', err)
       setError('Error de conexión')
     }
-  }, [observationInput, activeCompany])
+  }, [observationInput])
 
-  const handleSelectCompany = useCallback(async (target: CompanyId) => {
+  const handleSelectCompany = useCallback(async (target: string) => {
     if (target === activeCompany) return
     setError(null)
     try {
       const res = await fetch('/api/timer', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company: target })
+        body: JSON.stringify({ companyId: target })
       })
       const data = await res.json()
       if (data.success) {
         setEntryCompany(target)
-        setObservation(data.data?.entry?.observation ?? '')
         onCompanyChange?.()
         onSwitchView?.(target)
       } else {
@@ -419,6 +427,16 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       return
     }
     
+    if (onSaveRate) {
+      const saveError = await onSaveRate(newRate)
+      if (saveError) {
+        setError(saveError)
+      } else {
+        setIsEditingRate(false)
+        onRateChange?.(newRate)
+      }
+      return
+    }
     try {
       const res = await fetch('/api/dashboard', {
         method: 'PATCH',
@@ -426,7 +444,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         body: JSON.stringify({ hourlyRate: newRate })
       })
       const data = await res.json()
-      
+
       if (data.success) {
         setIsEditingRate(false)
         onRateChange?.(newRate)
@@ -437,7 +455,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       setError('Error de conexión')
       console.error(err)
     }
-  }, [tempRate, onRateChange])
+  }, [tempRate, onRateChange, onSaveRate])
 
   const handleCancelRateEdit = useCallback(() => {
     setIsEditingRate(false)
@@ -470,7 +488,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
   const renderJobNumberSection = () => {
     if (!isRunning && !isPaused) return null
-    if (!COMPANIES[activeCompany].tracksJobDetails) return null
+    if (!activeConfig?.trackJobNumber) return null
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
         <div className="flex items-center justify-between gap-2">
@@ -545,7 +563,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
   const renderVehicleSection = () => {
     if (!isRunning && !isPaused) return null
-    if (!COMPANIES[activeCompany].tracksJobDetails) return null
+    if (!activeConfig?.trackVehicle) return null
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
         <div className="flex items-center gap-2 text-[#787774] mb-2.5">
@@ -570,7 +588,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
   const renderServiceTypeSection = () => {
     if (!isRunning && !isPaused) return null
-    if (!COMPANIES[activeCompany].tracksJobDetails) return null
+    if (!activeConfig?.trackServiceType) return null
     const SERVICE_OPTIONS = [
       { value: 'hourly', label: 'Hourly' },
       { value: 'point-to-point', label: 'Point to Point' },
@@ -606,11 +624,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
           <Clock className="h-4 w-4" />
           <span className="text-[14px] font-medium">Turno completado</span>
         </div>
-        {result.company === 'tecnofuel' && (
-          <div className="flex items-center justify-center mb-3">
-            <span className="px-2 py-1 bg-[#fbecdd] text-[#9a4a0b] text-[12px] font-semibold rounded-[4px]">Tecnofuel</span>
-          </div>
-        )}
+
         {(result.jobNumber ?? result.vehicle) && (
           <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
             {result.jobNumber && <span className="px-2 py-1 bg-[rgba(55,53,47,0.08)] text-[#37352f] text-[12px] font-mono rounded-[4px]">#{result.jobNumber}</span>}
@@ -632,17 +646,15 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }
 
   const renderRateEditor = () => {
-    if (overtimeRules) {
+    if (overtimeRules && activeConfig) {
       const thresholdSeconds = overtimeRules.thresholdHours * 3600
-      const weekSeconds = tecnofuelPriorSeconds + ((isRunning || isPaused) ? elapsedSeconds : 0)
-      const remaining = thresholdSeconds - weekSeconds
+      const periodSeconds = priorSeconds + ((isRunning || isPaused) ? elapsedSeconds : 0)
+      const remaining = thresholdSeconds - periodSeconds
       return (
         <div className="text-[12px] text-[#787774] space-y-0.5">
-          <div>
-            {COMPANIES[activeCompany].name}: ${overtimeRules.baseRate}/hora · después de {overtimeRules.thresholdHours} h: ${overtimeRules.baseRate * overtimeRules.multiplier}/hora
-          </div>
+          <div>{describeRule(ruleFor(activeConfig, getFloridaDateString()))}</div>
           <div className={remaining > 0 ? '' : 'font-semibold text-[#9a4a0b]'}>
-            Semana: {(weekSeconds / 3600).toFixed(2)} h ·{' '}
+            {overtime?.kind === 'day' ? 'Hoy' : 'Semana'}: {(periodSeconds / 3600).toFixed(2)} h ·{' '}
             {remaining > 0
               ? `faltan ${(remaining / 3600).toFixed(2)} h para overtime`
               : `${(-remaining / 3600).toFixed(2)} h en overtime`}
@@ -654,7 +666,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       return (
         <button type="button" onClick={handleStartRateEdit} className="text-[12px] text-[#787774] hover:text-[#37352f] flex items-center justify-center gap-1 mx-auto py-1 hover:bg-[rgba(55,53,47,0.08)] px-2 rounded-[4px] transition-colors">
           <Settings className="h-3 w-3" />
-          Tarifa: ${hourlyRate}/hora
+          Tarifa: ${activeRate}/hora
         </button>
       )
     }
@@ -726,30 +738,38 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
       >
         <Play className="h-4 w-4" />
-        {isLoading ? 'Iniciando...' : `INICIAR ${COMPANIES[company].shortName.toUpperCase()}`}
+        {isLoading ? 'Iniciando...' : `INICIAR · ${nameOf(company)}`}
       </button>
     )
   }
 
+  // Por si se inició en la compañía equivocada: mueve el turno sin perder el tiempo
   const renderMoveEntryLink = () => {
     if (!isRunning && !isPaused) return null
-    const other = COMPANY_IDS.find(id => id !== activeCompany) ?? activeCompany
+    const others = companies.filter(c => !c.archived && c.id !== activeCompany)
+    if (others.length === 0) return null
     return (
-      <button
-        type="button"
-        onClick={() => handleSelectCompany(other)}
-        className="w-full py-1 text-center text-[12px] text-[#787774] hover:text-[#37352f] hover:underline underline-offset-2 touch-manipulation"
-      >
-        ¿Este turno es de {COMPANIES[other].name}? Moverlo allí
-      </button>
+      <label className="flex items-center justify-center gap-1.5 py-1 text-[12px] text-[#787774]">
+        ¿Es de otra compañía?
+        <select
+          value=""
+          onChange={e => { if (e.target.value) handleSelectCompany(e.target.value) }}
+          className="max-w-[60%] bg-transparent text-[12px] font-semibold text-[#37352f] underline underline-offset-2 focus:outline-none touch-manipulation"
+        >
+          <option value="">Mover a…</option>
+          {others.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </label>
     )
   }
 
   // La vista es de una compañía pero el turno en curso es de la otra: no se
   // muestra como propio; se ofrece verlo o cambiar de trabajo.
   if ((isRunning || isPaused) && entryCompany && entryCompany !== company) {
-    const runningName = COMPANIES[entryCompany].name
-    const viewName = COMPANIES[company].name
+    const runningName = nameOf(entryCompany)
+    const viewName = nameOf(company)
     return (
       <div className="w-full rounded-[6px] border border-[rgba(55,53,47,0.09)] bg-white overflow-hidden">
         <div className="space-y-3 px-4 py-5">
@@ -801,7 +821,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                 className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
               >
                 <Repeat className="h-4 w-4" />
-                CAMBIAR A {COMPANIES[company].shortName.toUpperCase()}
+                Cambiar a {viewName}
               </button>
               <button
                 type="button"
@@ -823,7 +843,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         {/* Timer Display */}
         <div className="text-center py-4">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-[#787774] mb-1">
-            {COMPANIES[activeCompany].name}
+            {nameOf(activeCompany)}
           </div>
           <div className={`text-[56px] sm:text-[72px] font-mono font-bold tracking-tight transition-colors ${getTimerColor()}`}>
             {formatDuration(elapsedSeconds)}

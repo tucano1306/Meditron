@@ -13,7 +13,7 @@ import {
   Pencil, Car, Wrench, FileText,
 } from 'lucide-react'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
-import { detectCompany } from '@/lib/companies'
+import { useCompanies } from '@/hooks/useCompanies'
 
 interface Entry {
   id: string
@@ -25,6 +25,7 @@ interface Entry {
   vehicle?: string | null
   serviceType?: string | null
   observation?: string | null
+  companyId?: string | null
   calculatedAmount?: number | null
   paidAmount?: number | null
   companyPaid?: number | null
@@ -41,6 +42,8 @@ interface EntryListProps {
   readonly onUpdate?: () => void
   readonly showDate?: boolean
   readonly hourlyRate?: number
+  /** Mostrar la compañía de cada trabajo (listas que mezclan compañías) */
+  readonly showCompany?: boolean
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -86,13 +89,15 @@ function StatusPill({ entry }: { readonly entry: Entry }) {
   return null
 }
 
-function EntryChips({ entry }: { readonly entry: Entry }) {
+function EntryChips({ entry, showCompany }: { readonly entry: Entry; readonly showCompany: boolean }) {
   const chip = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium'
+  const companies = useCompanies()
+  const company = showCompany ? companies?.find(c => c.id === entry.companyId) : undefined
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {detectCompany(entry.observation) === 'tecnofuel' && (
-        <span className={`${chip} bg-[#fbecdd] font-semibold text-[#9a4a0b]`}>
-          Tecnofuel
+      {company && (
+        <span className={`${chip} font-semibold text-white`} style={{ backgroundColor: company.color }}>
+          {company.name}
         </span>
       )}
       {entry.jobNumber && (
@@ -161,10 +166,11 @@ interface EntryCardProps {
   readonly entry: Entry
   readonly hourlyRate: number
   readonly showDate: boolean
+  readonly showCompany: boolean
   readonly onOpen: (entry: Entry, startEditing: boolean) => void
 }
 
-function EntryCard({ entry, hourlyRate, showDate, onOpen }: EntryCardProps) {
+function EntryCard({ entry, hourlyRate, showDate, showCompany, onOpen }: EntryCardProps) {
   const isRunning = entry.endTime === null || entry.duration === null
 
   const header = (
@@ -208,7 +214,7 @@ function EntryCard({ entry, hourlyRate, showDate, onOpen }: EntryCardProps) {
         className="w-full flex-1 px-3.5 py-3 text-left transition-colors touch-manipulation hover:bg-[rgba(55,53,47,0.02)] active:scale-[0.99] active:bg-[rgba(55,53,47,0.05)]"
       >
         {header}
-        <EntryChips entry={entry} />
+        <EntryChips entry={entry} showCompany={showCompany} />
         <EntryAmounts entry={entry} hourlyRate={hourlyRate} />
       </button>
 
@@ -243,6 +249,7 @@ export function EntryList({
   onUpdate,
   showDate = false,
   hourlyRate = HOURLY_RATE,
+  showCompany = false,
 }: Readonly<EntryListProps>) {
   // Las tarjetas se ven de entrada; el encabezado permite plegarlas.
   const [isExpanded, setIsExpanded] = useState(true)
@@ -310,6 +317,7 @@ export function EntryList({
                 entry={entry}
                 hourlyRate={hourlyRate}
                 showDate={showDate}
+                showCompany={showCompany}
                 onOpen={handleOpen}
               />
             ))}

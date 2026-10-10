@@ -8,69 +8,119 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  password      String
-  name          String?
-  hourlyRate    Float    @default(25)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  name       String?
+  hourlyRate Float    @default(25)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  timeEntries   TimeEntry[]
-  weeks         Week[]
+  timeEntries    TimeEntry[]
+  weeks          Week[]
   monthSummaries MonthSummary[]
   paymentEntries PaymentEntry[]
+  companies      Company[]
+}
+
+// Compañía (empleador) de un usuario. Cada persona configura las suyas: qué
+// datos registra por trabajo, en qué día empieza su semana de pago y cómo se
+// le paga (ver CompanyPayRule).
+model Company {
+  id               String   @id @default(cuid())
+  name             String
+  color            String   @default("#37352f")
+  /// Día en que empieza la semana de pago: 0 = domingo ... 6 = sábado
+  weekStartsOn     Int      @default(1)
+  trackJobNumber   Boolean  @default(false)
+  trackVehicle     Boolean  @default(false)
+  trackServiceType Boolean  @default(false)
+  trackCompanyPaid Boolean  @default(false)
+  archived         Boolean  @default(false)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payRules    CompanyPayRule[]
+  timeEntries TimeEntry[]
+
+  @@index([userId])
+}
+
+// Esquema de pago de una compañía a partir de una fecha. Al cambiar la tarifa
+// se agrega una versión nueva, así las semanas anteriores conservan su cálculo.
+model CompanyPayRule {
+  id                 String   @id @default(cuid())
+  effectiveFrom      DateTime @db.Date
+  /// 'hourly' | 'weekly_overtime' | 'daily_overtime'
+  payType            String   @default("hourly")
+  hourlyRate         Float
+  overtimeAfterHours Float?
+  overtimeMultiplier Float?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, effectiveFrom])
+  @@index([companyId])
 }
 
 model TimeEntry {
-  id               String   @id @default(cuid())
-  startTime        DateTime
-  endTime          DateTime?
-  duration         Int?
-  date             DateTime @db.Date
-  jobNumber        String?
-  vehicle          String?
-  observation      String?
-  calculatedAmount Float?
-  paidAmount       Float?
-  companyPaid      Float?
-  companyPaidDate  DateTime?
+  id                     String    @id @default(cuid())
+  startTime              DateTime
+  endTime                DateTime?
+  duration               Int?
+  date                   DateTime  @db.Date
+  jobNumber              String?
+  vehicle                String?
+  observation            String?
+  calculatedAmount       Float?
+  paidAmount             Float?
+  companyPaid            Float?
+  companyPaidDate        DateTime?
   serviceType            String?
   pausedAt               DateTime?
-  accumulatedSeconds     Int      @default(0)
+  accumulatedSeconds     Int       @default(0)
   lastResumeTime         DateTime?
-  correctionPending      Boolean  @default(false)
+  correctionPending      Boolean   @default(false)
   correctionNote         String?
-  correctionResolved     Boolean  @default(false)
+  correctionResolved     Boolean   @default(false)
   correctionResolvedNote String?
-  createdAt              DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   weekId    String
   week      Week     @relation(fields: [weekId], references: [id])
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   @@index([date])
   @@index([weekId])
   @@index([userId])
+  @@index([companyId])
 }
 
 model Week {
-  id          String      @id @default(cuid())
-  weekNumber  Int
-  startDate   DateTime    @db.Date
-  endDate     DateTime    @db.Date
-  year        Int
-  month       Int
-  totalHours  Float       @default(0)
-  earnings    Float       @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id         String   @id @default(cuid())
+  weekNumber Int
+  startDate  DateTime @db.Date
+  endDate    DateTime @db.Date
+  year       Int
+  month      Int
+  totalHours Float    @default(0)
+  earnings   Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries     TimeEntry[]
+  userId  String
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries TimeEntry[]
 
   @@unique([weekNumber, year, userId])
   @@index([year, month])
@@ -87,15 +137,15 @@ model MonthSummary {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([year, month, userId])
   @@index([userId])
 }
 
 model PaymentEntry {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   startTime       DateTime
   endTime         DateTime?
   duration        Int?
@@ -103,15 +153,15 @@ model PaymentEntry {
   hourlyRate      Float?
   jobNumber       String?
   vehicle         String?
-  date            DateTime @db.Date
-  completed       Boolean  @default(false)
+  date            DateTime  @db.Date
+  completed       Boolean   @default(false)
   companyPaid     Float?
   companyPaidDate DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([date])
   @@index([userId])

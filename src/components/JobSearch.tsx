@@ -119,6 +119,7 @@ export function JobSearch({ hourlyRate = 25 }: Readonly<JobSearchProps>) {
             entries={results}
             title={`Trabajo #${query}`}
             showDate
+            showCompany
             hourlyRate={hourlyRate}
             onUpdate={handleUpdate}
             onDelete={handleUpdate}

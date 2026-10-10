@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
-import { parseClientDateTime, getFloridaDateComponents, HOURLY_RATE } from '@/lib/utils'
-import { detectCompany, isCompanyId, toDateKey, withCompanyTag } from '@/lib/companies'
-import { recalculateTecnofuelPeriod } from '@/lib/pay-periods'
+import { parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
+import { ruleFor, toDateKey } from '@/lib/companies'
+import { recalculateCompanyAmounts } from '@/lib/pay-periods'
+import { getUserCompanies, getUserCompany, resolveWriteCompany } from '@/lib/company-store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -21,15 +22,20 @@ export async function POST(request: NextRequest) {
     
     // Obtener la hora del cliente (UTC) si se envía, sino usar hora actual UTC
     let now: Date
-    let company: unknown
+    let companyId: unknown
     try {
       const body = await request.json()
       now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
-      company = body.company
+      companyId = body.companyId
     } catch {
       now = new Date()
     }
-    
+
+    const company = await resolveWriteCompany(userId, companyId)
+    if (!company) {
+      return NextResponse.json({ success: false, error: 'Compañía no encontrada' }, { status: 400 })
+    }
+
     // Verificar si hay un timer activo para este usuario
     const activeEntry = await prisma.timeEntry.findFirst({
       where: {
@@ -53,14 +59,13 @@ export async function POST(request: NextRequest) {
     const localDate = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
 
     // Crear nueva entrada de tiempo (startTime en UTC)
-    // La compañía del trabajo se guarda en la nota (Tecnofuel lleva su etiqueta)
     const entry = await prisma.timeEntry.create({
       data: {
         startTime: now,
         date: localDate,
         weekId: week.id,
         userId,
-        observation: company === 'tecnofuel' ? withCompanyTag(null, 'tecnofuel') : null
+        companyId: company.id
       }
     })
 
@@ -97,7 +102,6 @@ export async function PUT(request: NextRequest) {
     let vehicle: string | undefined
     let observation: string | undefined
     let serviceType: string | undefined
-    let company: unknown
     try {
       const body = await request.json()
       now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
@@ -105,10 +109,12 @@ export async function PUT(request: NextRequest) {
       vehicle = body.vehicle
       observation = body.observation
       serviceType = body.serviceType
-      company = body.company
     } catch {
       now = new Date()
     }
+
+    // Asegura que el turno tenga compañía (los creados antes de existir las compañías)
+    await getUserCompanies(userId)
 
     // Buscar timer activo del usuario
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -140,23 +146,21 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Calcular monto usando la tasa horaria real del usuario
-    const userHourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
-    const hours = duration / 3600
-    const calculatedAmount = hours * userHourlyRate
-
     // Calcular la fecha correcta basada en la hora de FIN en Florida
     // Esto asegura que si terminas a las 2am del día 2, la fecha sea del día 2
     const floridaEndComponents = getFloridaDateComponents(now)
     const correctDate = new Date(Date.UTC(floridaEndComponents.year, floridaEndComponents.month - 1, floridaEndComponents.day))
 
+    // Monto con la tarifa vigente de la compañía del turno (el overtime se ajusta abajo)
+    const company = await resolveWriteCompany(userId, activeEntry.companyId)
+    if (!company) {
+      return NextResponse.json({ success: false, error: 'Compañía no encontrada' }, { status: 400 })
+    }
+    const calculatedAmount = (duration / 3600) * ruleFor(company, toDateKey(correctDate)).hourlyRate
+
     // Recalcular la semana correcta basada en la fecha de fin (por si cruzó límite de semana)
     const correctWeek = await getOrCreateWeek(now, userId)
     const weekChanged = correctWeek.id !== activeEntry.weekId
-
-    const finalObservation = isCompanyId(company)
-      ? withCompanyTag(observation ?? activeEntry.observation, company)
-      : observation ?? activeEntry.observation
 
     // Actualizar entrada con duración, monto calculado, fecha correcta y semana correcta
     let updatedEntry = await prisma.timeEntry.update({
@@ -167,8 +171,9 @@ export async function PUT(request: NextRequest) {
         calculatedAmount,
         jobNumber: jobNumber || activeEntry.jobNumber,
         vehicle: vehicle || activeEntry.vehicle,
-        observation: finalObservation,
+        observation: observation ?? activeEntry.observation,
         serviceType: serviceType ?? activeEntry.serviceType,
+        companyId: company.id,
         date: correctDate,
         weekId: correctWeek.id
       }
@@ -185,11 +190,9 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Tecnofuel: el monto depende de las horas de toda la semana (overtime)
-    if (detectCompany(finalObservation) === 'tecnofuel') {
-      await recalculateTecnofuelPeriod(userId, toDateKey(correctDate))
-      updatedEntry = await prisma.timeEntry.findUniqueOrThrow({ where: { id: activeEntry.id } })
-    }
+    // Con overtime el monto depende de las demás horas de la semana o del día
+    await recalculateCompanyAmounts(userId, company, [toDateKey(correctDate)])
+    updatedEntry = await prisma.timeEntry.findUniqueOrThrow({ where: { id: activeEntry.id } })
 
     // Actualizar totales de la semana (actual o nueva)
     const weekTotals = await updateWeekTotals(correctWeek.id, userId)
@@ -228,6 +231,8 @@ export async function GET() {
     }
 
     const userId = authResult.user.id
+    // Asegura que el turno tenga compañía (los creados antes de existir las compañías)
+    await getUserCompanies(userId)
 
     const activeEntry = await prisma.timeEntry.findFirst({
       where: {
@@ -261,7 +266,7 @@ export async function GET() {
           vehicle: activeEntry.vehicle,
           observation: activeEntry.observation,
           serviceType: activeEntry.serviceType,
-          company: detectCompany(activeEntry.observation),
+          companyId: activeEntry.companyId,
           accumulatedSeconds: activeEntry.accumulatedSeconds,
           elapsedSeconds: Math.max(0, elapsedSeconds)
         }
@@ -296,7 +301,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { jobNumber, vehicle, observation, serviceType, action, company } = body
+    const { jobNumber, vehicle, observation, serviceType, action, companyId } = body
 
     // Buscar timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -344,14 +349,18 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Actualizar jobNumber, vehicle, observation y/o serviceType
-    const updateData: { jobNumber?: string; vehicle?: string; observation?: string | null; serviceType?: string } = {}
+    const updateData: { jobNumber?: string; vehicle?: string; observation?: string; serviceType?: string; companyId?: string } = {}
     if (jobNumber !== undefined) updateData.jobNumber = jobNumber
     if (vehicle !== undefined) updateData.vehicle = vehicle
     if (observation !== undefined) updateData.observation = observation
     if (serviceType !== undefined) updateData.serviceType = serviceType
-    // Cambiar la compañía del trabajo en curso = cambiar la etiqueta de su nota
-    if (isCompanyId(company)) {
-      updateData.observation = withCompanyTag(observation ?? activeEntry.observation, company)
+    // Mover el turno en curso a otra compañía del usuario
+    if (companyId !== undefined) {
+      const company = await getUserCompany(userId, companyId)
+      if (!company) {
+        return NextResponse.json({ success: false, error: 'Compañía no encontrada' }, { status: 400 })
+      }
+      updateData.companyId = company.id
     }
     
     const updatedEntry = await prisma.timeEntry.update({
@@ -363,7 +372,7 @@ export async function PATCH(request: NextRequest) {
       success: true,
       data: {
         entry: updatedEntry,
-        company: detectCompany(updatedEntry.observation),
+        companyId: updatedEntry.companyId,
         message: 'Entrada actualizada'
       }
     })
