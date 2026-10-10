@@ -6,6 +6,8 @@ import { formatCurrency, formatDuration, getMonthName, parseLocalDate, formatTim
 import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer, CheckCircle2, AlertTriangle, BadgeCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
+import { WeeklyPdfButton } from './WeeklyPdfButton'
+import type { CompanyId } from '@/lib/companies'
 
 const ITEMS_PER_PAGE = 5
 
@@ -41,9 +43,11 @@ interface WeekData {
 interface WeekHistoryProps {
   readonly onRefresh?: () => void
   readonly refreshTrigger?: number
+  /** Solo las semanas y trabajos de esta compañía */
+  readonly company?: CompanyId
 }
 
-export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHistoryProps>) {
+export function WeekHistory({ onRefresh, refreshTrigger = 0, company }: Readonly<WeekHistoryProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -53,7 +57,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
   const fetchWeeks = async () => {
     try {
       const [weeksRes, dashboardRes] = await Promise.all([
-        fetch('/api/weeks'),
+        fetch(company ? `/api/weeks?company=${company}` : '/api/weeks'),
         fetch('/api/dashboard')
       ])
       const weeksData = await weeksRes.json()
@@ -74,7 +78,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
 
   useEffect(() => {
     fetchWeeks()
-  }, [refreshTrigger])
+  }, [refreshTrigger, company])
 
   const handleEntryDelete = () => {
     fetchWeeks()
@@ -241,7 +245,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
             className="flex items-center gap-1.5 text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300 touch-manipulation"
           >
             <Printer className="h-4 w-4" />
-            <span className="hidden sm:inline">PDF</span>
+            <span className="hidden sm:inline">Imprimir todo</span>
           </Button>
         </div>
       </CardHeader>
@@ -335,6 +339,11 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0 }: Readonly<WeekHist
               
               {expandedWeek === week.id && week.entries.length > 0 && (
                 <div className="p-3 sm:p-4 pt-0 border-t bg-gray-50">
+                  {company && (
+                    <div className="mt-3 flex justify-end">
+                      <WeeklyPdfButton company={company} date={week.startDate} label="PDF de la semana" />
+                    </div>
+                  )}
                   <div className="mt-3">
                     <EntryList
                       entries={week.entries}

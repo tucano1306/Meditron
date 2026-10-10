@@ -13,6 +13,7 @@ import {
   Pencil, Car, Wrench, FileText,
 } from 'lucide-react'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
+import { detectCompany } from '@/lib/companies'
 
 interface Entry {
   id: string
@@ -89,6 +90,11 @@ function EntryChips({ entry }: { readonly entry: Entry }) {
   const chip = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium'
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {detectCompany(entry.observation) === 'tecnofuel' && (
+        <span className={`${chip} bg-[#fbecdd] font-semibold text-[#9a4a0b]`}>
+          Tecnofuel
+        </span>
+      )}
       {entry.jobNumber && (
         <span className={`${chip} bg-[#37352f] font-mono font-semibold text-white`}>
           #{entry.jobNumber}

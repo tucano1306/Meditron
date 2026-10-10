@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { HOURLY_RATE } from '@/lib/utils'
+import { detectCompany, isCompanyId } from '@/lib/companies'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const year = searchParams.get('year')
     const month = searchParams.get('month')
+    const company = searchParams.get('company')
 
     // Nunca devolver semanas sin entradas (no tienen nada que mostrar)
     const where: Record<string, unknown> = { userId, entries: { some: {} } }
@@ -45,9 +47,34 @@ export async function GET(request: NextRequest) {
       ]
     })
 
+    if (!isCompanyId(company)) {
+      return NextResponse.json({
+        success: true,
+        data: weeks
+      })
+    }
+
+    // ?company=: solo los trabajos de esa compañía, con los totales recalculados
+    const hourlyRate = authResult.user.hourlyRate ?? HOURLY_RATE
+    const companyWeeks = weeks
+      .map(week => {
+        const entries = week.entries.filter(e => detectCompany(e.observation) === company)
+        const completed = entries.filter(e => e.duration !== null)
+        return {
+          ...week,
+          entries,
+          totalHours: completed.reduce((sum, e) => sum + (e.duration ?? 0), 0) / 3600,
+          earnings: completed.reduce(
+            (sum, e) => sum + (e.calculatedAmount ?? ((e.duration ?? 0) / 3600) * hourlyRate),
+            0
+          ),
+        }
+      })
+      .filter(week => week.entries.length > 0)
+
     return NextResponse.json({
       success: true,
-      data: weeks
+      data: companyWeeks
     })
   } catch (error) {
     console.error('Error getting weeks:', error)

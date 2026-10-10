@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, formatShortDateFlorida, formatDuration, getMonthName, parseLocalDate } from '@/lib/utils'
 import { BarChart3, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, X, BadgeCheck, Plus, Trash2, ExternalLink, Pencil } from 'lucide-react'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
+import { WeeklyPdfButton } from './WeeklyPdfButton'
+import type { CompanyId } from '@/lib/companies'
 
 const ITEMS_PER_PAGE = 5
 
@@ -48,6 +50,8 @@ interface WeeklySummaryCardProps {
   readonly refreshTrigger?: number
   readonly onRefresh?: () => void
   readonly hourlyRate?: number
+  /** Solo las semanas y trabajos de esta compañía */
+  readonly company?: CompanyId
 }
 
 interface EntryCardProps {
@@ -357,7 +361,7 @@ function RunningBadge({ jobNumber }: { readonly jobNumber: string | null }) {
   )
 }
 
-export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 25 }: Readonly<WeeklySummaryCardProps>) {
+export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 25, company }: Readonly<WeeklySummaryCardProps>) {
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -480,7 +484,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
 
   const fetchWeeks = useCallback(async () => {
     try {
-      const res = await fetch('/api/weeks')
+      const res = await fetch(company ? `/api/weeks?company=${company}` : '/api/weeks')
       const data = await res.json()
       
       if (data.success) {
@@ -507,7 +511,7 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [company])
 
   useEffect(() => {
     fetchWeeks()
@@ -641,18 +645,21 @@ export function WeeklySummaryCard({ refreshTrigger = 0, onRefresh, hourlyRate = 
                           </span>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAddEntryWeekId(prev => prev === week.id ? null : week.id)
-                          setAddEntryForm({ date: week.startDate.slice(0, 10), hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '', paidAmount: '' })
-                          setSaveError(null)
-                        }}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Agregar
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {company && <WeeklyPdfButton company={company} date={week.startDate} />}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddEntryWeekId(prev => prev === week.id ? null : week.id)
+                            setAddEntryForm({ date: week.startDate.slice(0, 10), hours: '', minutes: '', jobNumber: '', vehicle: '', calculatedAmount: '', paidAmount: '' })
+                            setSaveError(null)
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Agregar
+                        </button>
+                      </div>
                     </div>
 
                     {/* Success badge */}

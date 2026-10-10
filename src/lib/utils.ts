@@ -89,6 +89,22 @@ export function floridaWallTimeToUTC(
   return new Date(utcGuess - diff)
 }
 
+/**
+ * Instantes UTC de un turno a partir de la fecha (YYYY-MM-DD) y las horas de
+ * entrada/salida (HH:MM) en hora de Florida. Si la salida es <= a la entrada se
+ * asume que el turno cruza la medianoche.
+ */
+export function floridaShiftToUTC(date: string, start: string, end: string): { start: Date; end: Date } | null {
+  const [y, mo, d] = date.split('-').map(Number)
+  const [sH, sM] = start.split(':').map(Number)
+  const [eH, eM] = end.split(':').map(Number)
+  if ([y, mo, d, sH, sM, eH, eM].some(n => Number.isNaN(n))) return null
+  const s = floridaWallTimeToUTC(y, mo, d, sH, sM)
+  let e = floridaWallTimeToUTC(y, mo, d, eH, eM)
+  if (e <= s) e = floridaWallTimeToUTC(y, mo, d + 1, eH, eM)
+  return { start: s, end: e }
+}
+
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
@@ -288,8 +304,9 @@ export function formatDateInFlorida(date: string | Date, options: Intl.DateTimeF
   
   if (typeof date === 'string') {
     // Si es un string de fecha ISO que termina en T00:00:00.000Z (fecha sin hora real)
-    // parsearlo como fecha local para evitar problemas de zona horaria
-    if (date.includes('T00:00:00')) {
+    // o una fecha sola YYYY-MM-DD, parsearlo como fecha local para evitar problemas
+    // de zona horaria (si no, el día de hoy se mostraba como el día anterior)
+    if (date.includes('T00:00:00') || /^\d{4}-\d{2}-\d{2}$/.test(date)) {
       const datePart = date.split('T')[0]
       const [year, month, day] = datePart.split('-').map(Number)
       // Crear fecha con hora del mediodía para evitar problemas de zona horaria

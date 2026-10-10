@@ -12,8 +12,13 @@ import { RateCalculator } from '@/components/RateCalculator'
 import { JobSearch } from '@/components/JobSearch'
 import { HourlyEntrySearch } from '@/components/HourlyEntrySearch'
 import { InstallPWA } from '@/components/InstallPWA'
+import { TecnofuelPanel } from '@/components/TecnofuelPanel'
+import { ExportCard } from '@/components/ExportCard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Search } from 'lucide-react'
+import { COMPANIES, COMPANY_IDS, isCompanyId, type CompanyId, type OvertimeRules } from '@/lib/companies'
+
+const COMPANY_STORAGE_KEY = 'meditron_company'
 
 interface DashboardData {
   timerState: {
@@ -58,6 +63,54 @@ interface DashboardData {
     earnings: number
   }
   hourlyRate: number
+  runningCompany: CompanyId | null
+  tecnofuel: {
+    periodStart: string
+    periodEnd: string
+    completedSeconds: number
+    rules: OvertimeRules | null
+  }
+}
+
+interface CompanySwitcherProps {
+  readonly value: CompanyId
+  readonly onChange: (company: CompanyId) => void
+  readonly runningCompany: CompanyId | null
+  readonly hourlyRate: number
+}
+
+// Elige qué compañía se ve (y con cuál se inicia el próximo trabajo)
+function CompanySwitcher({ value, onChange, runningCompany, hourlyRate }: CompanySwitcherProps) {
+  const subtitle = (id: CompanyId) => {
+    const rules = COMPANIES[id].overtime
+    const week = id === 'tecnofuel' ? 'Dom–Sáb' : 'Lun–Dom'
+    return rules
+      ? `${week} · $${rules.baseRate}/h · +${rules.thresholdHours}h a ${rules.multiplier}x`
+      : `${week} · $${hourlyRate}/h por trabajo`
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Compañía">
+      {COMPANY_IDS.map(id => {
+        const active = value === id
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(id)}
+            className={`relative rounded-xl px-3 py-3 text-left transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white shadow-sm' : 'bg-white text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.04)]'}`}
+          >
+            <div className="text-[14px] font-semibold leading-tight">{COMPANIES[id].name}</div>
+            <div className={`text-[11px] mt-0.5 ${active ? 'text-white/70' : 'text-[#787774]'}`}>{subtitle(id)}</div>
+            {runningCompany === id && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-label="Trabajo en curso" />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function HourlyDashboardPage() {
@@ -67,10 +120,26 @@ export default function HourlyDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [company, setCompany] = useState<CompanyId>('larrys')
+
+  // Recordar la última compañía elegida en este dispositivo
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(COMPANY_STORAGE_KEY)
+      if (isCompanyId(saved)) setCompany(saved)
+    } catch { /* sin almacenamiento disponible */ }
+  }, [])
+
+  const handleCompanyChange = (next: CompanyId) => {
+    setCompany(next)
+    try {
+      localStorage.setItem(COMPANY_STORAGE_KEY, next)
+    } catch { /* sin almacenamiento disponible */ }
+  }
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard')
+      const res = await fetch(`/api/dashboard?company=${company}`)
       const result = await res.json()
       
       if (result.success) {
@@ -85,7 +154,7 @@ export default function HourlyDashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [company])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -97,6 +166,7 @@ export default function HourlyDashboardPage() {
 
   const handleTimerStop = () => {
     fetchDashboard()
+    setRefreshKey(prev => prev + 1) // Las listas de semanas incluyen el trabajo recién cerrado
   }
 
   const handleEntryDelete = () => {
@@ -184,12 +254,25 @@ export default function HourlyDashboardPage() {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 py-6">
+        {/* Compañía */}
+        <section className="mb-4">
+          <CompanySwitcher
+            value={company}
+            onChange={handleCompanyChange}
+            runningCompany={data.runningCompany}
+            hourlyRate={data.hourlyRate}
+          />
+        </section>
+
         {/* Timer */}
         <section className="mb-6">
           <Timer
             onTimerStop={handleTimerStop}
             initialState={data.timerState}
             hourlyRate={data.hourlyRate}
+            company={company}
+            tecnofuelPriorSeconds={data.tecnofuel.completedSeconds}
+            onCompanyChange={handleEntryUpdate}
             onRateChange={(newRate) => {
               setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
               fetchDashboard()
@@ -197,95 +280,102 @@ export default function HourlyDashboardPage() {
           />
         </section>
 
-        {/* Summary Cards */}
-        <section className="mb-6">
-          <SummaryCards
-            today={data.today}
-            currentWeek={data.currentWeek}
-            monthSummary={data.monthSummary}
-            hourlyRate={data.hourlyRate}
-            onRateChange={(newRate) => {
-              setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
-              fetchDashboard()
-            }}
-          />
-        </section>
+        {company === 'tecnofuel' ? (
+          <TecnofuelPanel refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} />
+        ) : (
+          <>
+            {/* Summary Cards */}
+            <section className="mb-6">
+              <SummaryCards
+                today={data.today}
+                currentWeek={data.currentWeek}
+                monthSummary={data.monthSummary}
+                hourlyRate={data.hourlyRate}
+                onRateChange={(newRate) => {
+                  setData(prev => prev ? { ...prev, hourlyRate: newRate } : prev)
+                  fetchDashboard()
+                }}
+              />
+            </section>
 
-        {/* Tabs */}
-        <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
-          <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
-            <TabsTrigger
-              value="today"
-              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-            >
-              <Clock className="h-4 w-4" />
-              <span>Hoy</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="weeks"
-              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-            >
-              <Calendar className="h-4 w-4" />
-              <span>Semanas</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="months"
-              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-            >
-              <BarChart3 className="h-4 w-4" />
-              <span>Resumen</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="calculator"
-              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-            >
-              <Calculator className="h-4 w-4" />
-              <span>Calc</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="search"
-              className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-            >
-              <Search className="h-4 w-4" />
-              <span>Buscar</span>
-            </TabsTrigger>
-          </TabsList>
+            {/* Tabs */}
+            <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
+              <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
+                <TabsTrigger
+                  value="today"
+                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
+                >
+                  <Clock className="h-4 w-4" />
+                  <span>Hoy</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="weeks"
+                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span>Semanas</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="months"
+                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Resumen</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="calculator"
+                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
+                >
+                  <Calculator className="h-4 w-4" />
+                  <span>Calc</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="search"
+                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
+                >
+                  <Search className="h-4 w-4" />
+                  <span>Buscar</span>
+                </TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="today">
-            <EntryList
-              entries={data.today.entries}
-              title="Entradas de Hoy"
-              onDelete={handleEntryDelete}
-              onUpdate={handleEntryUpdate}
-              hourlyRate={data.hourlyRate}
-            />
-          </TabsContent>
+              <TabsContent value="today">
+                <EntryList
+                  entries={data.today.entries}
+                  title="Entradas de Hoy"
+                  onDelete={handleEntryDelete}
+                  onUpdate={handleEntryUpdate}
+                  hourlyRate={data.hourlyRate}
+                />
+              </TabsContent>
 
-          <TabsContent value="weeks">
-            <div className="space-y-4">
-              <HourlyEntrySearch hourlyRate={data.hourlyRate} />
-              <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
-            </div>
-          </TabsContent>
+              <TabsContent value="weeks">
+                <div className="space-y-4">
+                  <HourlyEntrySearch hourlyRate={data.hourlyRate} />
+                  <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} company="larrys" />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="months">
-            <div className="space-y-4">
-              <HourlyEntrySearch hourlyRate={data.hourlyRate} />
-              <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} />
-            </div>
-          </TabsContent>
+              <TabsContent value="months">
+                <div className="space-y-4">
+                  <HourlyEntrySearch hourlyRate={data.hourlyRate} />
+                  <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} company="larrys" />
+                  <ExportCard company="larrys" />
+                </div>
+              </TabsContent>
 
-          <TabsContent value="calculator">
-            <RateCalculator onSave={fetchDashboard} hourlyRate={data.hourlyRate} />
-          </TabsContent>
+              <TabsContent value="calculator">
+                <RateCalculator onSave={fetchDashboard} hourlyRate={data.hourlyRate} />
+              </TabsContent>
 
-          <TabsContent value="search">
-            <JobSearch hourlyRate={data.hourlyRate} />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="search">
+                <JobSearch hourlyRate={data.hourlyRate} />
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
 
         <footer className="text-center mt-8 text-[12px] text-[#787774] pb-8">
-          Las semanas van de Lunes a Domingo
+          Las semanas de {COMPANIES[company].name} van de {COMPANIES[company].weekLabel}
         </footer>
       </div>
 

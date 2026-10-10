@@ -5,12 +5,13 @@ import { createPortal } from 'react-dom'
 import {
   X, Clock, Briefcase, Car, Wrench, DollarSign, Pencil,
   AlertTriangle, BadgeCheck, ChevronRight, Trash2, CalendarDays,
-  FileText, History, Save
+  FileText, History, Save, Building2
 } from 'lucide-react'
 import {
   formatCurrency, formatDuration, formatShortDateFlorida,
-  formatTimeInFlorida, getFloridaDateComponents, floridaWallTimeToUTC
+  formatTimeInFlorida, getFloridaDateComponents, floridaShiftToUTC
 } from '@/lib/utils'
+import { COMPANIES, COMPANY_IDS, detectCompany, type CompanyId } from '@/lib/companies'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,16 +74,7 @@ function getDiffColorClass(d: number | null): string {
 // Construye los instantes UTC de inicio/fin a partir de los campos editables,
 // interpretando las horas SIEMPRE como hora de pared de Florida (con DST correcto).
 // Si el fin es <= inicio se asume cruce de medianoche (turno nocturno).
-function buildFloridaTimes(date: string, start: string, end: string): { start: Date; end: Date } | null {
-  const [y, mo, d] = date.split('-').map(Number)
-  const [sH, sM] = start.split(':').map(Number)
-  const [eH, eM] = end.split(':').map(Number)
-  if ([y, mo, d, sH, sM, eH, eM].some(n => Number.isNaN(n))) return null
-  const s = floridaWallTimeToUTC(y, mo, d, sH, sM)
-  let e = floridaWallTimeToUTC(y, mo, d, eH, eM)
-  if (e <= s) e = floridaWallTimeToUTC(y, mo, d + 1, eH, eM)
-  return { start: s, end: e }
-}
+const buildFloridaTimes = floridaShiftToUTC
 
 // Calcula la duración en segundos a partir de los campos editables del formulario.
 function computeDurationSeconds(date: string, start: string, end: string): number | null {
@@ -345,6 +337,56 @@ function AmountSection({ entry, calc, editing, customAmount, paidAmount, onAmoun
   )
 }
 
+interface CompanySectionProps {
+  readonly company: CompanyId
+  readonly onChange: (company: CompanyId) => void
+}
+
+// La compañía se guarda en la nota: al cambiarla, el servidor reescribe la etiqueta
+function CompanySection({ company, onChange }: CompanySectionProps) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-white">
+        <Building2 className="h-3.5 w-3.5 text-gray-400" />
+        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Compañía</span>
+      </div>
+      <div className="p-3 grid grid-cols-2 gap-2">
+        {COMPANY_IDS.map(id => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            className={`py-2 rounded-lg text-sm font-semibold transition-colors touch-manipulation ${company === id ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+          >
+            {COMPANIES[id].name}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Tecnofuel: el monto no se edita, sale del overtime semanal
+function OvertimeAmountSection({ calc }: { readonly calc: number }) {
+  const rules = COMPANIES.tecnofuel.overtime
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-white">
+        <DollarSign className="h-3.5 w-3.5 text-gray-400" />
+        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Monto</span>
+      </div>
+      <div className="px-3 py-2.5">
+        <div className="text-sm font-bold text-gray-800">{formatCurrency(calc)}</div>
+        {rules && (
+          <div className="text-[11px] text-gray-500 mt-0.5">
+            Automático: primeras {rules.thresholdHours} h de la semana ({COMPANIES.tecnofuel.weekLabel.toLowerCase()}) a ${rules.baseRate}/h y el resto a ${rules.baseRate * rules.multiplier}/h
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 interface ObsSectionProps {
   readonly entry: ModalEntry
   readonly editing: boolean
@@ -487,6 +529,8 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
   const [customAmount, setCustomAmount] = useState(calc.toFixed(2))
   const [paidAmount, setPaidAmount] = useState(entry.paidAmount?.toString() ?? '')
   const [observation, setObservation] = useState(entry.observation ?? '')
+  const [company, setCompany] = useState<CompanyId>(() => detectCompany(entry.observation))
+  const tracksJobDetails = COMPANIES[company].tracksJobDetails
   const [editDate, setEditDate] = useState(() => {
     const d = typeof entry.date === 'string' ? entry.date : new Date(entry.date).toISOString()
     return d.split('T')[0]
@@ -537,6 +581,15 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
     setCustomAmount(v)
   }
 
+  const handleCompanyChange = (next: CompanyId) => {
+    setCompany(next)
+    // Al pasar a Larry's vuelve a la tarifa por hora (salvo monto editado a mano)
+    if (!COMPANIES[next].overtime && !amountTouched) {
+      const dur = computeDurationSeconds(editDate, editStart, editEnd) ?? entry.duration ?? 0
+      setCustomAmount(((dur / 3600) * hourlyRate).toFixed(2))
+    }
+  }
+
   const handleSave = async () => {
     // Construir tiempos interpretando las horas como hora de pared de Florida
     const times = buildFloridaTimes(editDate, editStart, editEnd)
@@ -557,8 +610,10 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
           vehicle: vehicle || null,
           serviceType: serviceType || null,
           observation: observation || null,
-          paidAmount: paidAmount ? Number.parseFloat(paidAmount) : null,
-          calculatedAmount: customAmount ? Number.parseFloat(customAmount) : undefined,
+          company,
+          // Tecnofuel solo registra horas: el monto lo calcula el servidor
+          paidAmount: tracksJobDetails ? (paidAmount ? Number.parseFloat(paidAmount) : null) : undefined,
+          calculatedAmount: tracksJobDetails && customAmount ? Number.parseFloat(customAmount) : undefined,
           startTime: newStart.toISOString(),
           endTime: newEnd.toISOString(),
         }),
@@ -594,9 +649,16 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
 
   return (
     <div className="space-y-4">
+      {editing && <CompanySection company={company} onChange={handleCompanyChange} />}
       <TimeSection entry={entry} editing={editing} editDate={editDate} editStart={editStart} editEnd={editEnd} onDateChange={setEditDate} onStartChange={setEditStart} onEndChange={setEditEnd} />
-      <JobSection entry={entry} editing={editing} jobNumber={jobNumber} vehicle={vehicle} serviceType={serviceType} onJobChange={setJobNumber} onVehicleChange={setVehicle} onServiceChange={setServiceType} />
-      <AmountSection entry={entry} calc={calc} editing={editing} customAmount={customAmount} paidAmount={paidAmount} onAmountChange={handleAmountChange} onPaidChange={setPaidAmount} />
+      {tracksJobDetails && (
+        <JobSection entry={entry} editing={editing} jobNumber={jobNumber} vehicle={vehicle} serviceType={serviceType} onJobChange={setJobNumber} onVehicleChange={setVehicle} onServiceChange={setServiceType} />
+      )}
+      {tracksJobDetails ? (
+        <AmountSection entry={entry} calc={calc} editing={editing} customAmount={customAmount} paidAmount={paidAmount} onAmountChange={handleAmountChange} onPaidChange={setPaidAmount} />
+      ) : (
+        <OvertimeAmountSection calc={calc} />
+      )}
       <ObsSection entry={entry} editing={editing} observation={observation} isOpen={noteSheetOpen} sheetValue={noteSheetValue} noteRef={noteRef} onTrigger={openNote} onSheetValueChange={setNoteSheetValue} onCommit={commitNote} />
       <SaveStatus error={saveError} saved={justSaved} />
       <DetailActions
@@ -605,7 +667,7 @@ function DetailTab({ entry, hourlyRate, startInEditMode = false, onUpdate, onClo
         deleting={deleting}
         confirmDelete={confirmDelete}
         onSave={handleSave}
-        onCancelEdit={() => { setAmountTouched(false); setSaveError(null); setEditing(false) }}
+        onCancelEdit={() => { setAmountTouched(false); setSaveError(null); setCompany(detectCompany(entry.observation)); setEditing(false) }}
         onEdit={() => { setAmountTouched(false); setSaveError(null); setJustSaved(false); setEditing(true) }}
         onDeleteRequest={() => setConfirmDelete(true)}
         onDeleteConfirm={handleDelete}
@@ -924,6 +986,7 @@ export function EntryDetailModal({ entry, hourlyRate = 25, startInEditMode = fal
   const calc = localEntry.calculatedAmount ?? ((localEntry.duration ?? 0) / 3600) * hourlyRate
   const resolvedBadge = isResolved ? '✓' : undefined
   const corrBadge = isPending ? 'pendiente' : resolvedBadge
+  const entryCompany = detectCompany(localEntry.observation)
 
   if (!mounted) return null
 
@@ -955,6 +1018,9 @@ export function EntryDetailModal({ entry, hourlyRate = 25, startInEditMode = fal
               <h2 className="text-base font-bold text-gray-900">
                 {localEntry.jobNumber ? `Trabajo #${localEntry.jobNumber}` : 'Entrada'}
               </h2>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${entryCompany === 'tecnofuel' ? 'bg-[#fbecdd] text-[#9a4a0b]' : 'bg-gray-100 text-gray-600'}`}>
+                {COMPANIES[entryCompany].name}
+              </span>
               {statusBadge(isPending, isResolved)}
             </div>
             <div className="flex items-center gap-3 mt-1">
