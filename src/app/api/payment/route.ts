@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
 import { checkStartTime, lastPaymentEndTime } from '@/lib/timer-start'
+import { parseJobInput, serializeJob, withDerivedFields } from '@/lib/payment-store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -103,9 +104,7 @@ export async function PUT(request: Request) {
     const userId = authResult.user.id
     const body = await request.json()
     const { amount, clientTime, jobNumber, vehicle } = body
-    
-    console.log('PUT /api/payment - received:', { amount, jobNumber, vehicle })
-    
+
     // Usar la hora UTC del cliente si se envía, sino usar hora actual UTC
     const now = clientTime ? parseClientDateTime(clientTime) : new Date()
 
@@ -114,6 +113,18 @@ export async function PUT(request: Request) {
         { success: false, error: 'Monto inválido' },
         { status: 400 }
       )
+    }
+
+    // Detalles del trabajo al terminarlo: propina, cliente, notas, método y si ya se cobró
+    const details = parseJobInput({
+      tip: body.tip,
+      client: body.client,
+      notes: body.notes,
+      paymentMethod: body.paymentMethod,
+      paymentStatus: body.paymentStatus ?? 'paid',
+    }, true)
+    if (!details.ok) {
+      return NextResponse.json({ success: false, error: details.error }, { status: 400 })
     }
 
     // Buscar trabajo activo
@@ -147,6 +158,7 @@ export async function PUT(request: Request) {
     const updatedEntry = await prisma.paymentEntry.update({
       where: { id: activeEntry.id },
       data: {
+        ...withDerivedFields(details.value, null),
         endTime: now,
         duration,
         amount,
@@ -162,6 +174,7 @@ export async function PUT(request: Request) {
       success: true,
       data: {
         entry: updatedEntry,
+        job: serializeJob(updatedEntry),
         calculatedHourlyRate: hourlyRate,
         message: 'Trabajo completado'
       }
@@ -209,6 +222,8 @@ export async function GET() {
           currentEntryId: activeEntry.id,
           jobNumber: activeEntry.jobNumber,
           vehicle: activeEntry.vehicle,
+          client: activeEntry.client,
+          notes: activeEntry.notes,
           elapsedSeconds: Math.max(0, elapsedSeconds),
           lastEndTime: await lastPaymentEndTime(userId, activeEntry.id)
         }
@@ -232,66 +247,6 @@ export async function GET() {
       { status: 500 }
     )
   }
-}
-
-// Helper: Editar entrada existente completa
-async function handleFullEntryEdit(id: string, userId: string, body: { startTime?: string; endTime?: string; amount?: number; jobNumber?: string; vehicle?: string }) {
-  const { startTime, endTime, amount, jobNumber, vehicle } = body
-
-  const entry = await prisma.paymentEntry.findFirst({
-    where: { id, userId }
-  })
-
-  if (!entry) {
-    return NextResponse.json(
-      { success: false, error: 'Entrada no encontrada' },
-      { status: 404 }
-    )
-  }
-
-  if (!startTime || !endTime || amount === undefined) {
-    return NextResponse.json(
-      { success: false, error: 'startTime, endTime y amount son requeridos' },
-      { status: 400 }
-    )
-  }
-
-  const newStart = new Date(startTime)
-  const newEnd = new Date(endTime)
-  const duration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000)
-
-  if (duration <= 0) {
-    return NextResponse.json(
-      { success: false, error: 'El tiempo de fin debe ser posterior al inicio' },
-      { status: 400 }
-    )
-  }
-
-  const hours = duration / 3600
-  const hourlyRate = hours > 0 ? Number(amount) / hours : 0
-
-  // Recalcular la fecha basada en la hora de fin en Florida
-  const floridaEndComponents = getFloridaDateComponents(newEnd)
-  const correctDate = new Date(Date.UTC(floridaEndComponents.year, floridaEndComponents.month - 1, floridaEndComponents.day))
-
-  const updatedEntry = await prisma.paymentEntry.update({
-    where: { id },
-    data: {
-      startTime: newStart,
-      endTime: newEnd,
-      duration,
-      amount: Number(amount),
-      hourlyRate,
-      date: correctDate,
-      jobNumber: jobNumber ?? entry.jobNumber,
-      vehicle: vehicle ?? entry.vehicle,
-    }
-  })
-
-  return NextResponse.json({
-    success: true,
-    data: updatedEntry
-  })
 }
 
 // Helper: Corregir la hora de inicio del trabajo activo (p. ej. se inició tarde)
@@ -324,8 +279,12 @@ async function handleActiveStartUpdate(userId: string, startTime: unknown) {
 }
 
 // Helper: Actualizar trabajo activo (jobNumber/vehicle)
-async function handleActiveEntryUpdate(userId: string, body: { jobNumber?: string; vehicle?: string }) {
+async function handleActiveEntryUpdate(userId: string, body: { jobNumber?: string; vehicle?: string; client?: string; notes?: string }) {
   const { jobNumber, vehicle } = body
+  const details = parseJobInput({ client: body.client, notes: body.notes }, true)
+  if (!details.ok) {
+    return NextResponse.json({ success: false, error: details.error }, { status: 400 })
+  }
 
   const activeEntry = await prisma.paymentEntry.findFirst({
     where: {
@@ -341,9 +300,11 @@ async function handleActiveEntryUpdate(userId: string, body: { jobNumber?: strin
     )
   }
 
-  const updateData: { jobNumber?: string; vehicle?: string } = {}
+  const updateData: { jobNumber?: string; vehicle?: string; client?: string | null; notes?: string | null } = {}
   if (jobNumber !== undefined) updateData.jobNumber = jobNumber
   if (vehicle !== undefined) updateData.vehicle = vehicle
+  if (body.client !== undefined) updateData.client = details.value.client as string | null
+  if (body.notes !== undefined) updateData.notes = details.value.notes as string | null
   
   const updatedEntry = await prisma.paymentEntry.update({
     where: { id: activeEntry.id },
@@ -368,16 +329,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const userId = authResult.user.id
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
     const body = await request.json()
 
-    // Si hay ID, es una edición completa de entrada existente
-    if (id) {
-      return handleFullEntryEdit(id, userId, body)
-    }
-
-    // Sin ID: ajustar el inicio o actualizar jobNumber/vehicle del trabajo activo
+    // Trabajo en curso: ajustar el inicio o actualizar sus datos.
+    // Los trabajos terminados se editan en /api/payment/jobs/[id]
     if (body.action === 'setStart') {
       return handleActiveStartUpdate(userId, body.startTime)
     }

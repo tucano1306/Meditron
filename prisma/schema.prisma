@@ -182,6 +182,17 @@ model PaymentEntry {
   completed       Boolean   @default(false)
   companyPaid     Float?
   companyPaidDate DateTime?
+  /// Propina recibida (aparte del pago)
+  tip             Float?
+  /// Cliente o descripción del trabajo
+  client          String?
+  notes           String?
+  /// cash | zelle | card | check | transfer | app | other
+  paymentMethod   String?
+  /// paid (cobrado) | pending (por cobrar)
+  paymentStatus   String    @default("paid")
+  /// Cuándo se cobró
+  paidAt          DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -190,4 +201,5 @@ model PaymentEntry {
 
   @@index([date])
   @@index([userId])
+  @@index([userId, paymentStatus])
 }
