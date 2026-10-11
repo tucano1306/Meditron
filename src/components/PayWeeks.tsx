@@ -10,6 +10,7 @@ import type { PayPeriodSummary, PeriodEntry } from '@/lib/pay-periods'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 import { WeeklyPdfButton } from './WeeklyPdfButton'
 import { ExportCard } from './ExportCard'
+import { WeeklyReportSender } from './WeeklyReportSender'
 
 // Vistas de una compañía agrupadas por su semana de pago (el día de inicio que
 // configuró, con overtime si aplica): lista de semanas, resumen con gráfica y
@@ -490,6 +491,9 @@ export function PayWeeksSummary({ company, refreshTrigger = 0, onRefresh }: PayW
           </div>
         )}
       </section>
+
+      {/* Enviar por correo la semana elegida en la gráfica */}
+      <WeeklyReportSender key={week.start} company={company} variant="card" date={week.start} refreshTrigger={refreshTrigger} />
 
       <ExportCard company={company} />
 

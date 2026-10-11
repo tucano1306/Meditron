@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { overtimeRulesOf, tracksJobDetails, weekLabel, type Company } from './companies'
 import type { PayPeriodSummary, PeriodEntry } from './pay-periods'
 import {
-  dayName, formatKeyLong, formatKeyUS, formatTime12, hoursDecimal, money, noteText,
+  dailyTotals, dayName, formatKeyLong, formatKeyShort, formatKeyUS, formatTime12, hoursDecimal, money, noteText,
 } from './report-format'
 
 // Hoja carta vertical
@@ -215,15 +215,55 @@ export async function buildWeeklyReportPdf(
   drawCell(page, hoursDecimal(period.totalSeconds), hoursX, columns[hoursColumn].width, y - 12.5, fonts.bold, INK, 'right')
   y -= ROW_HEIGHT + 16
 
-  // ── Resumen de pago ──
+  // ── Resumen por día (izquierda) y resumen de pago (derecha) ──
   const summary = summaryRows(company, period)
   const boxHeight = summary.length * 18 + 16
-  if (y - boxHeight < MARGIN + FOOTER_SPACE) {
+  const days = dailyTotals(period)
+  const dayRow = 15
+  const daysHeight = 18 + dayRow * (days.length + 2) + 6
+  if (y - Math.max(boxHeight, daysHeight) < MARGIN + FOOTER_SPACE) {
     page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT])
     y = PAGE_HEIGHT - MARGIN
   }
   const boxWidth = 330
   const boxX = MARGIN + CONTENT_WIDTH - boxWidth
+
+  const daysWidth = boxX - MARGIN - 14
+  const dayColumns = [
+    { width: daysWidth * 0.44, align: 'left' as Align },
+    { width: daysWidth * 0.22, align: 'right' as Align },
+    { width: daysWidth * 0.34, align: 'right' as Align },
+  ]
+  const drawDayRow = (cells: string[], rowTop: number, font: PDFFont, color = INK) => {
+    let cx = MARGIN
+    cells.forEach((text, i) => {
+      drawCell(page, clean(text), cx, dayColumns[i].width, rowTop - 11, font, color, dayColumns[i].align)
+      cx += dayColumns[i].width
+    })
+  }
+  page.drawText('Resumen por día', { x: MARGIN, y: y - 11, size: 10, font: fonts.bold, color: INK })
+  let dayTop = y - 18
+  page.drawRectangle({ x: MARGIN, y: dayTop - dayRow, width: daysWidth, height: dayRow, color: INK })
+  drawDayRow(['Día', 'Horas', 'Monto'], dayTop, fonts.bold, WHITE)
+  dayTop -= dayRow
+  days.forEach((day, index) => {
+    if (index % 2 === 1) page.drawRectangle({ x: MARGIN, y: dayTop - dayRow, width: daysWidth, height: dayRow, color: STRIPE })
+    const worked = day.seconds > 0
+    drawDayRow(
+      [formatKeyShort(day.date), worked ? hoursDecimal(day.seconds) : '—', worked ? money(day.amount) : '—'],
+      dayTop,
+      fonts.regular,
+      worked ? INK : MUTED,
+    )
+    dayTop -= dayRow
+  })
+  page.drawLine({ start: { x: MARGIN, y: dayTop }, end: { x: MARGIN + daysWidth, y: dayTop }, thickness: 1, color: INK })
+  drawDayRow(
+    [`${days.filter(d => d.seconds > 0).length} días trabajados`, hoursDecimal(period.totalSeconds), money(period.totalPay)],
+    dayTop,
+    fonts.bold,
+  )
+
   page.drawRectangle({ x: boxX, y: y - boxHeight, width: boxWidth, height: boxHeight, borderColor: INK, borderWidth: 1 })
   let lineY = y - 20
   for (const row of summary) {

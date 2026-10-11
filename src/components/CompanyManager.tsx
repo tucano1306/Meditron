@@ -116,6 +116,8 @@ interface DetailsDraft {
   trackVehicle: boolean
   trackServiceType: boolean
   trackCompanyPaid: boolean
+  /** Correos del reporte semanal, separados por coma */
+  reportEmails: string
 }
 
 const TRACK_OPTIONS: { key: keyof Pick<DetailsDraft, 'trackJobNumber' | 'trackVehicle' | 'trackServiceType' | 'trackCompanyPaid'>; label: string }[] = [
@@ -134,6 +136,7 @@ function draftFromCompany(company?: Company): DetailsDraft {
     trackVehicle: company?.trackVehicle ?? false,
     trackServiceType: company?.trackServiceType ?? false,
     trackCompanyPaid: company?.trackCompanyPaid ?? false,
+    reportEmails: company?.reportEmails.join(', ') ?? '',
   }
 }
 
@@ -181,6 +184,19 @@ function DetailsFields({ draft, onChange }: { readonly draft: DetailsDraft; read
           ))}
         </div>
       </div>
+      <label className="block text-[11px] text-[#787774]">
+        Correos para el reporte semanal (opcional)
+        <input
+          type="text"
+          inputMode="email"
+          value={draft.reportEmails}
+          onChange={e => set({ reportEmails: e.target.value })}
+          placeholder="nomina@empresa.com, jefe@empresa.com"
+          className={inputClass}
+          style={{ fontSize: '16px' }}
+        />
+        <span className="mt-1 block text-[11px] text-[#9b9a97]">A estos correos se envía el PDF de cada semana con un toque. Sepáralos con comas.</span>
+      </label>
     </div>
   )
 }

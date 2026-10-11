@@ -38,15 +38,34 @@ model Company {
   trackCompanyPaid Boolean  @default(false)
   archived         Boolean  @default(false)
   sortOrder        Int      @default(0)
+  /// Correos que reciben el reporte semanal, separados por coma
+  reportEmails     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  userId      String
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payRules    CompanyPayRule[]
-  timeEntries TimeEntry[]
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payRules         CompanyPayRule[]
+  timeEntries      TimeEntry[]
+  reportDeliveries ReportDelivery[]
 
   @@index([userId])
+}
+
+// Envío por correo del reporte de una semana de pago (para saber qué semanas
+// ya se mandaron y a quién)
+model ReportDelivery {
+  id         String   @id @default(cuid())
+  /// Primer día de la semana de pago enviada
+  weekStart  DateTime @db.Date
+  /// Destinatarios, separados por coma
+  recipients String
+  sentAt     DateTime @default(now())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, weekStart])
 }
 
 // Esquema de pago de una compañía a partir de una fecha. Al cambiar la tarifa

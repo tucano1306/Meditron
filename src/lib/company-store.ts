@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 import { recalculateCompanyAmounts } from './pay-periods'
+import { splitEmails } from './company-input'
 import {
   dateKeyToUTC,
   defaultCompany,
@@ -28,6 +29,7 @@ export function serializeCompany(c: DbCompany): Company {
     trackCompanyPaid: c.trackCompanyPaid,
     archived: c.archived,
     sortOrder: c.sortOrder,
+    reportEmails: splitEmails(c.reportEmails),
     payRules: c.payRules.map(r => ({
       id: r.id,
       effectiveFrom: toDateKey(r.effectiveFrom),

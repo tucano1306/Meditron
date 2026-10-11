@@ -41,6 +41,8 @@ export interface Company {
   trackCompanyPaid: boolean
   archived: boolean
   sortOrder: number
+  /** Correos que reciben el reporte semanal */
+  reportEmails: string[]
   /** Versiones del esquema de pago, de la más antigua a la más reciente */
   payRules: PayRule[]
 }

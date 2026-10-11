@@ -13,6 +13,7 @@ import { CompanySearch } from '@/components/CompanySearch'
 import { InstallPWA } from '@/components/InstallPWA'
 import { AddHoursForm, PayWeeksList, PayWeeksSummary } from '@/components/PayWeeks'
 import { CompanyManager } from '@/components/CompanyManager'
+import { WeeklyReportSender } from '@/components/WeeklyReportSender'
 import { ExportCard } from '@/components/ExportCard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar, BarChart3, Calculator, Clock, LogOut, Plus, Search, Settings2 } from 'lucide-react'
@@ -360,6 +361,11 @@ export default function HourlyDashboardPage() {
           />
         </section>
 
+        {/* Semana terminada sin enviar: el reporte sale por correo con un toque */}
+        <div className="mb-6 empty:hidden">
+          <WeeklyReportSender key={company.id} company={company} variant="banner" refreshTrigger={refreshKey} />
+        </div>
+
         {/* Pestañas: el contenido se adapta a cómo trabaja la compañía */}
         <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
           <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
@@ -394,6 +400,7 @@ export default function HourlyDashboardPage() {
           <TabsContent value="months">
             {jobsView ? (
               <div className="space-y-4">
+                <WeeklyReportSender key={company.id} company={company} variant="card" refreshTrigger={refreshKey} />
                 <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} companyId={company.id} />
                 <ExportCard company={company} />
               </div>

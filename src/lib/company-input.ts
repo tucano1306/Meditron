@@ -4,6 +4,30 @@ import { COMPANY_COLORS, isPayType, type PayRule } from './companies'
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
+const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
+/** Destinatarios máximos del reporte semanal */
+export const MAX_REPORT_EMAILS = 5
+
+export function isEmail(value: string): boolean {
+  return value.length <= 254 && EMAIL.test(value)
+}
+
+/** "a@x.com, b@y.com" → ["a@x.com", "b@y.com"] (sin vacíos ni repetidos) */
+export function splitEmails(value: string | null | undefined): string[] {
+  const list = (value ?? '').split(/[,;\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean)
+  return [...new Set(list)]
+}
+
+/** Valida una lista de correos (arreglo o texto separado por comas) */
+export function parseEmailList(value: unknown): Result<string[]> {
+  const raw = Array.isArray(value) ? value.join(',') : value
+  if (raw !== null && raw !== undefined && typeof raw !== 'string') return { ok: false, error: 'Correos inválidos' }
+  const emails = splitEmails(raw as string | null | undefined)
+  const invalid = emails.find(e => !isEmail(e))
+  if (invalid) return { ok: false, error: `Correo inválido: ${invalid}` }
+  if (emails.length > MAX_REPORT_EMAILS) return { ok: false, error: `Máximo ${MAX_REPORT_EMAILS} correos` }
+  return { ok: true, value: emails }
+}
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
@@ -44,6 +68,8 @@ export interface CompanyFields {
   trackCompanyPaid?: boolean
   archived?: boolean
   sortOrder?: number
+  /** Correos del reporte semanal, separados por coma (null = ninguno) */
+  reportEmails?: string | null
 }
 
 const FLAG_FIELDS = ['trackJobNumber', 'trackVehicle', 'trackServiceType', 'trackCompanyPaid', 'archived'] as const
@@ -73,6 +99,11 @@ export function parseCompanyInput(body: Record<string, unknown>, partial: boolea
       if (typeof flag !== 'boolean') return { ok: false, error: `Valor inválido para ${key}` }
       value[key] = flag
     }
+  }
+  if (body.reportEmails !== undefined) {
+    const emails = parseEmailList(body.reportEmails)
+    if (!emails.ok) return emails
+    value.reportEmails = emails.value.length > 0 ? emails.value.join(', ') : null
   }
   if (body.sortOrder !== undefined) {
     const order = num(body.sortOrder)

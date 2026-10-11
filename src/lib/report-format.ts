@@ -3,7 +3,7 @@
 // se muestran en hora de Florida.
 
 import { getFloridaDateComponents } from './utils'
-import { dateKeyToUTC } from './companies'
+import { addDaysToKey, dateKeyToUTC } from './companies'
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const DAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
@@ -53,4 +53,26 @@ export function noteText(note: string | null | undefined): string {
 export function formatKeyShort(key: string): string {
   const [, m, d] = key.split('-').map(Number)
   return `${DAY_SHORT[dateKeyToUTC(key).getUTCDay()]} ${d} ${MONTH_SHORT[m - 1]}`
+}
+
+export interface DayTotal {
+  /** YYYY-MM-DD */
+  date: string
+  entries: number
+  seconds: number
+  amount: number
+}
+
+/** Totales de cada uno de los 7 días de la semana de pago (también los días sin horas) */
+export function dailyTotals(period: { start: string; entries: { date: string; duration: number | null; amount: number }[] }): DayTotal[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = addDaysToKey(period.start, i)
+    const list = period.entries.filter(e => e.date.slice(0, 10) === date)
+    return {
+      date,
+      entries: list.length,
+      seconds: list.reduce((sum, e) => sum + (e.duration ?? 0), 0),
+      amount: list.reduce((sum, e) => sum + e.amount, 0),
+    }
+  })
 }
