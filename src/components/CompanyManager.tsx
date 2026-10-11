@@ -118,6 +118,7 @@ interface DetailsDraft {
   trackCompanyPaid: boolean
   /** Correos del reporte semanal, separados por coma */
   reportEmails: string
+  autoSendReport: boolean
 }
 
 const TRACK_OPTIONS: { key: keyof Pick<DetailsDraft, 'trackJobNumber' | 'trackVehicle' | 'trackServiceType' | 'trackCompanyPaid'>; label: string }[] = [
@@ -137,6 +138,7 @@ function draftFromCompany(company?: Company): DetailsDraft {
     trackServiceType: company?.trackServiceType ?? false,
     trackCompanyPaid: company?.trackCompanyPaid ?? false,
     reportEmails: company?.reportEmails.join(', ') ?? '',
+    autoSendReport: company?.autoSendReport ?? false,
   }
 }
 
@@ -190,12 +192,27 @@ function DetailsFields({ draft, onChange }: { readonly draft: DetailsDraft; read
           type="text"
           inputMode="email"
           value={draft.reportEmails}
-          onChange={e => set({ reportEmails: e.target.value })}
+          onChange={e => set({ reportEmails: e.target.value, ...(e.target.value.trim() ? {} : { autoSendReport: false }) })}
           placeholder="nomina@empresa.com, jefe@empresa.com"
           className={inputClass}
           style={{ fontSize: '16px' }}
         />
         <span className="mt-1 block text-[11px] text-[#9b9a97]">A estos correos se envía el PDF de cada semana con un toque. Sepáralos con comas.</span>
+      </label>
+      <label className="flex items-start gap-2 py-1 text-[14px] text-[#37352f] touch-manipulation">
+        <input
+          type="checkbox"
+          checked={draft.autoSendReport}
+          disabled={!draft.reportEmails.trim()}
+          onChange={e => set({ autoSendReport: e.target.checked })}
+          className="mt-0.5 h-4 w-4 accent-[#37352f] disabled:opacity-40"
+        />
+        <span>
+          Enviar el reporte solo cada semana
+          <span className="block text-[11px] text-[#9b9a97]">
+            El {DAY_NAMES[draft.weekStartsOn].toLowerCase()} por la mañana sale el de la semana que terminó, sin tocar nada.
+          </span>
+        </span>
       </label>
     </div>
   )

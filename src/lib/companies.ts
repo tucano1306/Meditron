@@ -43,6 +43,8 @@ export interface Company {
   sortOrder: number
   /** Correos que reciben el reporte semanal */
   reportEmails: string[]
+  /** El reporte se envía solo al terminar cada semana de pago */
+  autoSendReport: boolean
   /** Versiones del esquema de pago, de la más antigua a la más reciente */
   payRules: PayRule[]
 }

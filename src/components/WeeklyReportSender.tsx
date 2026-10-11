@@ -1,16 +1,17 @@
 'use client'
 
 import { useEffect, useState, type KeyboardEvent } from 'react'
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, FileText, Loader2, Mail, Send, Share2, X } from 'lucide-react'
-import { addDaysToKey, type Company } from '@/lib/companies'
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, FileText, Loader2, Mail, Repeat, Send, Share2, X } from 'lucide-react'
+import { addDaysToKey, DAY_NAMES, type Company } from '@/lib/companies'
 import { isEmail, MAX_REPORT_EMAILS } from '@/lib/company-input'
 import { formatRange, formatHM } from '@/lib/display'
 import { formatKeyShort, formatTime12, money } from '@/lib/report-format'
 import { refreshCompanies } from '@/hooks/useCompanies'
 
 // Envío por correo del PDF de una semana de pago con un solo botón. Los
-// destinatarios se guardan en la compañía, así la próxima vez basta un toque.
-// Sin correo configurado en el servidor, comparte el PDF desde el teléfono.
+// destinatarios se guardan en la compañía, así la próxima vez basta un toque, y
+// con el envío automático ni eso: sale solo cada semana. Sin correo configurado
+// en el servidor, comparte el PDF desde el teléfono.
 
 interface ReportStatus {
   configured: boolean
@@ -28,7 +29,7 @@ interface ReportStatus {
     hasRunningEntry: boolean
     finished: boolean
   }
-  deliveries: { sentAt: string; recipients: string[] }[]
+  deliveries: { sentAt: string; recipients: string[]; automatic: boolean }[]
 }
 
 interface WeeklyReportSenderProps {
@@ -83,6 +84,45 @@ async function sharePdf(company: Company, status: ReportStatus, recipients: stri
   globalThis.location.href = `mailto:${recipients.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${text}\n\n(Adjunta el PDF que se acaba de descargar: ${fileName})`)}`
 }
 
+interface AutoSendSwitchProps {
+  readonly on: boolean
+  readonly busy: boolean
+  readonly disabled: boolean
+  readonly sendDay: string
+  readonly onChange: (next: boolean) => void
+}
+
+// "Enviar solo cada semana": el reporte sale sin tocar nada
+function AutoSendSwitch({ on, busy, disabled, sendDay, onChange }: AutoSendSwitchProps) {
+  let help = `Cada ${sendDay} por la mañana, sin que tengas que tocar nada.`
+  if (on) help = `Activado: cada ${sendDay} por la mañana se envía la semana que terminó.`
+  else if (disabled) help = 'Escribe primero a qué correo se envía.'
+  return (
+    <div className={`mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors ${on ? 'border-emerald-200 bg-emerald-50/60' : 'border-[rgba(55,53,47,0.12)]'}`}>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#37352f]">
+          <Repeat className="h-3.5 w-3.5 flex-shrink-0" />
+          Enviar solo cada semana
+        </div>
+        <div className="mt-0.5 text-[12px] text-[#787774]">{help}</div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label="Enviar el reporte solo cada semana"
+        onClick={() => onChange(!on)}
+        disabled={busy || (disabled && !on)}
+        className={`relative h-7 w-12 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 touch-manipulation ${on ? 'bg-emerald-500' : 'bg-[rgba(55,53,47,0.2)]'}`}
+      >
+        <span className={`absolute top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-[22px]' : 'translate-x-0.5'}`}>
+          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#787774]" />}
+        </span>
+      </button>
+    </div>
+  )
+}
+
 export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 }: WeeklyReportSenderProps) {
   const [pickedDate, setPickedDate] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
@@ -93,6 +133,11 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
   const [copyMe, setCopyMe] = useState(true)
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [dismissed, setDismissed] = useState(false)
+  // Envío automático: valor recién cambiado (antes de recargar la compañía)
+  const [autoSendOverride, setAutoSendOverride] = useState<boolean | null>(null)
+  const [autoSendBusy, setAutoSendBusy] = useState(false)
+  const [autoSendError, setAutoSendError] = useState<string | null>(null)
+  const [suggestDismissed, setSuggestDismissed] = useState(false)
 
   const targetDate = date ?? pickedDate
   const requestKey = `${company.id}|${targetDate ?? ''}|${refreshTrigger}|${reload}`
@@ -123,6 +168,8 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
   const recipients = draft ?? status.recipients
   const alreadySent = status.deliveries.length > 0
   const justSent = phase.kind === 'sent'
+  const autoSend = autoSendOverride ?? company.autoSendReport
+  const sendDay = DAY_NAMES[company.weekStartsOn].toLowerCase()
 
   // El aviso solo aparece para la última semana terminada con horas y sin enviar
   if (variant === 'banner') {
@@ -134,7 +181,7 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
     const email = raw.trim().replace(/[,;]$/, '').toLowerCase()
     if (!email) return true
     if (!isEmail(email)) {
-      setInputError('Revisa el correo')
+      setInputError('Ese correo no parece válido')
       return false
     }
     if (recipients.includes(email)) {
@@ -168,7 +215,7 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
       to = [...recipients, input.trim().toLowerCase()]
     }
     if (status.configured && to.length === 0) {
-      setInputError('¿A qué correo lo enviamos?')
+      setInputError('Escribe el correo de tu jefe o de nómina')
       return
     }
     setPhase({ kind: 'sending' })
@@ -206,6 +253,32 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
       localStorage.setItem(dismissKey(company.id, week.start), '1')
     } catch { /* sin almacenamiento disponible */ }
     setDismissed(true)
+  }
+
+  // Activa o quita el envío automático; al activarlo guarda también los correos escritos
+  const toggleAutoSend = async (next: boolean) => {
+    setAutoSendBusy(true)
+    setAutoSendError(null)
+    try {
+      const to = phase.kind === 'sent' ? phase.to : recipients
+      const res = await fetch(`/api/companies/${company.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next ? { autoSendReport: true, reportEmails: to } : { autoSendReport: false }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setAutoSendOverride(next)
+        if (next) setDraft(null)
+        refreshCompanies().catch(() => undefined)
+      } else {
+        setAutoSendError(json.error || 'No se pudo cambiar el envío automático')
+      }
+    } catch {
+      setAutoSendError('Error de conexión')
+    } finally {
+      setAutoSendBusy(false)
+    }
   }
 
   const changeWeek = (delta: number) => {
@@ -251,6 +324,40 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
                 Listo
               </button>
             </div>
+
+            {/* Después del primer envío se ofrece que salga solo */}
+            {!autoSend && !suggestDismissed && (
+              <div className="mt-4 rounded-lg border border-emerald-200 bg-white p-3 animate-fade-in">
+                <div className="flex items-center gap-1.5 text-[14px] font-semibold text-[#37352f]">
+                  <Repeat className="h-4 w-4 text-emerald-600" />
+                  ¿Quieres que se envíe solo cada semana?
+                </div>
+                <p className="mt-1 text-[12px] leading-relaxed text-[#787774]">
+                  Cada {sendDay} por la mañana le llegará a {phase.to.join(', ')} el reporte de la semana que terminó, sin que hagas nada. Te llega una copia y puedes quitarlo cuando quieras.
+                </p>
+                {autoSendError && <p className="mt-2 text-[12px] text-red-600">{autoSendError}</p>}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleAutoSend(true)}
+                    disabled={autoSendBusy}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors touch-manipulation"
+                  >
+                    {autoSendBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                    Sí, enviarlo solo
+                  </button>
+                  <button type="button" onClick={() => setSuggestDismissed(true)} className="rounded-lg px-3 py-2 text-[13px] font-semibold text-[#787774] hover:bg-[rgba(55,53,47,0.06)] transition-colors">
+                    Ahora no
+                  </button>
+                </div>
+              </div>
+            )}
+            {autoSend && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-emerald-800 animate-pop-in">
+                <Repeat className="h-3.5 w-3.5" />
+                Envío automático activado: cada {sendDay} por la mañana
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -313,9 +420,21 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-900">
           <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span>
-            Enviado el {sentLabel(status.deliveries[0].sentAt)} a {status.deliveries[0].recipients.join(', ')}
+            {status.deliveries[0].automatic ? 'Enviado automáticamente' : 'Enviado'} el {sentLabel(status.deliveries[0].sentAt)} a {status.deliveries[0].recipients.join(', ')}
             {status.deliveries.length > 1 && ` (${status.deliveries.length} envíos)`}
           </span>
+        </div>
+      )}
+      {week.finished && week.hasRunningEntry && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+          Quedó un turno sin detener en esta semana. Detenlo para que el reporte salga completo.
+        </div>
+      )}
+      {variant === 'banner' && autoSend && status.configured && !week.hasRunningEntry && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-900">
+          <Repeat className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+          Se enviará solo esta mañana. Si prefieres, envíalo ahora.
         </div>
       )}
       {!week.finished && week.entryCount > 0 && (
@@ -329,7 +448,7 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
         <>
           {/* Destinatarios */}
           <div className="mt-4">
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#787774]">Para</div>
+            <div className="mb-1.5 text-[12px] font-semibold text-[#37352f]">¿A quién se lo envías?</div>
             <div className={`flex flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1.5 transition-colors focus-within:border-[#37352f] ${inputError ? 'border-red-300' : 'border-[rgba(55,53,47,0.16)]'}`}>
               {recipients.map(email => (
                 <span key={email} className="inline-flex max-w-full items-center gap-1 rounded-full bg-[rgba(55,53,47,0.08)] py-1 pl-2.5 pr-1 text-[13px] text-[#37352f] animate-fade-in">
@@ -347,7 +466,7 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
                 onChange={e => { setInput(e.target.value); setInputError(null) }}
                 onKeyDown={handleKeyDown}
                 onBlur={() => { if (input.trim()) addRecipient(input) }}
-                placeholder={recipients.length === 0 ? 'correo@empresa.com' : 'Agregar otro…'}
+                placeholder={recipients.length === 0 ? 'Correo de tu jefe o de nómina' : 'Agregar otro…'}
                 className="min-w-[160px] flex-1 bg-transparent px-1 py-1 text-[#37352f] placeholder:text-[#b4b4b0] focus:outline-none"
                 style={{ fontSize: '16px' }}
               />
@@ -362,13 +481,23 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
           </div>
 
           {status.configured ? (
-            <label className="mt-3 flex items-center gap-2 text-[13px] text-[#787774] touch-manipulation">
-              <input type="checkbox" checked={copyMe} onChange={e => setCopyMe(e.target.checked)} className="h-4 w-4 accent-[#37352f]" />
-              Enviarme una copia a {status.senderEmail}
-            </label>
+            <>
+              <label className="mt-3 flex items-center gap-2 text-[13px] text-[#787774] touch-manipulation">
+                <input type="checkbox" checked={copyMe} onChange={e => setCopyMe(e.target.checked)} className="h-4 w-4 accent-[#37352f]" />
+                Enviarme una copia a {status.senderEmail}
+              </label>
+              <AutoSendSwitch
+                on={autoSend}
+                busy={autoSendBusy}
+                disabled={recipients.length === 0}
+                sendDay={sendDay}
+                onChange={toggleAutoSend}
+              />
+              {autoSendError && <div className="mt-1 text-[12px] text-red-600">{autoSendError}</div>}
+            </>
           ) : (
             <p className="mt-3 text-[12px] text-[#9b9a97]">
-              El envío automático aún no está activado: se abrirá el menú para compartir el PDF por correo.
+              Se abrirá el menú de tu teléfono para enviarlo por correo.
             </p>
           )}
 

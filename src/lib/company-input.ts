@@ -70,9 +70,10 @@ export interface CompanyFields {
   sortOrder?: number
   /** Correos del reporte semanal, separados por coma (null = ninguno) */
   reportEmails?: string | null
+  autoSendReport?: boolean
 }
 
-const FLAG_FIELDS = ['trackJobNumber', 'trackVehicle', 'trackServiceType', 'trackCompanyPaid', 'archived'] as const
+const FLAG_FIELDS = ['trackJobNumber', 'trackVehicle', 'trackServiceType', 'trackCompanyPaid', 'archived', 'autoSendReport'] as const
 
 /** Campos editables de una compañía; con `partial` solo valida los que vienen. */
 export function parseCompanyInput(body: Record<string, unknown>, partial: boolean): Result<CompanyFields> {

@@ -5,17 +5,15 @@ import { getUserCompany } from '@/lib/company-store'
 import { parseEmailList, splitEmails } from '@/lib/company-input'
 import { dateKeyToUTC, getPayPeriod } from '@/lib/companies'
 import { getSinglePayPeriod } from '@/lib/pay-periods'
-import { buildWeeklyReportPdf, weeklyReportFileName } from '@/lib/weekly-report-pdf'
-import { buildWeeklyReportEmail, lastCompletedWeekStart } from '@/lib/weekly-report-email'
-import { isEmailConfigured, sendMail } from '@/lib/mailer'
+import { lastCompletedWeekStart } from '@/lib/weekly-report-email'
+import { deliverWeeklyReport, MAX_SENDS_PER_DAY, sendsInLastDay } from '@/lib/report-delivery'
+import { isEmailConfigured } from '@/lib/mailer'
 import { getFloridaDateString } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
-/** Envíos permitidos por usuario cada 24 horas (evita usar la app para spam) */
-const MAX_SENDS_PER_DAY = 20
 
 function weekStartFor(company: { weekStartsOn: number }, date: unknown, fallback: string): string {
   return typeof date === 'string' && DATE_KEY.test(date) ? getPayPeriod(date, company.weekStartsOn).start : fallback
@@ -46,6 +44,7 @@ export async function GET(request: NextRequest) {
       data: {
         configured: isEmailConfigured(),
         recipients: company.reportEmails,
+        autoSend: company.autoSendReport,
         senderEmail: user.email,
         lastCompletedStart: lastCompleted,
         currentStart: getPayPeriod(today, company.weekStartsOn).start,
@@ -59,7 +58,7 @@ export async function GET(request: NextRequest) {
           hasRunningEntry: period.hasRunningEntry,
           finished: period.end < today,
         },
-        deliveries: deliveries.map(d => ({ sentAt: d.sentAt, recipients: splitEmails(d.recipients) })),
+        deliveries: deliveries.map(d => ({ sentAt: d.sentAt, recipients: splitEmails(d.recipients), automatic: d.automatic })),
       },
     })
   } catch (error) {
@@ -89,14 +88,12 @@ export async function POST(request: NextRequest) {
 
     if (!isEmailConfigured()) {
       return NextResponse.json(
-        { success: false, code: 'EMAIL_NOT_CONFIGURED', error: 'El envío automático de correos no está activado' },
+        { success: false, code: 'EMAIL_NOT_CONFIGURED', error: 'El envío directo de correos no está disponible' },
         { status: 503 }
       )
     }
 
-    const since = new Date(Date.now() - 24 * 3600 * 1000)
-    const sentToday = await prisma.reportDelivery.count({ where: { company: { userId: user.id }, sentAt: { gte: since } } })
-    if (sentToday >= MAX_SENDS_PER_DAY) {
+    if (await sendsInLastDay(user.id) >= MAX_SENDS_PER_DAY) {
       return NextResponse.json({ success: false, error: 'Llegaste al límite de envíos de hoy. Intenta mañana.' }, { status: 429 })
     }
 
@@ -112,38 +109,23 @@ export async function POST(request: NextRequest) {
       await prisma.company.update({ where: { id: company.id }, data: { reportEmails: saved } })
     }
 
-    const senderName = user.name || user.email.split('@')[0]
-    const pdf = await buildWeeklyReportPdf(period, company, { driverName: senderName })
-    const email = buildWeeklyReportEmail(period, company, { name: senderName, email: user.email })
-    const copy = body.copyMe !== false && !recipients.value.includes(user.email.toLowerCase())
-
     try {
-      await sendMail({
-        fromName: `${senderName} vía Meditron`,
-        to: recipients.value,
-        cc: copy ? [user.email] : undefined,
-        replyTo: user.email,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-        attachments: [{ filename: weeklyReportFileName(period, company), content: Buffer.from(pdf), contentType: 'application/pdf' }],
+      const result = await deliverWeeklyReport({
+        user,
+        company,
+        period,
+        recipients: recipients.value,
+        copyMe: body.copyMe !== false,
+        automatic: false,
       })
+      return NextResponse.json({ success: true, data: { ...result, recipients: recipients.value } })
     } catch (error) {
       console.error('Error sending weekly report email:', error)
       return NextResponse.json(
-        { success: false, error: 'No se pudo enviar el correo. Revisa la configuración del correo e intenta de nuevo.' },
+        { success: false, error: 'No se pudo enviar el correo. Intenta de nuevo en unos minutos.' },
         { status: 502 }
       )
     }
-
-    const delivery = await prisma.reportDelivery.create({
-      data: { companyId: company.id, weekStart: dateKeyToUTC(period.start), recipients: saved },
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: { sentAt: delivery.sentAt, recipients: recipients.value, copiedTo: copy ? user.email : null },
-    })
   } catch (error) {
     console.error('Error sending weekly report:', error)
     return NextResponse.json({ success: false, error: 'Error al enviar el reporte' }, { status: 500 })

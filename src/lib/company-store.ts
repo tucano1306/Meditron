@@ -30,6 +30,7 @@ export function serializeCompany(c: DbCompany): Company {
     archived: c.archived,
     sortOrder: c.sortOrder,
     reportEmails: splitEmails(c.reportEmails),
+    autoSendReport: c.autoSendReport,
     payRules: c.payRules.map(r => ({
       id: r.id,
       effectiveFrom: toDateKey(r.effectiveFrom),
