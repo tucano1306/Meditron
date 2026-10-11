@@ -9,20 +9,21 @@ import { EntryList } from '@/components/EntryList'
 import { WeekHistory } from '@/components/WeekHistory'
 import { WeeklySummaryCard } from '@/components/WeeklySummaryCard'
 import { RateCalculator } from '@/components/RateCalculator'
-import { JobSearch } from '@/components/JobSearch'
-import { HourlyEntrySearch } from '@/components/HourlyEntrySearch'
+import { CompanySearch } from '@/components/CompanySearch'
 import { InstallPWA } from '@/components/InstallPWA'
-import { CompanyHoursPanel } from '@/components/CompanyHoursPanel'
+import { AddHoursForm, PayWeeksList, PayWeeksSummary } from '@/components/PayWeeks'
 import { CompanyManager } from '@/components/CompanyManager'
 import { ExportCard } from '@/components/ExportCard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Search, Settings2 } from 'lucide-react'
+import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Plus, Search, Settings2 } from 'lucide-react'
 import { describeRule, ruleFor, weekLabel, weekShortLabel, type Company, type OvertimeRules } from '@/lib/companies'
 import { saveCompanyRate } from '@/lib/company-client'
 import { getFloridaDateString } from '@/lib/utils'
 import { refreshCompanies, useCompanies } from '@/hooks/useCompanies'
 
 const COMPANY_STORAGE_KEY = 'meditron_company_id'
+
+const tabTriggerClass = 'flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]'
 
 interface DashboardData {
   timerState: {
@@ -39,31 +40,27 @@ interface DashboardData {
       endTime: string | null
       duration: number | null
       date: string
+      companyId: string | null
+      calculatedAmount: number | null
     }>
     totalSeconds: number
     totalHours: number
     earnings: number
   }
+  /** Semana de pago actual de la compañía (su día de inicio, con overtime) */
   currentWeek: {
-    weekNumber: number
-    year: number
-    month: number
-    startDate: string
-    endDate: string
-    totalHours: number
+    start: string
+    end: string
+    weekNumber: number | null
+    totalSeconds: number
+    overtimeSeconds: number
     earnings: number
-    entries: Array<{
-      id: string
-      startTime: string
-      endTime: string | null
-      duration: number | null
-      date: string
-    }>
   }
+  /** Mes calendario */
   monthSummary: {
     year: number
     month: number
-    totalHours: number
+    totalSeconds: number
     earnings: number
   }
   hourlyRate: number
@@ -79,9 +76,10 @@ interface DashboardData {
 }
 
 /**
- * Vista con pestañas de trabajos (Hoy, Semanas, Resumen, Calc, Buscar): para
- * compañías por hora que registran trabajos con semana de lunes a domingo (esas
- * pestañas agrupan así). Las demás usan la vista de horas por semana de pago.
+ * Semanas, Resumen y Calc por trabajos: para compañías por hora que registran
+ * trabajos con semana de lunes a domingo (esas vistas agrupan así). Las demás
+ * las ven por semana de pago (cualquier día de inicio, con overtime) y agregan
+ * horas con entrada y salida. Hoy y Buscar son iguales para todas.
  */
 function usesJobsView(company: Company, today: string): boolean {
   return ruleFor(company, today).payType === 'hourly'
@@ -278,6 +276,16 @@ export default function HourlyDashboardPage() {
   }
 
   const today = getFloridaDateString()
+  const jobsView = usesJobsView(company, today)
+  const tabs = [
+    { value: 'today', label: 'Hoy', icon: <Clock className="h-4 w-4" /> },
+    { value: 'weeks', label: 'Semanas', icon: <Calendar className="h-4 w-4" /> },
+    { value: 'months', label: 'Resumen', icon: <BarChart3 className="h-4 w-4" /> },
+    jobsView
+      ? { value: 'add', label: 'Calc', icon: <Calculator className="h-4 w-4" /> }
+      : { value: 'add', label: 'Agregar', icon: <Plus className="h-4 w-4" /> },
+    { value: 'search', label: 'Buscar', icon: <Search className="h-4 w-4" /> },
+  ]
 
   return (
     <div className="min-h-[100dvh] bg-[#ffffff] font-notion">
@@ -343,96 +351,77 @@ export default function HourlyDashboardPage() {
           />
         </section>
 
-        {usesJobsView(company, today) ? (
-          <>
-            {/* Summary Cards */}
-            <section className="mb-6">
-              <SummaryCards
-                today={data.today}
-                currentWeek={data.currentWeek}
-                monthSummary={data.monthSummary}
-                hourlyRate={data.hourlyRate}
-                onSaveRate={handleSaveRate}
-              />
-            </section>
+        {/* Resumen: hoy, semana de pago, mes y tarifa */}
+        <section className="mb-6">
+          <SummaryCards
+            company={company}
+            today={data.today}
+            currentWeek={data.currentWeek}
+            monthSummary={data.monthSummary}
+            runningHere={data.timerState.isRunning && data.runningCompanyId === company.id}
+            onSaveRate={handleSaveRate}
+          />
+        </section>
 
-            {/* Tabs */}
-            <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
-              <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
-                <TabsTrigger
-                  value="today"
-                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-                >
-                  <Clock className="h-4 w-4" />
-                  <span>Hoy</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="weeks"
-                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span>Semanas</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="months"
-                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Resumen</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="calculator"
-                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-                >
-                  <Calculator className="h-4 w-4" />
-                  <span>Calc</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="search"
-                  className="flex-1 flex flex-col items-center gap-1 py-3 px-1 text-[11px] font-medium text-[#787774] rounded-lg border-0 data-[state=active]:bg-[#37352f] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-[rgba(55,53,47,0.06)] transition-all touch-manipulation min-h-[52px]"
-                >
-                  <Search className="h-4 w-4" />
-                  <span>Buscar</span>
-                </TabsTrigger>
-              </TabsList>
+        {/* Pestañas: el contenido se adapta a cómo trabaja la compañía */}
+        <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
+          <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
+            {tabs.map(tab => (
+              <TabsTrigger key={tab.value} value={tab.value} className={tabTriggerClass}>
+                {tab.icon}
+                <span>{tab.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-              <TabsContent value="today">
-                <EntryList
-                  entries={data.today.entries}
-                  title="Entradas de Hoy"
-                  onDelete={handleEntryDelete}
-                  onUpdate={handleEntryUpdate}
-                  hourlyRate={data.hourlyRate}
-                />
-              </TabsContent>
+          <TabsContent value="today">
+            <EntryList
+              key={company.id}
+              entries={data.today.entries}
+              title={company.trackJobNumber ? 'Trabajos de hoy' : 'Turnos de hoy'}
+              onDelete={handleEntryDelete}
+              onUpdate={handleEntryUpdate}
+              hourlyRate={data.hourlyRate}
+              showCompanyPaid={company.trackCompanyPaid}
+            />
+          </TabsContent>
 
-              <TabsContent value="weeks">
-                <div className="space-y-4">
-                  <HourlyEntrySearch hourlyRate={data.hourlyRate} />
-                  <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} companyId={company.id} />
-                </div>
-              </TabsContent>
+          <TabsContent value="weeks">
+            {jobsView ? (
+              <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} companyId={company.id} />
+            ) : (
+              <PayWeeksList key={company.id} company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
+            )}
+          </TabsContent>
 
-              <TabsContent value="months">
-                <div className="space-y-4">
-                  <HourlyEntrySearch hourlyRate={data.hourlyRate} />
-                  <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} companyId={company.id} />
-                  <ExportCard company={company} />
-                </div>
-              </TabsContent>
+          <TabsContent value="months">
+            {jobsView ? (
+              <div className="space-y-4">
+                <WeeklySummaryCard refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} hourlyRate={data.hourlyRate} companyId={company.id} />
+                <ExportCard company={company} />
+              </div>
+            ) : (
+              <PayWeeksSummary key={company.id} company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
+            )}
+          </TabsContent>
 
-              <TabsContent value="calculator">
-                <RateCalculator onSave={handleEntryUpdate} hourlyRate={data.hourlyRate} companyId={company.id} />
-              </TabsContent>
+          <TabsContent value="add">
+            {jobsView ? (
+              <RateCalculator onSave={handleEntryUpdate} hourlyRate={data.hourlyRate} companyId={company.id} />
+            ) : (
+              <div className="space-y-2">
+                <p className="px-1 text-[13px] text-[#787774]">
+                  ¿Olvidaste iniciar el cronómetro? Registra la entrada y la salida del turno.
+                </p>
+                <AddHoursForm key={company.id} company={company} onSaved={handleEntryUpdate} startOpen />
+              </div>
+            )}
+          </TabsContent>
 
-              <TabsContent value="search">
-                <JobSearch hourlyRate={data.hourlyRate} />
-              </TabsContent>
-            </Tabs>
-          </>
-        ) : (
-          <CompanyHoursPanel company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
-        )}
+          <TabsContent value="search">
+            <CompanySearch key={company.id} company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
+          </TabsContent>
+        </Tabs>
 
         <footer className="text-center mt-8 text-[12px] text-[#787774] pb-8">
           Las semanas de pago de {company.name} van de {weekLabel(company.weekStartsOn)}

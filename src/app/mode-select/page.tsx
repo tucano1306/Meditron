@@ -9,13 +9,13 @@ import { refreshCompanies, useCompanies } from '@/hooks/useCompanies'
 import { dateKeyToUTC, overtimeRulesOf, ruleFor, weekShortLabel, type Company, type PayRule } from '@/lib/companies'
 import { formatCurrency, formatDuration, getFloridaDateComponents, getFloridaDateString } from '@/lib/utils'
 import { formatTime12 } from '@/lib/report-format'
+import { formatHM, formatRange, textOn } from '@/lib/display'
 
 const MODE_STORAGE_KEY = 'meditron_mode'
 const COMPANY_STORAGE_KEY = 'meditron_company_id'
 const FLORIDA_TIMEZONE = 'America/New_York'
 const DAY_LETTERS = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
 interface CompanyWeek {
   companyId: string
@@ -48,22 +48,6 @@ interface Overview {
 
 // ── Formato ───────────────────────────────────────────────────────────────────
 
-/** "12h 30m" */
-function formatHM(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (hours === 0) return `${minutes}m`
-  return `${hours}h ${String(minutes).padStart(2, '0')}m`
-}
-
-/** "5–11 oct" o "28 sep – 4 oct" */
-function formatRange(start: string, end: string): string {
-  const [, m1, d1] = start.split('-').map(Number)
-  const [, m2, d2] = end.split('-').map(Number)
-  if (m1 === m2) return `${d1}–${d2} ${MONTH_SHORT[m2 - 1]}`
-  return `${d1} ${MONTH_SHORT[m1 - 1]} – ${d2} ${MONTH_SHORT[m2 - 1]}`
-}
-
 function daysBetween(from: string, to: string): number {
   return Math.round((dateKeyToUTC(to).getTime() - dateKeyToUTC(from).getTime()) / 86_400_000)
 }
@@ -93,13 +77,6 @@ function initialsOf(name: string): string {
   if (words.length === 0) return '?'
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
   return (words[0][0] + words[1][0]).toUpperCase()
-}
-
-/** Texto legible sobre el color de la compañía */
-function textOn(hex: string): string {
-  const n = Number.parseInt(hex.slice(1), 16)
-  const luminance = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)
-  return luminance > 150 ? '#37352f' : '#ffffff'
 }
 
 /** Hora actual que se actualiza sola (cada `intervalMs`) */

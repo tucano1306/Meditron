@@ -44,6 +44,8 @@ interface EntryListProps {
   readonly hourlyRate?: number
   /** Mostrar la compañía de cada trabajo (listas que mezclan compañías) */
   readonly showCompany?: boolean
+  /** Mostrar lo que pagó la empresa (solo compañías que lo registran) */
+  readonly showCompanyPaid?: boolean
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -127,8 +129,16 @@ function EntryChips({ entry, showCompany }: { readonly entry: Entry; readonly sh
   )
 }
 
-function EntryAmounts({ entry, hourlyRate }: { readonly entry: Entry; readonly hourlyRate: number }) {
+function EntryAmounts({ entry, hourlyRate, showPaid }: { readonly entry: Entry; readonly hourlyRate: number; readonly showPaid: boolean }) {
   const calc = getCalculatedAmount(entry, hourlyRate)
+  if (!showPaid) {
+    return (
+      <div className="mt-2.5 rounded-lg bg-[rgba(55,53,47,0.03)] px-2.5 py-1.5">
+        <div className="text-[10px] uppercase tracking-wide text-[#9b9a97]">Ganado</div>
+        <div className="text-[15px] font-bold text-emerald-700">{formatCurrency(calc)}</div>
+      </div>
+    )
+  }
   const companyPaid = entry.companyPaid ?? entry.paidAmount ?? null
   const diff = companyPaid === null ? null : companyPaid - calc
 
@@ -167,10 +177,11 @@ interface EntryCardProps {
   readonly hourlyRate: number
   readonly showDate: boolean
   readonly showCompany: boolean
+  readonly showCompanyPaid: boolean
   readonly onOpen: (entry: Entry, startEditing: boolean) => void
 }
 
-function EntryCard({ entry, hourlyRate, showDate, showCompany, onOpen }: EntryCardProps) {
+function EntryCard({ entry, hourlyRate, showDate, showCompany, showCompanyPaid, onOpen }: EntryCardProps) {
   const isRunning = entry.endTime === null || entry.duration === null
 
   const header = (
@@ -215,7 +226,7 @@ function EntryCard({ entry, hourlyRate, showDate, showCompany, onOpen }: EntryCa
       >
         {header}
         <EntryChips entry={entry} showCompany={showCompany} />
-        <EntryAmounts entry={entry} hourlyRate={hourlyRate} />
+        <EntryAmounts entry={entry} hourlyRate={hourlyRate} showPaid={showCompanyPaid} />
       </button>
 
       <div className="flex items-center justify-between gap-2 border-t border-[rgba(55,53,47,0.15)] px-3.5 py-2">
@@ -250,6 +261,7 @@ export function EntryList({
   showDate = false,
   hourlyRate = HOURLY_RATE,
   showCompany = false,
+  showCompanyPaid = true,
 }: Readonly<EntryListProps>) {
   // Las tarjetas se ven de entrada; el encabezado permite plegarlas.
   const [isExpanded, setIsExpanded] = useState(true)
@@ -318,6 +330,7 @@ export function EntryList({
                 hourlyRate={hourlyRate}
                 showDate={showDate}
                 showCompany={showCompany}
+                showCompanyPaid={showCompanyPaid}
                 onOpen={handleOpen}
               />
             ))}

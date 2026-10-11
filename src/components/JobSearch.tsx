@@ -20,9 +20,12 @@ interface Entry {
 
 interface JobSearchProps {
   readonly hourlyRate?: number
+  /** Buscar solo en esta compañía (sin ella busca en todas) */
+  readonly companyId?: string
+  readonly showCompanyPaid?: boolean
 }
 
-export function JobSearch({ hourlyRate = 25 }: Readonly<JobSearchProps>) {
+export function JobSearch({ hourlyRate = 25, companyId, showCompanyPaid = true }: Readonly<JobSearchProps>) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Entry[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -35,7 +38,8 @@ export function JobSearch({ hourlyRate = 25 }: Readonly<JobSearchProps>) {
     setIsLoading(true)
     setSearched(true)
     try {
-      const res = await fetch(`/api/entries?jobNumber=${encodeURIComponent(trimmed)}`)
+      const scope = companyId ? `&companyId=${encodeURIComponent(companyId)}` : ''
+      const res = await fetch(`/api/entries?jobNumber=${encodeURIComponent(trimmed)}${scope}`)
       const data = await res.json()
       if (data.success) {
         setResults(data.data as Entry[])
@@ -119,7 +123,8 @@ export function JobSearch({ hourlyRate = 25 }: Readonly<JobSearchProps>) {
             entries={results}
             title={`Trabajo #${query}`}
             showDate
-            showCompany
+            showCompany={!companyId}
+            showCompanyPaid={showCompanyPaid}
             hourlyRate={hourlyRate}
             onUpdate={handleUpdate}
             onDelete={handleUpdate}

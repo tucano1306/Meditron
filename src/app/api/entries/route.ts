@@ -10,6 +10,8 @@ import { getUserCompany, resolveWriteCompany } from '@/lib/company-store'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
+
 // GET - Obtener entradas de tiempo
 export async function GET(request: NextRequest) {
   try {
@@ -24,8 +26,23 @@ export async function GET(request: NextRequest) {
     const weekId = searchParams.get('weekId')
     const date = searchParams.get('date')
     const jobNumber = searchParams.get('jobNumber')
+    const companyId = searchParams.get('companyId')
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
 
     const where: Record<string, unknown> = { userId }
+
+    if (companyId) {
+      where.companyId = companyId
+    }
+
+    // Rango de días (YYYY-MM-DD, inclusive): calendario de la búsqueda por día
+    if (from || to) {
+      const range: { gte?: Date; lte?: Date } = {}
+      if (from && DATE_KEY.test(from)) range.gte = new Date(`${from}T00:00:00Z`)
+      if (to && DATE_KEY.test(to)) range.lte = new Date(`${to}T00:00:00Z`)
+      where.date = range
+    }
 
     // Buscar una entrada concreta (usado por el modal de detalle al refrescar
     // tras guardar). Sin este filtro se devolvían TODAS las entradas del usuario.

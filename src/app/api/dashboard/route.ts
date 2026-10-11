@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { getWeekStartEnd, getISOWeekAndYear, getFloridaDateComponents } from '@/lib/utils'
-import { dateKeyToUTC, getPayPeriod, overtimeRulesOf, payScopeOf, ruleFor } from '@/lib/companies'
+import { getISOWeekAndYear, getFloridaDateComponents } from '@/lib/utils'
+import { addDaysToKey, dateKeyToUTC, getPayPeriod, overtimeRulesOf, payScopeOf, ruleFor } from '@/lib/companies'
 import { getUserCompanies } from '@/lib/company-store'
+import { getSinglePayPeriod } from '@/lib/pay-periods'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,12 +18,12 @@ function sumEarnings(entries: DurationEntry[], hourlyRate: number): number {
   )
 }
 
-function sumHours(entries: DurationEntry[]): number {
-  return entries.reduce((sum, e) => sum + (e.duration ?? 0), 0) / 3600
+function sumSeconds(entries: DurationEntry[]): number {
+  return entries.reduce((sum, e) => sum + (e.duration ?? 0), 0)
 }
 
-// GET - Dashboard de una compañía (?companyId=; por defecto la primera):
-// hoy, semana y mes solo con sus trabajos
+// GET - Dashboard de una compañía (?companyId=; por defecto la primera): hoy,
+// su semana de pago actual (con su día de inicio y overtime) y el mes calendario
 export async function GET(request: NextRequest) {
   try {
     const authResult = await validateSession()
@@ -43,7 +44,6 @@ export async function GET(request: NextRequest) {
     const floridaComponents = getFloridaDateComponents(realNow)
     const year = floridaComponents.year
     const month = floridaComponents.month
-    const { start: weekStart, end: weekEnd } = getWeekStartEnd(realNow)
     const { weekNumber } = getISOWeekAndYear(realNow)
 
     // Timer activo
@@ -51,24 +51,6 @@ export async function GET(request: NextRequest) {
       where: {
         endTime: null,
         userId
-      }
-    })
-
-    // Semana actual
-    const currentWeek = await prisma.week.findUnique({
-      where: {
-        weekNumber_year_userId: {
-          weekNumber,
-          year,
-          userId
-        }
-      },
-      include: {
-        entries: {
-          orderBy: {
-            startTime: 'desc'
-          }
-        }
       }
     })
 
@@ -100,17 +82,26 @@ export async function GET(request: NextRequest) {
     const hourlyRate = currentRule.hourlyRate
     const todayEarnings = sumEarnings(todayEntries, hourlyRate)
 
-    // Semana y mes solo con los trabajos de la compañía y los totales recalculados
-    let weekData = currentWeek
-    if (currentWeek) {
-      const entries = ofCompany(currentWeek.entries)
-      const completed = entries.filter(e => e.duration !== null)
-      weekData = { ...currentWeek, entries, totalHours: sumHours(completed), earnings: sumEarnings(completed, hourlyRate) }
+    // Semana de pago de la compañía (su día de inicio, con overtime si aplica)
+    const payWeek = await getSinglePayPeriod(userId, company, todayKey)
+    const weekData = {
+      start: payWeek.start,
+      end: payWeek.end,
+      // El número de semana ISO solo coincide con semanas de lunes a domingo
+      weekNumber: company.weekStartsOn === 1 ? weekNumber : null,
+      totalSeconds: payWeek.totalSeconds,
+      overtimeSeconds: payWeek.overtimeSeconds,
+      earnings: payWeek.totalPay,
     }
-    const monthEntries = ofCompany(await prisma.timeEntry.findMany({
-      where: { userId, duration: { not: null }, week: { year, month } }
-    }))
-    const monthData = { year, month, totalHours: sumHours(monthEntries), earnings: sumEarnings(monthEntries, hourlyRate) }
+
+    // Mes calendario: trabajos con fecha dentro del mes
+    const monthStart = `${todayKey.slice(0, 7)}-01`
+    const monthEnd = addDaysToKey(`${month === 12 ? year + 1 : year}-${String(month === 12 ? 1 : month + 1).padStart(2, '0')}-01`, -1)
+    const monthEntries = await prisma.timeEntry.findMany({
+      where: { userId, companyId: company.id, duration: { not: null }, date: { gte: dateKeyToUTC(monthStart), lte: dateKeyToUTC(monthEnd) } },
+      select: { duration: true, calculatedAmount: true },
+    })
+    const monthData = { year, month, totalSeconds: sumSeconds(monthEntries), earnings: sumEarnings(monthEntries, hourlyRate) }
 
     // Horas ya cerradas en el grupo de overtime actual (semana de pago o día),
     // para que el cronómetro calcule el overtime en vivo
@@ -169,16 +160,7 @@ export async function GET(request: NextRequest) {
           totalHours: todayHours,
           earnings: todayEarnings
         },
-        currentWeek: weekData ?? {
-          weekNumber,
-          year,
-          month,
-          startDate: weekStart.toISOString(),
-          endDate: weekEnd.toISOString(),
-          totalHours: 0,
-          earnings: 0,
-          entries: []
-        },
+        currentWeek: weekData,
         monthSummary: monthData,
         hourlyRate
       }
