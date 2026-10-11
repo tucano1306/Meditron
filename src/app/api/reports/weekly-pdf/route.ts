@@ -3,6 +3,7 @@ import { validateSession } from '@/lib/auth-utils'
 import { getUserCompany } from '@/lib/company-store'
 import { getSinglePayPeriod } from '@/lib/pay-periods'
 import { buildWeeklyReportPdf, weeklyReportFileName } from '@/lib/weekly-report-pdf'
+import { reportIdentity } from '@/lib/report-identity'
 import { getFloridaDateString } from '@/lib/utils'
 
 export const runtime = 'nodejs'
@@ -27,13 +28,14 @@ export async function GET(request: NextRequest) {
     const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : getFloridaDateString()
 
     const period = await getSinglePayPeriod(user.id, company, date)
-    const pdf = await buildWeeklyReportPdf(period, company, { driverName: user.name })
+    const identity = reportIdentity(user)
+    const pdf = await buildWeeklyReportPdf(period, company, identity)
 
     const disposition = searchParams.get('download') === '1' ? 'attachment' : 'inline'
     return new NextResponse(Buffer.from(pdf), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `${disposition}; filename="${weeklyReportFileName(period, company)}"`,
+        'Content-Disposition': `${disposition}; filename="${weeklyReportFileName(period, company, identity)}"`,
         'Cache-Control': 'no-store',
       },
     })

@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import { overtimeRulesOf, tracksJobDetails, weekLabel, type Company } from './companies'
 import type { PayPeriodSummary, PeriodEntry } from './pay-periods'
+import type { ReportIdentity } from './report-identity'
 import {
   dailyTotals, dayName, formatKeyLong, formatKeyShort, formatKeyUS, formatTime12, hoursDecimal, money, noteText,
 } from './report-format'
@@ -142,12 +143,13 @@ function summaryRows(company: Company, period: PayPeriodSummary): { label: strin
 export async function buildWeeklyReportPdf(
   period: PayPeriodSummary,
   company: Company,
-  options: { driverName?: string | null }
+  identity: ReportIdentity
 ): Promise<Uint8Array> {
   const columns = buildColumns(company, period)
 
   const pdf = await PDFDocument.create()
-  pdf.setTitle(`${company.name} — ${period.start} al ${period.end}`)
+  pdf.setTitle(`${company.name} — ${identity.label} — ${period.start} al ${period.end}`)
+  pdf.setAuthor(identity.label)
   pdf.setCreator('Meditron')
   const fonts: Fonts = {
     regular: await pdf.embedFont(StandardFonts.Helvetica),
@@ -165,14 +167,15 @@ export async function buildWeeklyReportPdf(
   })
   y -= 56
 
-  const info: [string, string][] = [
-    ['Periodo', `${formatKeyLong(period.start)} – ${formatKeyLong(period.end)}`],
-    ['Semana', weekLabel(company.weekStartsOn)],
+  // El nombre completo (y la empresa) va en negrita: es lo primero que busca nómina
+  const info: [string, string, PDFFont][] = [
+    ['Nombre', identity.label, fonts.bold],
+    ['Periodo', `${formatKeyLong(period.start)} – ${formatKeyLong(period.end)}`, fonts.regular],
+    ['Semana', weekLabel(company.weekStartsOn), fonts.regular],
   ]
-  if (options.driverName) info.unshift(['Nombre', options.driverName])
-  for (const [label, value] of info) {
+  for (const [label, value, font] of info) {
     page.drawText(`${label}:`, { x: MARGIN, y, size: 10, font: fonts.bold, color: INK })
-    page.drawText(clean(value), { x: MARGIN + 70, y, size: 10, font: fonts.regular, color: INK })
+    page.drawText(fitText(clean(value), font, 10, CONTENT_WIDTH - 70), { x: MARGIN + 70, y, size: 10, font, color: INK })
     y -= 15
   }
   y -= 10
@@ -275,27 +278,35 @@ export async function buildWeeklyReportPdf(
     lineY -= 18
   }
 
-  // ── Pie de página ──
+  // ── Pie de página: cada hoja dice de quién es, por si se imprimen sueltas ──
   const pages = pdf.getPages()
   const generated = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' })
   pages.forEach((p, i) => {
-    const text = `${company.name} · ${period.start} al ${period.end} · Generado ${generated} · Página ${i + 1} de ${pages.length}`
-    p.drawText(clean(text), { x: MARGIN, y: MARGIN - 10, size: 8, font: fonts.regular, color: MUTED })
+    const pageText = `Página ${i + 1} de ${pages.length}`
+    const pageWidth = fonts.regular.widthOfTextAtSize(pageText, 8)
+    const text = `${identity.label} · ${company.name} · ${period.start} al ${period.end} · Generado ${generated}`
+    p.drawText(fitText(clean(text), fonts.regular, 8, CONTENT_WIDTH - pageWidth - 12), { x: MARGIN, y: MARGIN - 10, size: 8, font: fonts.regular, color: MUTED })
+    p.drawText(pageText, { x: MARGIN + CONTENT_WIDTH - pageWidth, y: MARGIN - 10, size: 8, font: fonts.regular, color: MUTED })
   })
 
   return pdf.save()
 }
 
-/** "Larrys-Private" — nombre de compañía apto para nombres de archivo */
-export function companyFileSlug(company: Company): string {
-  const slug = company.name
+/** "Larry's Private" → "Larrys-Private": texto apto para nombres de archivo */
+function fileSlug(text: string): string {
+  return text
     .normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '')
     .replaceAll(/['’]/g, '')
     .replaceAll(/[^a-zA-Z0-9]+/g, '-')
     .replaceAll(/^-+|-+$/g, '')
-  return slug || 'compania'
 }
 
-export function weeklyReportFileName(period: PayPeriodSummary, company: Company): string {
-  return `${companyFileSlug(company)}_${period.start}_al_${period.end}.pdf`
+export function companyFileSlug(company: Company): string {
+  return fileSlug(company.name) || 'compania'
+}
+
+/** "Larrys-Private_Leonardo-Canepa_2026-10-04_al_2026-10-10.pdf": en nómina se sabe de quién es sin abrirlo */
+export function weeklyReportFileName(period: PayPeriodSummary, company: Company, identity: ReportIdentity): string {
+  const person = fileSlug(identity.name)
+  return `${companyFileSlug(company)}${person ? `_${person}` : ''}_${period.start}_al_${period.end}.pdf`
 }

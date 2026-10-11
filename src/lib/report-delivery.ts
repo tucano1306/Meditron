@@ -6,6 +6,7 @@ import { dateKeyToUTC, type Company } from './companies'
 import type { PayPeriodSummary } from './pay-periods'
 import { buildWeeklyReportPdf, weeklyReportFileName } from './weekly-report-pdf'
 import { buildWeeklyReportEmail } from './weekly-report-email'
+import { reportIdentity } from './report-identity'
 import { sendMail } from './mailer'
 
 /** Envíos permitidos por usuario cada 24 horas (evita usar la app para spam) */
@@ -25,7 +26,7 @@ export async function wasWeekSent(companyId: string, weekStart: string): Promise
 }
 
 interface DeliveryInput {
-  user: { email: string; name: string | null }
+  user: { email: string; name: string | null; businessName: string | null }
   company: Company
   period: PayPeriodSummary
   recipients: string[]
@@ -36,20 +37,20 @@ interface DeliveryInput {
 
 /** Arma el PDF y el correo, lo envía y lo registra. Lanza un error si el envío falla. */
 export async function deliverWeeklyReport({ user, company, period, recipients, copyMe, automatic }: DeliveryInput) {
-  const senderName = user.name || user.email.split('@')[0]
-  const pdf = await buildWeeklyReportPdf(period, company, { driverName: senderName })
-  const email = buildWeeklyReportEmail(period, company, { name: senderName, email: user.email })
+  const identity = reportIdentity(user)
+  const pdf = await buildWeeklyReportPdf(period, company, identity)
+  const email = buildWeeklyReportEmail(period, company, { ...identity, email: user.email })
   const copy = copyMe && !recipients.includes(user.email.toLowerCase())
 
   await sendMail({
-    fromName: `${senderName} vía Meditron`,
+    fromName: `${identity.label} vía Meditron`,
     to: recipients,
     cc: copy ? [user.email] : undefined,
     replyTo: user.email,
     subject: email.subject,
     html: email.html,
     text: email.text,
-    attachments: [{ filename: weeklyReportFileName(period, company), content: Buffer.from(pdf), contentType: 'application/pdf' }],
+    attachments: [{ filename: weeklyReportFileName(period, company, identity), content: Buffer.from(pdf), contentType: 'application/pdf' }],
   })
 
   const delivery = await prisma.reportDelivery.create({

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   })
 
   for (const { userId } of owners) {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true, businessName: true } })
     if (!user) continue
     const companies = (await getUserCompanies(userId)).filter(c => c.autoSendReport && !c.archived && c.reportEmails.length > 0)
 

@@ -5,6 +5,7 @@ import { addDaysToKey, getPayPeriod, overtimeRulesOf, tracksJobDetails, type Com
 import type { PayPeriodSummary } from './pay-periods'
 import { dailyTotals, formatKeyLong, formatKeyShort, formatTime12, hoursDecimal, money } from './report-format'
 import { formatRange } from './display'
+import type { ReportIdentity } from './report-identity'
 
 /** Semana de pago terminada más reciente (la anterior a la que contiene `today`) */
 export function lastCompletedWeekStart(company: Company, today: string): string {
@@ -26,8 +27,8 @@ function escapeHtml(text: string): string {
     .replaceAll("'", '&#39;')
 }
 
-interface Sender {
-  name: string
+/** Quien envía: su nombre y "Nombre / Empresa" tal como sale en el reporte */
+interface Sender extends ReportIdentity {
   email: string
 }
 
@@ -38,7 +39,7 @@ const LINE = '#e9e9e7'
 export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Company, sender: Sender) {
   const title = weekTitle(period)
   const kind = tracksJobDetails(company) ? 'trabajos' : 'horas'
-  const subject = `Reporte semanal de ${kind} · ${company.name} · ${title} · ${sender.name}`
+  const subject = `Reporte semanal de ${kind} · ${company.name} · ${title} · ${sender.label}`
   const ot = overtimeRulesOf(period.rule)
   const days = dailyTotals(period)
   const workedDays = days.filter(d => d.seconds > 0).length
@@ -81,7 +82,7 @@ export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Compan
     <div style="font-size:14px;color:${MUTED};margin-top:4px;">${escapeHtml(periodLabel)}</div>
   </td></tr>
   <tr><td style="padding:12px 28px 0;font-size:14px;line-height:1.55;">
-    Hola, adjunto el reporte de ${kind} de <strong>${escapeHtml(sender.name)}</strong> de la semana del ${escapeHtml(formatKeyLong(period.start))} al ${escapeHtml(formatKeyLong(period.end))}.
+    Hola, adjunto el reporte de ${kind} de <strong>${escapeHtml(sender.label)}</strong> de la semana del ${escapeHtml(formatKeyLong(period.start))} al ${escapeHtml(formatKeyLong(period.end))}.
   </td></tr>
   <tr><td style="padding:20px 28px 4px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-radius:10px;background:#f7f7f5;">
@@ -116,7 +117,7 @@ export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Compan
     <div style="font-size:12px;color:${MUTED};margin-top:10px;">El PDF adjunto tiene el detalle completo de cada ${kind === 'trabajos' ? 'trabajo' : 'turno'}.</div>
   </td></tr>
   <tr><td style="padding:28px;font-size:12px;color:${MUTED};line-height:1.5;border-top:1px solid ${LINE};margin-top:24px;">
-    Enviado por ${escapeHtml(sender.name)} (${escapeHtml(sender.email)}) con Meditron. Si respondes a este correo, le llega a ${escapeHtml(sender.name)}.
+    Enviado por ${escapeHtml(sender.label)} (${escapeHtml(sender.email)}) con Meditron. Si respondes a este correo, le llega a ${escapeHtml(sender.name)}.
   </td></tr>
 </table>
 </td></tr></table>
@@ -126,7 +127,7 @@ export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Compan
     `Reporte semanal de ${kind} — ${company.name}`,
     periodLabel,
     '',
-    `Hola, adjunto el reporte de ${kind} de ${sender.name}.`,
+    `Hola, adjunto el reporte de ${kind} de ${sender.label}.`,
     '',
     `Total a cobrar: ${money(period.totalPay)}`,
     ...totals.map(([label, value]) => `${label}: ${value}`),
@@ -136,7 +137,7 @@ export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Compan
     '',
     'El PDF adjunto tiene el detalle completo.',
     '',
-    `Enviado por ${sender.name} (${sender.email}) con Meditron.`,
+    `Enviado por ${sender.label} (${sender.email}) con Meditron.`,
   ].join('\n')
 
   return { subject, html, text }

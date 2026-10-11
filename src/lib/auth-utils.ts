@@ -6,6 +6,7 @@ export interface ValidatedUser {
   id: string
   email: string
   name: string | null
+  businessName: string | null
   hourlyRate: number
 }
 
@@ -37,6 +38,7 @@ export async function validateSession(): Promise<AuthResult> {
       id: true,
       email: true,
       name: true,
+      businessName: true,
       hourlyRate: true
     }
   })

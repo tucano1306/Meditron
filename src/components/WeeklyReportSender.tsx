@@ -7,6 +7,8 @@ import { isEmail, MAX_REPORT_EMAILS } from '@/lib/company-input'
 import { formatRange, formatHM } from '@/lib/display'
 import { formatKeyShort, formatTime12, money } from '@/lib/report-format'
 import { refreshCompanies } from '@/hooks/useCompanies'
+import { reportIdentity } from '@/lib/report-identity'
+import { ReportIdentityEditor, type ReportProfile } from './ReportIdentityEditor'
 
 // Envío por correo del PDF de una semana de pago con un solo botón. Los
 // destinatarios se guardan en la compañía, así la próxima vez basta un toque, y
@@ -17,6 +19,7 @@ interface ReportStatus {
   configured: boolean
   recipients: string[]
   senderEmail: string
+  profile: ReportProfile
   lastCompletedStart: string
   currentStart: string
   week: {
@@ -62,14 +65,15 @@ function sentLabel(iso: string): string {
 }
 
 /** Comparte el PDF (menú del teléfono) o, si no se puede, lo descarga y abre el correo */
-async function sharePdf(company: Company, status: ReportStatus, recipients: string[]): Promise<void> {
+async function sharePdf(company: Company, status: ReportStatus, profile: ReportProfile, recipients: string[]): Promise<void> {
   const url = `/api/reports/weekly-pdf?companyId=${encodeURIComponent(company.id)}&date=${status.week.start}&download=1`
   const res = await fetch(url)
   if (!res.ok) throw new Error('No se pudo generar el PDF')
   const blob = await res.blob()
   const fileName = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'reporte-semanal.pdf'
-  const subject = `Reporte semanal · ${company.name} · ${formatRange(status.week.start, status.week.end)} ${status.week.end.slice(0, 4)}`
-  const text = `Adjunto el reporte semanal de ${company.name}: ${formatHM(status.week.totalSeconds)} · ${money(status.week.totalPay)}.`
+  const sender = reportIdentity({ email: status.senderEmail, ...profile }).label
+  const subject = `Reporte semanal · ${company.name} · ${formatRange(status.week.start, status.week.end)} ${status.week.end.slice(0, 4)} · ${sender}`
+  const text = `Adjunto el reporte semanal de ${sender} en ${company.name}: ${formatHM(status.week.totalSeconds)} · ${money(status.week.totalPay)}.`
   const file = new File([blob], fileName, { type: 'application/pdf' })
 
   if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
@@ -138,6 +142,8 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
   const [autoSendBusy, setAutoSendBusy] = useState(false)
   const [autoSendError, setAutoSendError] = useState<string | null>(null)
   const [suggestDismissed, setSuggestDismissed] = useState(false)
+  // Nombre recién cambiado (antes de recargar el estado)
+  const [profileOverride, setProfileOverride] = useState<ReportProfile | null>(null)
 
   const targetDate = date ?? pickedDate
   const requestKey = `${company.id}|${targetDate ?? ''}|${refreshTrigger}|${reload}`
@@ -166,6 +172,7 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
 
   const week = status.week
   const recipients = draft ?? status.recipients
+  const profile = profileOverride ?? status.profile
   const alreadySent = status.deliveries.length > 0
   const justSent = phase.kind === 'sent'
   const autoSend = autoSendOverride ?? company.autoSendReport
@@ -221,7 +228,7 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
     setPhase({ kind: 'sending' })
     try {
       if (!status.configured) {
-        await sharePdf(company, status, to)
+        await sharePdf(company, status, profile, to)
         setPhase({ kind: 'idle' })
         return
       }
@@ -446,6 +453,8 @@ export function WeeklyReportSender({ company, variant, date, refreshTrigger = 0 
 
       {week.entryCount > 0 && (
         <>
+          <ReportIdentityEditor email={status.senderEmail} profile={profile} onSaved={setProfileOverride} />
+
           {/* Destinatarios */}
           <div className="mt-4">
             <div className="mb-1.5 text-[12px] font-semibold text-[#37352f]">¿A quién se lo envías?</div>

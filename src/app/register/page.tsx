@@ -114,17 +114,18 @@ export default function RegisterPage() {
               {/* Name */}
               <div className="space-y-2">
                 <label htmlFor="register-name" className="text-sm font-medium text-gray-700">
-                  Nombre (opcional)
+                  Nombre y apellido (opcional)
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     id="register-name"
                     type="text"
+                    autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onFocus={handleInputFocus}
-                    placeholder="Tu nombre"
+                    placeholder="Ej. María Pérez"
                     className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
                   />
                 </div>

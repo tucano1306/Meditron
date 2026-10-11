@@ -43,7 +43,7 @@ function getTransporter(): Transporter {
 }
 
 export interface OutgoingMail {
-  /** Nombre que se ve como remitente ("Leo vía Meditron") */
+  /** Nombre que se ve como remitente ("Leonardo Canepa / Venecoro vía Meditron") */
   fromName: string
   to: string[]
   cc?: string[]

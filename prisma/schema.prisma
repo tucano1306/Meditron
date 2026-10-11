@@ -8,13 +8,15 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  password   String
-  name       String?
-  hourlyRate Float    @default(25)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String?
+  /// Empresa o negocio de la persona; en los reportes sale "Nombre / Empresa"
+  businessName String?
+  hourlyRate   Float    @default(25)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   timeEntries    TimeEntry[]
   weeks          Week[]

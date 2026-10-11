@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
         recipients: company.reportEmails,
         autoSend: company.autoSendReport,
         senderEmail: user.email,
+        // Cómo aparece la persona en el reporte (se puede cambiar desde la tarjeta)
+        profile: { name: user.name, businessName: user.businessName },
         lastCompletedStart: lastCompleted,
         currentStart: getPayPeriod(today, company.weekStartsOn).start,
         week: {
