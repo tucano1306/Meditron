@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
+import { checkStartTime, lastPaymentEndTime } from '@/lib/timer-start'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,11 +19,22 @@ export async function POST(request: NextRequest) {
     
     // Obtener la hora del cliente (UTC) si se envía, sino usar hora actual UTC
     let now: Date
+    let requestedStart: Date | null = null
     try {
       const body = await request.json()
       now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
+      // Se olvidó iniciar el cronómetro: empieza desde una hora anterior
+      if (body.startTime) requestedStart = parseClientDateTime(body.startTime)
     } catch {
       now = new Date()
+    }
+
+    if (requestedStart) {
+      const startError = checkStartTime(requestedStart, await lastPaymentEndTime(userId))
+      if (startError) {
+        return NextResponse.json({ success: false, error: startError }, { status: 400 })
+      }
+      now = requestedStart
     }
 
     // Verificar si hay un trabajo activo
@@ -197,7 +209,8 @@ export async function GET() {
           currentEntryId: activeEntry.id,
           jobNumber: activeEntry.jobNumber,
           vehicle: activeEntry.vehicle,
-          elapsedSeconds: Math.max(0, elapsedSeconds)
+          elapsedSeconds: Math.max(0, elapsedSeconds),
+          lastEndTime: await lastPaymentEndTime(userId, activeEntry.id)
         }
       })
     }
@@ -208,7 +221,8 @@ export async function GET() {
         isRunning: false,
         startTime: null,
         currentEntryId: null,
-        elapsedSeconds: 0
+        elapsedSeconds: 0,
+        lastEndTime: await lastPaymentEndTime(userId)
       }
     })
   } catch (error) {
@@ -280,6 +294,35 @@ async function handleFullEntryEdit(id: string, userId: string, body: { startTime
   })
 }
 
+// Helper: Corregir la hora de inicio del trabajo activo (p. ej. se inició tarde)
+async function handleActiveStartUpdate(userId: string, startTime: unknown) {
+  const activeEntry = await prisma.paymentEntry.findFirst({
+    where: { completed: false, userId }
+  })
+  if (!activeEntry) {
+    return NextResponse.json({ success: false, error: 'No hay trabajo en progreso' }, { status: 400 })
+  }
+
+  const newStart = parseClientDateTime(String(startTime ?? ''))
+  const startError = checkStartTime(newStart, await lastPaymentEndTime(userId, activeEntry.id))
+  if (startError) {
+    return NextResponse.json({ success: false, error: startError }, { status: 400 })
+  }
+
+  const updatedEntry = await prisma.paymentEntry.update({
+    where: { id: activeEntry.id },
+    data: { startTime: newStart }
+  })
+  return NextResponse.json({
+    success: true,
+    data: {
+      entry: updatedEntry,
+      startTime: updatedEntry.startTime,
+      elapsedSeconds: Math.max(0, Math.floor((Date.now() - newStart.getTime()) / 1000))
+    }
+  })
+}
+
 // Helper: Actualizar trabajo activo (jobNumber/vehicle)
 async function handleActiveEntryUpdate(userId: string, body: { jobNumber?: string; vehicle?: string }) {
   const { jobNumber, vehicle } = body
@@ -334,7 +377,10 @@ export async function PATCH(request: NextRequest) {
       return handleFullEntryEdit(id, userId, body)
     }
 
-    // Sin ID, actualizar solo jobNumber o vehicle del trabajo activo
+    // Sin ID: ajustar el inicio o actualizar jobNumber/vehicle del trabajo activo
+    if (body.action === 'setStart') {
+      return handleActiveStartUpdate(userId, body.startTime)
+    }
     return handleActiveEntryUpdate(userId, body)
   } catch (error) {
     console.error('Error updating payment entry:', error)

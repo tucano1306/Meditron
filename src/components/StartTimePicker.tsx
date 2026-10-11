@@ -20,8 +20,11 @@ interface StartTimePickerProps {
   readonly currentElapsed?: number
   /** Fin del último turno: el nuevo no puede empezar antes */
   readonly minStart: Date | null
-  readonly rate: number
-  readonly companyName: string
+  /** $/hora para el monto aproximado (sin tarifa no se muestra, p. ej. por pago) */
+  readonly rate?: number
+  readonly companyName?: string
+  /** Color de los botones: el gris de la app o el azul del modo por pago */
+  readonly tone?: 'neutral' | 'blue'
   readonly busy: boolean
   readonly error?: string | null
   readonly onConfirm: (start: Date) => void
@@ -66,7 +69,13 @@ function minutesAgo(minutes: number, base: number): Date {
 /** Atajo ("X min antes") o una hora exacta */
 type Selection = { minutes: number } | { at: Date }
 
-export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minStart, rate, companyName, busy, error, onConfirm, onCancel }: StartTimePickerProps) {
+const TONES = {
+  neutral: { border: 'border-[#37352f]', chip: 'bg-[#37352f] text-white', button: 'bg-[#37352f] hover:bg-[#2f2d28]' },
+  blue: { border: 'border-blue-300', chip: 'bg-blue-600 text-white', button: 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' },
+}
+
+export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minStart, rate, companyName, tone = 'neutral', busy, error, onConfirm, onCancel }: StartTimePickerProps) {
+  const colors = TONES[tone]
   const now = useNow()
   const [selection, setSelection] = useState<Selection>(() => (mode === 'adjust' && currentStart ? { at: currentStart } : { minutes: 15 }))
 
@@ -92,7 +101,7 @@ export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minSta
   const choiceLabel = `${isAnotherDay(choice, now) ? 'ayer ' : ''}${formatTime12(choice)}`
 
   return (
-    <div className="rounded-[10px] border border-[#37352f] bg-white p-4 shadow-sm space-y-4 animate-fade-in">
+    <div className={`rounded-[10px] border ${colors.border} bg-white p-4 text-left shadow-sm space-y-4 animate-fade-in`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2">
           <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[rgba(55,53,47,0.06)] text-[#37352f]">
@@ -105,7 +114,7 @@ export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minSta
             <div className="text-[12px] text-[#787774]">
               {mode === 'adjust'
                 ? 'Si lo iniciaste tarde, mueve el inicio a la hora real.'
-                : `El cronómetro de ${companyName} cuenta desde esa hora.`}
+                : `El cronómetro${companyName ? ` de ${companyName}` : ''} cuenta desde esa hora.`}
             </div>
           </div>
         </div>
@@ -123,7 +132,7 @@ export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minSta
               key={s.minutes}
               type="button"
               onClick={() => setSelection({ minutes: s.minutes })}
-              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white' : 'bg-[rgba(55,53,47,0.06)] text-[#37352f] hover:bg-[rgba(55,53,47,0.12)]'}`}
+              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors touch-manipulation ${active ? colors.chip : 'bg-[rgba(55,53,47,0.06)] text-[#37352f] hover:bg-[rgba(55,53,47,0.12)]'}`}
             >
               {s.label}
             </button>
@@ -157,14 +166,16 @@ export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minSta
         <div className="mt-1 font-mono text-[30px] font-bold leading-none tabular-nums text-[#37352f]">
           {formatDuration(previewSeconds)}
         </div>
-        <div className="mt-1.5 text-[12px] text-[#787774] tabular-nums">
-          ≈ {formatCurrency((previewSeconds / 3600) * rate)}
-          {mode === 'adjust' && added !== 0 && (
-            <span className={`ml-2 font-semibold ${added > 0 ? 'text-emerald-700' : 'text-[#9a4a0b]'}`}>
-              {added > 0 ? '+' : '−'}{formatHM(Math.abs(added))}
-            </span>
-          )}
-        </div>
+        {(rate !== undefined || (mode === 'adjust' && added !== 0)) && (
+          <div className="mt-1.5 text-[12px] text-[#787774] tabular-nums">
+            {rate !== undefined && `≈ ${formatCurrency((previewSeconds / 3600) * rate)}`}
+            {mode === 'adjust' && added !== 0 && (
+              <span className={`ml-2 font-semibold ${added > 0 ? 'text-emerald-700' : 'text-[#9a4a0b]'}`}>
+                {added > 0 ? '+' : '−'}{formatHM(Math.abs(added))}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {(problem || overlaps) && (
@@ -192,7 +203,7 @@ export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minSta
         type="button"
         onClick={() => onConfirm(choice)}
         disabled={!canConfirm}
-        className="flex w-full items-center justify-center gap-2 rounded-[6px] bg-[#37352f] py-3 text-[15px] font-semibold text-white transition-colors hover:bg-[#2f2d28] disabled:opacity-50 touch-manipulation active:scale-[0.99]"
+        className={`flex w-full items-center justify-center gap-2 rounded-[6px] ${colors.button} py-3 text-[15px] font-semibold text-white transition-colors disabled:opacity-50 touch-manipulation active:scale-[0.99]`}
       >
         {mode === 'adjust' ? <Check className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         {busy && (mode === 'adjust' ? 'Guardando...' : 'Iniciando...')}

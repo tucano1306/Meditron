@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Clock, DollarSign, Check, Hash, Pencil, Bus, ChevronDown } from 'lucide-react'
+import { Play, Square, Clock, DollarSign, Check, Hash, Pencil, Bus, ChevronDown, History, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatDuration, formatCurrency, formatTimeInFlorida } from '@/lib/utils'
+import { formatDuration, formatCurrency } from '@/lib/utils'
+import { formatTime12 } from '@/lib/report-format'
+import { formatHM } from '@/lib/display'
+import { StartTimePicker } from './StartTimePicker'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import type { TimerState } from '@/types'
@@ -30,6 +33,12 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
   const [jobNumberInput, setJobNumberInput] = useState('')
   const [vehicleType, setVehicleType] = useState('')
   const [isSelectingVehicle, setIsSelectingVehicle] = useState(false)
+  // Elegir la hora de inicio: se olvidó iniciar ("start") o corregir el trabajo en curso ("adjust")
+  const [picker, setPicker] = useState<'start' | 'adjust' | null>(null)
+  // Fin del último trabajo: el siguiente no puede empezar antes
+  const [lastEnd, setLastEnd] = useState<Date | null>(null)
+  // Aviso de la última acción; `undoStart` permite volver al inicio anterior
+  const [notice, setNotice] = useState<{ text: string; undoStart?: Date } | null>(null)
   
   const vehicleOptions = [
     { value: 'sprinter', label: 'Sprinter' },
@@ -57,6 +66,7 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
           } else {
             setElapsedSeconds(0)
           }
+          setLastEnd(data.data.lastEndTime ? new Date(data.data.lastEndTime) : null)
           if (data.data.jobNumber) {
             setJobNumber(data.data.jobNumber)
           }
@@ -90,7 +100,8 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
     }
   }, [isRunning, startTime])
 
-  const handleStart = useCallback(async () => {
+  // `startAt`: se olvidó iniciar el cronómetro y empieza desde una hora anterior
+  const handleStart = useCallback(async (startAt?: Date) => {
     setIsLoading(true)
     setError(null)
     setResult(null)
@@ -105,18 +116,21 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
       const res = await fetch('/api/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime })
+        body: JSON.stringify({ clientTime, startTime: startAt?.toISOString() })
       })
       const data = await res.json()
 
       if (data.success) {
         setIsRunning(true)
-        // Usar la hora actual del cliente como startTime para evitar desfases de timezone
-        const newStartTime = new Date()
+        // Usar la hora del cliente como startTime para evitar desfases de timezone
+        const newStartTime = startAt ?? new Date()
+        const elapsed = Math.max(0, Math.floor((Date.now() - newStartTime.getTime()) / 1000))
         setStartTime(newStartTime)
-        setElapsedSeconds(0)
+        setElapsedSeconds(elapsed)
         setJobNumber('')
         setVehicleType('')
+        setPicker(null)
+        setNotice(startAt ? { text: `Iniciado desde las ${formatTime12(newStartTime)}: ya llevas ${formatHM(elapsed)}` } : null)
         startBackgroundTimer(newStartTime.toISOString())
       } else {
         setError(data.error || 'Error al iniciar')
@@ -164,6 +178,9 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
         setIsRunning(false)
         setStartTime(null)
         setElapsedSeconds(0) // Reset counter to zero
+        setLastEnd(new Date())
+        setPicker(null)
+        setNotice(null)
         setJobNumber('')
         setVehicleType('')
         stopBackgroundTimer()
@@ -192,6 +209,47 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
       setIsLoading(false)
     }
   }, [amount, onComplete, stopBackgroundTimer, releaseWakeLock, jobNumber, vehicleType])
+
+  // Corrige la hora de inicio del trabajo en curso (se inició tarde o antes de tiempo)
+  const handleAdjustStart = useCallback(async (newStart: Date, isUndo = false) => {
+    const previous = startTime
+    setIsLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/payment', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setStart', startTime: newStart.toISOString() })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setError(data.error || 'No se pudo ajustar la hora de inicio')
+        return
+      }
+      const elapsed: number = data.data.elapsedSeconds
+      const realStart = new Date(Date.now() - elapsed * 1000)
+      setStartTime(realStart)
+      setElapsedSeconds(elapsed)
+      startBackgroundTimer(realStart.toISOString())
+      setPicker(null)
+      setNotice(isUndo || !previous ? null : {
+        text: `Inicio ajustado a las ${formatTime12(newStart)}: llevas ${formatHM(elapsed)}`,
+        undoStart: previous,
+      })
+    } catch (err) {
+      console.error('Error adjusting start:', err)
+      setError('Error de conexión')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [startTime, startBackgroundTimer])
+
+  // Los avisos se van solos
+  useEffect(() => {
+    if (!notice) return
+    const id = setTimeout(() => setNotice(null), 10000)
+    return () => clearTimeout(id)
+  }, [notice])
 
   const handleCancelModal = () => {
     setShowAmountModal(false)
@@ -284,11 +342,52 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
               {formatDuration(elapsedSeconds)}
             </div>
             {isRunning && startTime && (
-              <div className="text-xs sm:text-sm text-gray-400 mt-3 font-medium">
-                ⏱️ Iniciado: {formatTimeInFlorida(startTime)}
-              </div>
+              <button
+                type="button"
+                onClick={() => { setError(null); setPicker(picker === 'adjust' ? null : 'adjust') }}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs sm:text-sm font-medium text-gray-400 hover:bg-blue-50 hover:text-blue-700 transition-colors touch-manipulation"
+              >
+                ⏱️ Iniciado: {formatTime12(startTime)}
+                <span className="inline-flex items-center gap-0.5 font-semibold text-blue-600">
+                  <Pencil className="h-3 w-3" />
+                  Ajustar
+                </span>
+              </button>
             )}
           </div>
+
+          {isRunning && picker === 'adjust' && (
+            <StartTimePicker
+              mode="adjust"
+              currentStart={startTime}
+              currentElapsed={elapsedSeconds}
+              minStart={lastEnd}
+              tone="blue"
+              busy={isLoading}
+              onConfirm={start => handleAdjustStart(start)}
+              onCancel={() => setPicker(null)}
+            />
+          )}
+
+          {isRunning && notice && (
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900 animate-fade-in">
+              <span className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 flex-shrink-0" />
+                {notice.text}
+              </span>
+              {notice.undoStart && (
+                <button
+                  type="button"
+                  onClick={() => notice.undoStart && handleAdjustStart(notice.undoStart, true)}
+                  disabled={isLoading}
+                  className="flex flex-shrink-0 items-center gap-1 rounded-lg px-2 py-1 font-semibold hover:bg-emerald-100 disabled:opacity-60 transition-colors"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  Deshacer
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Job Number - Solo visible cuando está corriendo */}
           {isRunning && (
@@ -440,15 +539,37 @@ export function PaymentTimer({ onComplete, initialState }: Readonly<PaymentTimer
                 <Square className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
                 FINALIZAR
               </Button>
+            ) : picker === 'start' ? (
+              <div className="w-full">
+                <StartTimePicker
+                  mode="start"
+                  minStart={lastEnd}
+                  tone="blue"
+                  busy={isLoading}
+                  onConfirm={start => handleStart(start)}
+                  onCancel={() => setPicker(null)}
+                />
+              </div>
             ) : (
-              <Button
-                onClick={handleStart}
-                disabled={isLoading}
-                className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Play className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
-                {isLoading ? 'Iniciando...' : 'INICIAR'}
-              </Button>
+              <div className="flex w-full flex-col items-center gap-2">
+                <Button
+                  onClick={() => handleStart()}
+                  disabled={isLoading}
+                  className="w-full max-w-[280px] py-6 sm:py-8 text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Play className="mr-3 h-6 w-6 sm:h-7 sm:w-7" />
+                  {isLoading ? 'Iniciando...' : 'INICIAR'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { setError(null); setPicker('start') }}
+                  className="flex flex-wrap items-center justify-center gap-x-1.5 py-1 text-xs sm:text-sm text-gray-500 hover:text-blue-700 transition-colors touch-manipulation"
+                >
+                  <History className="h-3.5 w-3.5" />
+                  ¿Se te olvidó iniciarlo?
+                  <span className="font-semibold text-blue-600 underline underline-offset-2">Empieza desde una hora anterior</span>
+                </button>
+              </div>
             )}
           </div>
 
