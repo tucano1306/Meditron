@@ -17,6 +17,8 @@ interface CompanyManagerProps {
   readonly onClose: () => void
   /** Se llama después de crear o modificar una compañía */
   readonly onChanged: () => void
+  /** Abre directamente el formulario de nueva compañía */
+  readonly startCreating?: boolean
 }
 
 type View = { mode: 'list' } | { mode: 'create' } | { mode: 'edit'; id: string }
@@ -338,8 +340,8 @@ function CompanyRow({ company, onOpen }: { readonly company: Company; readonly o
 }
 
 /** Hoja para ver, crear y configurar las compañías del usuario. */
-export function CompanyManager({ companies, onClose, onChanged }: CompanyManagerProps) {
-  const [view, setView] = useState<View>({ mode: 'list' })
+export function CompanyManager({ companies, onClose, onChanged, startCreating = false }: CompanyManagerProps) {
+  const [view, setView] = useState<View>({ mode: startCreating ? 'create' : 'list' })
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {

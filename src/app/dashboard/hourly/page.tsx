@@ -161,11 +161,15 @@ export default function HourlyDashboardPage() {
   const company = activeCompanies.find(c => c.id === selectedId) ?? activeCompanies[0] ?? null
   const companyId = company?.id ?? null
 
-  // Al entrar: compañías frescas (pudo cambiar el usuario) y la última elegida
+  // Al entrar: compañías frescas (pudo cambiar el usuario) y la compañía elegida
+  // en la pantalla de inicio (?company=) o, si no, la última usada
   useEffect(() => {
     refreshCompanies().catch(err => console.error('Error loading companies:', err))
+    const chosen = new URLSearchParams(globalThis.location.search).get('company')
+    // Elegida a propósito: se muestra aunque haya un turno en curso en otra compañía
+    if (chosen) followedRunningEntry.current = true
     try {
-      const saved = localStorage.getItem(COMPANY_STORAGE_KEY)
+      const saved = chosen ?? localStorage.getItem(COMPANY_STORAGE_KEY)
       if (saved) setSelectedId(saved)
     } catch { /* sin almacenamiento disponible */ }
   }, [])
