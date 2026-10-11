@@ -6,6 +6,7 @@ import { parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
 import { ruleFor, toDateKey } from '@/lib/companies'
 import { recalculateCompanyAmounts } from '@/lib/pay-periods'
 import { getUserCompanies, getUserCompany, resolveWriteCompany } from '@/lib/company-store'
+import { lastEndTime, validateStartTime } from '@/lib/timer-start'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,12 +24,23 @@ export async function POST(request: NextRequest) {
     // Obtener la hora del cliente (UTC) si se envía, sino usar hora actual UTC
     let now: Date
     let companyId: unknown
+    let requestedStart: Date | null = null
     try {
       const body = await request.json()
       now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
       companyId = body.companyId
+      // Se olvidó iniciar el cronómetro: empieza desde una hora anterior
+      if (body.startTime) requestedStart = parseClientDateTime(body.startTime)
     } catch {
       now = new Date()
+    }
+
+    if (requestedStart) {
+      const startError = await validateStartTime(userId, requestedStart)
+      if (startError) {
+        return NextResponse.json({ success: false, error: startError }, { status: 400 })
+      }
+      now = requestedStart
     }
 
     const company = await resolveWriteCompany(userId, companyId)
@@ -268,7 +280,8 @@ export async function GET() {
           serviceType: activeEntry.serviceType,
           companyId: activeEntry.companyId,
           accumulatedSeconds: activeEntry.accumulatedSeconds,
-          elapsedSeconds: Math.max(0, elapsedSeconds)
+          elapsedSeconds: Math.max(0, elapsedSeconds),
+          lastEndTime: await lastEndTime(userId, activeEntry.id)
         }
       })
     }
@@ -279,7 +292,8 @@ export async function GET() {
         isRunning: false,
         startTime: null,
         currentEntryId: null,
-        elapsedSeconds: 0
+        elapsedSeconds: 0,
+        lastEndTime: await lastEndTime(userId)
       }
     })
   } catch (error) {
@@ -333,6 +347,36 @@ export async function PATCH(request: NextRequest) {
         data: { pausedAt: now, accumulatedSeconds: newAccumulated }
       })
       return NextResponse.json({ success: true, data: { entry: updated, accumulatedSeconds: newAccumulated } })
+    }
+
+    // Corregir la hora de inicio del turno en curso (p. ej. se inició tarde)
+    if (action === 'setStart') {
+      const newStart = parseClientDateTime(String(body.startTime ?? ''))
+      const startError = await validateStartTime(userId, newStart, activeEntry.id)
+      if (startError) {
+        return NextResponse.json({ success: false, error: startError }, { status: 400 })
+      }
+      // Segundos que se agregan (positivo) o quitan (negativo) al turno
+      const delta = Math.round((activeEntry.startTime.getTime() - newStart.getTime()) / 1000)
+      // Con pausas, el primer tramo ya está sumado en accumulatedSeconds
+      const hadPauses = activeEntry.pausedAt !== null || activeEntry.lastResumeTime !== null
+      const accumulated = hadPauses ? activeEntry.accumulatedSeconds + delta : activeEntry.accumulatedSeconds
+      if (accumulated < 0) {
+        return NextResponse.json({ success: false, error: 'La hora de inicio no puede ser después de tu primera pausa' }, { status: 400 })
+      }
+      const updated = await prisma.timeEntry.update({
+        where: { id: activeEntry.id },
+        data: { startTime: newStart, accumulatedSeconds: accumulated }
+      })
+      const isPaused = updated.pausedAt !== null
+      const resumeRef = updated.lastResumeTime ?? updated.startTime
+      const elapsedSeconds = isPaused
+        ? updated.accumulatedSeconds
+        : updated.accumulatedSeconds + Math.floor((Date.now() - resumeRef.getTime()) / 1000)
+      return NextResponse.json({
+        success: true,
+        data: { entry: updated, startTime: updated.startTime, isPaused, elapsedSeconds: Math.max(0, elapsedSeconds) }
+      })
     }
 
     // Acción de reanudar

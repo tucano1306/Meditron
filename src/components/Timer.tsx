@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare, ArrowLeftRight, Repeat } from 'lucide-react'
-import { formatDuration, formatCurrency, HOURLY_RATE, formatTimeInFlorida, getFloridaDateString } from '@/lib/utils'
+import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare, ArrowLeftRight, Repeat, ArrowRightLeft, Check, Undo2, History } from 'lucide-react'
+import { formatDuration, formatCurrency, HOURLY_RATE, getFloridaDateString } from '@/lib/utils'
 import { describeRule, overtimeAmount, ruleFor, type Company, type OvertimeRules } from '@/lib/companies'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import type { TimerState } from '@/types'
+import { formatTime12 } from '@/lib/report-format'
+import { formatHM } from '@/lib/display'
+import { StartTimePicker } from './StartTimePicker'
 
 const VEHICLE_OPTIONS = [
   { value: 'sprinter', label: 'Sprinter', short: 'Sprinter' },
@@ -17,6 +20,12 @@ const VEHICLE_OPTIONS = [
 function getVehicleLabel(value: string): string {
   const vehicle = VEHICLE_OPTIONS.find(v => v.value === value)
   return vehicle ? vehicle.label : value
+}
+
+/** Aviso tras una acción del turno; `undo` permite revertirla */
+interface Notice {
+  text: string
+  undo?: { kind: 'move'; company: string } | { kind: 'start'; start: Date }
 }
 
 interface TimerProps {
@@ -62,6 +71,16 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [entryCompany, setEntryCompany] = useState<string | null>(null)
   // Confirmación de "cambiar de trabajo" (detener el turno de una compañía y empezar el de la otra)
   const [confirmSwitch, setConfirmSwitch] = useState(false)
+  // Aviso de la última acción (mover turno, iniciar o ajustar la hora), con deshacer
+  const [notice, setNotice] = useState<Notice | null>(null)
+  // Elegir la hora de inicio: se olvidó iniciar ("start") o corregir el turno en curso ("adjust")
+  const [picker, setPicker] = useState<'start' | 'adjust' | null>(null)
+  // Inicio real del turno en curso (startTime es el inicio "virtual" que descuenta pausas)
+  const [entryStart, setEntryStart] = useState<Date | null>(
+    initialState?.startTime ? new Date(initialState.startTime) : null
+  )
+  // Fin del último turno: el siguiente no puede empezar antes
+  const [lastEnd, setLastEnd] = useState<Date | null>(null)
   
   // PWA and background support
   const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
@@ -95,6 +114,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         }
         
         if (typeof data.data.companyId === 'string') setEntryCompany(data.data.companyId)
+        setEntryStart((running || paused) && data.data.startTime ? new Date(data.data.startTime) : null)
+        setLastEnd(data.data.lastEndTime ? new Date(data.data.lastEndTime) : null)
         if (job) setJobNumber(job)
         if (vehicle) setVehicleType(vehicle)
         if (data.data.serviceType) setServiceType(data.data.serviceType)
@@ -129,6 +150,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setServiceType('')
     setObservation('')
     setEntryCompany(null)
+    setEntryStart(null)
+    setPicker(null)
   }, [])
 
   const activeCompany: string = (isRunning || isPaused) ? (entryCompany ?? company) : company
@@ -140,7 +163,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const priorSeconds = overtime?.completedSeconds ?? 0
   const activeRate = activeConfig ? ruleFor(activeConfig, getFloridaDateString()).hourlyRate : hourlyRate
 
-  const handleStart = useCallback(async (target: string = company) => {
+  // `startAt`: se olvidó iniciar el cronómetro y empieza desde una hora anterior
+  const handleStart = useCallback(async (target: string = company, startAt?: Date) => {
     setIsLoading(true)
     setError(null)
 
@@ -150,7 +174,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       const res = await fetch('/api/timer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime: new Date().toISOString(), companyId: target })
+        body: JSON.stringify({ clientTime: new Date().toISOString(), companyId: target, startTime: startAt?.toISOString() })
       })
       const data = await res.json()
 
@@ -160,11 +184,15 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         return
       }
             
-      const newStartTime = new Date()
+      const newStartTime = startAt ?? new Date()
+      const elapsed = Math.max(0, Math.floor((Date.now() - newStartTime.getTime()) / 1000))
       setIsRunning(true)
       setIsPaused(false)
       setStartTime(newStartTime)
-      setElapsedSeconds(0)
+      setEntryStart(newStartTime)
+      setElapsedSeconds(elapsed)
+      setPicker(null)
+      setNotice(startAt ? { text: `Iniciado desde las ${formatTime12(newStartTime)}: ya llevas ${formatHM(elapsed)}` } : null)
       setJobNumber('')
       setVehicleType('')
       setServiceType('')
@@ -202,6 +230,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         const finalEarnings = data.data?.entry?.calculatedAmount ?? (elapsedSeconds / 3600) * activeRate
                 
         resetTimerState()
+        setLastEnd(new Date())
+        setNotice(null)
         stopBackgroundTimer()
         await releaseWakeLock()
         
@@ -358,9 +388,13 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     }
   }, [observationInput])
 
-  const handleSelectCompany = useCallback(async (target: string) => {
+  // Mueve el turno en curso a otra compañía: conserva el tiempo, el número de
+  // trabajo, el vehículo, el servicio y el comentario (solo cambia la compañía)
+  const handleMoveEntry = useCallback(async (target: string, isUndo = false) => {
     if (target === activeCompany) return
+    const from = activeCompany
     setError(null)
+    setIsLoading(true)
     try {
       const res = await fetch('/api/timer', {
         method: 'PATCH',
@@ -370,16 +404,72 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
       const data = await res.json()
       if (data.success) {
         setEntryCompany(target)
+        setConfirmSwitch(false)
+        const targetName = companies.find(c => c.id === target)?.name ?? 'la otra compañía'
+        setNotice(isUndo ? null : { text: `Turno movido a ${targetName} con su tiempo y sus datos`, undo: { kind: 'move', company: from } })
         onCompanyChange?.()
         onSwitchView?.(target)
       } else {
-        setError(data.error || 'Error al cambiar la compañía')
+        setError(data.error || 'Error al mover el turno')
       }
     } catch (err) {
-      console.error('Error switching company:', err)
+      console.error('Error moving entry:', err)
       setError('Error de conexión')
+    } finally {
+      setIsLoading(false)
     }
-  }, [activeCompany, onCompanyChange, onSwitchView])
+  }, [activeCompany, companies, onCompanyChange, onSwitchView])
+
+  // Corrige la hora de inicio del turno en curso (se inició tarde o antes de tiempo)
+  const handleAdjustStart = useCallback(async (newStart: Date, isUndo = false) => {
+    const previous = entryStart
+    setError(null)
+    setIsLoading(true)
+    try {
+      const res = await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setStart', startTime: newStart.toISOString() })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setError(data.error || 'No se pudo ajustar la hora de inicio')
+        return
+      }
+      const elapsed: number = data.data.elapsedSeconds
+      setElapsedSeconds(elapsed)
+      if (!data.data.isPaused) {
+        const virtualStart = new Date(Date.now() - elapsed * 1000)
+        setStartTime(virtualStart)
+        startBackgroundTimer(virtualStart.toISOString())
+      }
+      setEntryStart(new Date(data.data.startTime))
+      setPicker(null)
+      setNotice(isUndo || !previous ? null : {
+        text: `Inicio ajustado a las ${formatTime12(newStart)}: llevas ${formatHM(elapsed)}`,
+        undo: { kind: 'start', start: previous },
+      })
+      onCompanyChange?.()
+    } catch (err) {
+      console.error('Error adjusting start:', err)
+      setError('Error de conexión')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [entryStart, startBackgroundTimer, onCompanyChange])
+
+  const handleUndo = useCallback(() => {
+    if (!notice?.undo) return
+    if (notice.undo.kind === 'move') handleMoveEntry(notice.undo.company, true)
+    else handleAdjustStart(notice.undo.start, true)
+  }, [notice, handleMoveEntry, handleAdjustStart])
+
+  // Los avisos se van solos
+  useEffect(() => {
+    if (!notice) return
+    const id = setTimeout(() => setNotice(null), 10000)
+    return () => clearTimeout(id)
+  }, [notice])
 
   const handleEditObservation = useCallback(() => {
     setObservationInput(observation)
@@ -478,17 +568,28 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   }
 
   const renderStartTimeIndicator = () => {
-    if ((!isRunning && !isPaused) || !startTime) return null
+    const shown = entryStart ?? startTime
+    if ((!isRunning && !isPaused) || !shown) return null
     return (
-      <div className="text-[12px] text-[#787774] mt-1">
-        Iniciado: {formatTimeInFlorida(startTime)}
-      </div>
+      <button
+        type="button"
+        onClick={() => { setError(null); setPicker(picker === 'adjust' ? null : 'adjust') }}
+        className="mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] text-[#787774] hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352f] transition-colors touch-manipulation"
+      >
+        Iniciado: {formatTime12(shown)}
+        <span className="inline-flex items-center gap-0.5 font-semibold text-[#37352f]">
+          <Pencil className="h-3 w-3" />
+          Ajustar
+        </span>
+      </button>
     )
   }
 
   const renderJobNumberSection = () => {
     if (!isRunning && !isPaused) return null
-    if (!activeConfig?.trackJobNumber) return null
+    // Con dato se muestra siempre: al mover el turno a una compañía que no lo
+    // registra no debe desaparecer
+    if (!activeConfig?.trackJobNumber && !jobNumber) return null
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
         <div className="flex items-center justify-between gap-2">
@@ -563,7 +664,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
   const renderVehicleSection = () => {
     if (!isRunning && !isPaused) return null
-    if (!activeConfig?.trackVehicle) return null
+    if (!activeConfig?.trackVehicle && !vehicleType) return null
     return (
       <div className="rounded-[6px] border border-[rgba(55,53,47,0.09)] p-3">
         <div className="flex items-center gap-2 text-[#787774] mb-2.5">
@@ -588,7 +689,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
   const renderServiceTypeSection = () => {
     if (!isRunning && !isPaused) return null
-    if (!activeConfig?.trackServiceType) return null
+    if (!activeConfig?.trackServiceType && !serviceType) return null
     const SERVICE_OPTIONS = [
       { value: 'hourly', label: 'Hourly' },
       { value: 'point-to-point', label: 'Point to Point' },
@@ -743,25 +844,100 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     )
   }
 
-  // Por si se inició en la compañía equivocada: mueve el turno sin perder el tiempo
+  // Se olvidó iniciar el cronómetro: empezar desde la hora real del turno
+  const renderForgotToStart = () => {
+    if (isRunning || isPaused) return null
+    if (picker === 'start') {
+      return (
+        <StartTimePicker
+          mode="start"
+          minStart={lastEnd}
+          rate={activeRate}
+          companyName={nameOf(company)}
+          busy={isLoading}
+          onConfirm={start => handleStart(company, start)}
+          onCancel={() => setPicker(null)}
+        />
+      )
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => { setError(null); setPicker('start') }}
+        className="flex flex-wrap items-center justify-center gap-x-1.5 py-1 text-[12px] text-[#787774] hover:text-[#37352f] transition-colors touch-manipulation"
+      >
+        <History className="h-3.5 w-3.5" />
+        ¿Se te olvidó iniciarlo?
+        <span className="font-semibold text-[#37352f] underline underline-offset-2">Empieza desde una hora anterior</span>
+      </button>
+    )
+  }
+
+  const renderAdjustPicker = () => {
+    if (picker !== 'adjust' || (!isRunning && !isPaused)) return null
+    return (
+      <StartTimePicker
+        mode="adjust"
+        currentStart={entryStart ?? startTime}
+        currentElapsed={elapsedSeconds}
+        minStart={lastEnd}
+        rate={activeRate}
+        companyName={nameOf(activeCompany)}
+        busy={isLoading}
+        onConfirm={start => handleAdjustStart(start)}
+        onCancel={() => setPicker(null)}
+      />
+    )
+  }
+
+  // Por si se inició en la compañía equivocada: mueve el turno sin perder nada
   const renderMoveEntryLink = () => {
     if (!isRunning && !isPaused) return null
     const others = companies.filter(c => !c.archived && c.id !== activeCompany)
     if (others.length === 0) return null
     return (
-      <label className="flex items-center justify-center gap-1.5 py-1 text-[12px] text-[#787774]">
-        ¿Es de otra compañía?
-        <select
-          value=""
-          onChange={e => { if (e.target.value) handleSelectCompany(e.target.value) }}
-          className="max-w-[60%] bg-transparent text-[12px] font-semibold text-[#37352f] underline underline-offset-2 focus:outline-none touch-manipulation"
-        >
-          <option value="">Mover a…</option>
-          {others.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+      <label className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 py-1 text-[12px] text-[#787774]">
+        ¿Lo empezaste en otra compañía?
+        <span className="relative inline-flex items-center gap-1 rounded-full border border-[rgba(55,53,47,0.16)] bg-white px-2.5 py-1 font-semibold text-[#37352f] hover:bg-[rgba(55,53,47,0.06)] transition-colors">
+          <ArrowRightLeft className="h-3 w-3" />
+          Mover turno a…
+          <select
+            value=""
+            disabled={isLoading}
+            aria-label="Mover el turno a otra compañía"
+            onChange={e => { if (e.target.value) handleMoveEntry(e.target.value) }}
+            className="absolute inset-0 cursor-pointer opacity-0 touch-manipulation"
+          >
+            <option value="">Mover turno a…</option>
+            {others.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </span>
       </label>
+    )
+  }
+
+  const renderNotice = () => {
+    if (!notice || (!isRunning && !isPaused)) return null
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-[6px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900 animate-fade-in">
+        <span className="flex items-center gap-1.5">
+          <Check className="h-4 w-4 flex-shrink-0" />
+          {notice.text}
+        </span>
+        {notice.undo && (
+        <button
+          type="button"
+          onClick={handleUndo}
+          disabled={isLoading}
+          className="flex flex-shrink-0 items-center gap-1 rounded-[4px] px-2 py-1 font-semibold hover:bg-emerald-100 disabled:opacity-60 transition-colors"
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+          Deshacer
+        </button>
+        )}
+      </div>
     )
   }
 
@@ -781,11 +957,11 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
             </div>
             <div className="mt-1 text-[13px] text-[#37352f] font-mono">
               {formatDuration(elapsedSeconds)}
-              {startTime && <span className="font-sans text-[#787774]"> · iniciado {formatTimeInFlorida(startTime)}</span>}
+              {(entryStart ?? startTime) && <span className="font-sans text-[#787774]"> · iniciado {formatTime12((entryStart ?? startTime) as Date)}</span>}
             </div>
           </div>
           <p className="text-[13px] text-[#787774]">
-            Solo puede haber un turno a la vez. Para registrar horas de {viewName}, cambia de trabajo: se cierra el turno de {runningName} y empieza uno de {viewName}.
+            Solo puede haber un turno a la vez. ¿Qué quieres hacer?
           </p>
           {error && (
             <div className="text-[13px] text-[#dc2626] bg-[#fef2f2] border border-[#fecaca] py-2 px-3 rounded-[4px]">{error}</div>
@@ -793,7 +969,10 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
           {confirmSwitch ? (
             <div className="rounded-[6px] border border-[#37352f] p-3 space-y-2">
               <p className="text-[13px] text-[#37352f]">
-                ¿Detener el turno de {runningName} ({formatDuration(elapsedSeconds)}) y empezar {viewName} ahora?
+                Se cierra el turno de {runningName} con {formatDuration(elapsedSeconds)} y empieza uno nuevo de {viewName} desde cero. ¿Continuar?
+              </p>
+              <p className="text-[12px] text-[#787774]">
+                Si lo empezaste en la compañía equivocada, mejor usa «Mover este turno a {viewName}».
               </p>
               <div className="flex gap-2">
                 <button
@@ -802,7 +981,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
                   disabled={isLoading}
                   className="flex-1 py-2.5 text-[14px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] disabled:opacity-60 text-white rounded-[6px] transition-colors touch-manipulation"
                 >
-                  {isLoading ? 'Cambiando...' : 'Sí, cambiar'}
+                  {isLoading ? 'Cambiando...' : 'Sí, terminar y empezar'}
                 </button>
                 <button
                   type="button"
@@ -817,16 +996,36 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => setConfirmSwitch(true)}
-                className="w-full py-3 text-[15px] font-semibold bg-[#37352f] hover:bg-[#2f2d28] text-white rounded-[6px] transition-colors flex items-center justify-center gap-2 touch-manipulation active:scale-[0.99]"
+                onClick={() => handleMoveEntry(company)}
+                disabled={isLoading}
+                className="w-full rounded-[6px] bg-[#37352f] px-4 py-3 text-left text-white transition-colors hover:bg-[#2f2d28] disabled:opacity-60 touch-manipulation active:scale-[0.99]"
               >
-                <Repeat className="h-4 w-4" />
-                Cambiar a {viewName}
+                <span className="flex items-center gap-2 text-[15px] font-semibold">
+                  <ArrowRightLeft className="h-4 w-4 flex-shrink-0" />
+                  {isLoading ? 'Moviendo...' : `Mover este turno a ${viewName}`}
+                </span>
+                <span className="mt-0.5 block pl-6 text-[12px] text-white/70">
+                  Lo empezaste en la compañía equivocada: el tiempo y los datos pasan a {viewName}.
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmSwitch(true)}
+                disabled={isLoading}
+                className="w-full rounded-[6px] border border-[rgba(55,53,47,0.16)] px-4 py-3 text-left text-[#37352f] transition-colors hover:bg-[rgba(55,53,47,0.06)] disabled:opacity-60 touch-manipulation active:scale-[0.99]"
+              >
+                <span className="flex items-center gap-2 text-[15px] font-semibold">
+                  <Repeat className="h-4 w-4 flex-shrink-0" />
+                  Terminar {runningName} y empezar {viewName}
+                </span>
+                <span className="mt-0.5 block pl-6 text-[12px] text-[#787774]">
+                  Ya acabaste con {runningName}: cierra ese turno y empieza uno nuevo.
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => onSwitchView?.(entryCompany)}
-                className="w-full py-2.5 text-[14px] font-semibold text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.06)] rounded-[6px] transition-colors touch-manipulation"
+                className="w-full py-2 text-[13px] font-semibold text-[#787774] hover:text-[#37352f] transition-colors touch-manipulation"
               >
                 Ver turno de {runningName}
               </button>
@@ -860,6 +1059,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
           {renderBackgroundIndicator()}
         </div>
 
+        {renderAdjustPicker()}
+        {renderNotice()}
         {renderJobNumberSection()}
         {renderVehicleSection()}
         {renderServiceTypeSection()}
@@ -873,7 +1074,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
         {/* Buttons */}
         <div className="flex flex-col gap-2 pt-1">
-          {renderButtons()}
+          {picker === 'start' ? null : renderButtons()}
+          {renderForgotToStart()}
           {renderMoveEntryLink()}
         </div>
 
