@@ -15,7 +15,7 @@ import { AddHoursForm, PayWeeksList, PayWeeksSummary } from '@/components/PayWee
 import { CompanyManager } from '@/components/CompanyManager'
 import { ExportCard } from '@/components/ExportCard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, BarChart3, Calculator, Clock, ArrowLeft, LogOut, Plus, Search, Settings2 } from 'lucide-react'
+import { Calendar, BarChart3, Calculator, Clock, LogOut, Plus, Search, Settings2 } from 'lucide-react'
 import { describeRule, ruleFor, weekLabel, weekShortLabel, type Company, type OvertimeRules } from '@/lib/companies'
 import { saveCompanyRate } from '@/lib/company-client'
 import { getFloridaDateString } from '@/lib/utils'
@@ -291,22 +291,19 @@ export default function HourlyDashboardPage() {
     <div className="min-h-[100dvh] bg-[#ffffff] font-notion">
       {/* Topbar */}
       <header className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-[rgba(55,53,47,0.09)] bg-[#ffffff]">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => router.push('/mode-select')}
-            className="p-1.5 text-[#787774] hover:text-[#37352f] hover:bg-[rgba(55,53,47,0.08)] rounded-[4px] transition-colors"
-            aria-label="Volver"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-[#37352f] rounded flex items-center justify-center">
-              <Clock className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-[14px] font-semibold text-[#37352f]">Por Hora</span>
+        {/* El logo y el título llevan a la pantalla de inicio */}
+        <button
+          type="button"
+          onClick={() => router.push('/mode-select')}
+          className="-ml-1.5 flex items-center gap-2 rounded-[6px] px-1.5 py-1 transition-colors hover:bg-[rgba(55,53,47,0.08)] touch-manipulation"
+          aria-label="Volver al inicio"
+          title="Volver al inicio"
+        >
+          <div className="w-6 h-6 bg-[#37352f] rounded flex items-center justify-center">
+            <Clock className="w-3.5 h-3.5 text-white" />
           </div>
-        </div>
+          <span className="text-[14px] font-semibold text-[#37352f]">Por Hora</span>
+        </button>
         <div className="flex items-center gap-2">
           {session?.user?.name && (
             <span className="text-[13px] text-[#787774] hidden sm:inline">

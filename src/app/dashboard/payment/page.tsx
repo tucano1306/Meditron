@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button'
 import { 
   DollarSign, 
   Clock, 
-  ArrowLeft, 
   LogOut, 
   User,
   Calendar,
@@ -123,25 +122,22 @@ export default function PaymentDashboardPage() {
       <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-6 max-w-4xl">
         {/* Header */}
         <header className="flex items-center justify-between mb-4 sm:mb-6">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/mode-select')}
-              className="text-gray-500 h-9 w-9 p-0 touch-manipulation"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-base sm:text-lg font-bold text-gray-900">Por Pago</h1>
-                <p className="text-[10px] sm:text-xs text-gray-500">Calcula tu tarifa por hora</p>
-              </div>
+          {/* El logo y el título llevan a la pantalla de inicio */}
+          <button
+            type="button"
+            onClick={() => router.push('/mode-select')}
+            className="-ml-2 flex items-center gap-2 rounded-xl px-2 py-1 text-left transition-colors hover:bg-white/70 touch-manipulation"
+            aria-label="Volver al inicio"
+            title="Volver al inicio"
+          >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-          </div>
+            <div>
+              <h1 className="text-base sm:text-lg font-bold text-gray-900">Por Pago</h1>
+              <p className="text-[10px] sm:text-xs text-gray-500">Calcula tu tarifa por hora</p>
+            </div>
+          </button>
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-1 text-gray-500 text-sm">
               <User className="w-4 h-4" />
