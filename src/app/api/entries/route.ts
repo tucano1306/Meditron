@@ -6,6 +6,7 @@ import { getFloridaDateComponents } from '@/lib/utils'
 import { payScopeOf, ruleFor, toDateKey, type Company } from '@/lib/companies'
 import { recalculateCompanyAmounts } from '@/lib/pay-periods'
 import { getUserCompany, resolveWriteCompany } from '@/lib/company-store'
+import { isDateKey, optionalMoney, parseEntryTexts } from '@/lib/input'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -55,7 +56,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (date) {
-      where.date = new Date(date)
+      if (!isDateKey(date)) {
+        return NextResponse.json({ success: false, error: 'Fecha inválida' }, { status: 400 })
+      }
+      where.date = new Date(`${date}T00:00:00Z`)
     }
 
     if (jobNumber) {
@@ -159,7 +163,20 @@ export async function POST(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { hours, minutes, payment, hourlyRate, date, jobNumber, vehicle, calculatedAmount, paidAmount, observation } = body
+    const { hours, minutes, payment, hourlyRate, date } = body
+
+    const texts = parseEntryTexts(body)
+    if (!texts.ok) {
+      return NextResponse.json({ success: false, error: texts.error }, { status: 400 })
+    }
+    const calculated = optionalMoney(body.calculatedAmount, 'El monto')
+    const paid = optionalMoney(body.paidAmount, 'El pago de la compañía')
+    if (!calculated.ok || !paid.ok) {
+      return NextResponse.json({ success: false, error: !calculated.ok ? calculated.error : (paid as { error: string }).error }, { status: 400 })
+    }
+    const { jobNumber, vehicle, observation } = texts.value
+    const calculatedAmount = calculated.value ?? undefined
+    const paidAmount = paid.value ?? undefined
 
     const company = await resolveWriteCompany(userId, body.companyId)
     if (!company) {
@@ -178,7 +195,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const totalSeconds = (Number(hours) * 3600) + (Number(minutes) * 60)
+    const totalSeconds = Math.round((Number(hours) * 3600) + (Number(minutes) * 60))
+    if (!Number.isFinite(totalSeconds) || Number(hours) < 0 || Number(minutes) < 0 || totalSeconds <= 0 || totalSeconds > 7 * 24 * 3600) {
+      return NextResponse.json({ success: false, error: 'Horas inválidas' }, { status: 400 })
+    }
+    if (date && !isDateKey(date)) {
+      return NextResponse.json({ success: false, error: 'Fecha inválida' }, { status: 400 })
+    }
     
     // Si se proporciona una fecha, usarla; si no, usar hoy en Florida
     let targetYear: number
@@ -211,8 +234,8 @@ export async function POST(request: NextRequest) {
 
     // Crear la entrada
     const entryExtraData: Record<string, unknown> = {}
-    if (jobNumber) entryExtraData.jobNumber = String(jobNumber)
-    if (vehicle) entryExtraData.vehicle = String(vehicle)
+    if (jobNumber) entryExtraData.jobNumber = jobNumber
+    if (vehicle) entryExtraData.vehicle = vehicle
     // Si no viene calculatedAmount del body, calcularlo con la tarifa vigente de la compañía
     const resolvedCalculatedAmount = calculatedAmount === undefined
       ? (totalSeconds / 3600) * ruleFor(company, toDateKey(targetDate)).hourlyRate
@@ -222,7 +245,7 @@ export async function POST(request: NextRequest) {
       entryExtraData.paidAmount = Number(paidAmount)
       entryExtraData.companyPaid = Number(paidAmount)
     }
-    if (observation) entryExtraData.observation = String(observation)
+    if (observation) entryExtraData.observation = observation
 
     const entry = await prisma.timeEntry.create({
       data: {
@@ -281,7 +304,11 @@ async function createTimedEntry(userId: string, company: Company, body: Record<s
   const date = new Date(Date.UTC(day.year, day.month - 1, day.day))
   const week = await getOrCreateWeekFromCalendarDate(day.year, day.month, day.day, userId)
 
-  const observation = typeof body.observation === 'string' && body.observation.trim() ? body.observation.trim() : null
+  const texts = parseEntryTexts({ observation: body.observation })
+  if (!texts.ok) {
+    return NextResponse.json({ success: false, error: texts.error }, { status: 400 })
+  }
+  const observation = texts.value.observation ?? null
 
   const entry = await prisma.timeEntry.create({
     data: {
@@ -307,7 +334,7 @@ async function createTimedEntry(userId: string, company: Company, body: Record<s
 }
 
 // Función auxiliar para construir datos de actualización de trabajo
-function buildJobUpdateData(jobNumber?: string, vehicle?: string | null, calculatedAmount?: number, paidAmount?: number, observation?: string | null, serviceType?: string | null): Record<string, unknown> {
+function buildJobUpdateData(jobNumber?: string | null, vehicle?: string | null, calculatedAmount?: number, paidAmount?: number | null, observation?: string | null, serviceType?: string | null): Record<string, unknown> {
   const updateData: Record<string, unknown> = {}
   if (jobNumber !== undefined) updateData.jobNumber = jobNumber || null
   if (vehicle !== undefined) updateData.vehicle = vehicle || null
@@ -340,8 +367,19 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { startTime, endTime, jobNumber, vehicle, paidAmount, serviceType, observation } = body
-    let { calculatedAmount } = body
+    const { startTime, endTime } = body
+    const texts = parseEntryTexts(body)
+    if (!texts.ok) {
+      return NextResponse.json({ success: false, error: texts.error }, { status: 400 })
+    }
+    const calculated = optionalMoney(body.calculatedAmount, 'El monto')
+    const paid = optionalMoney(body.paidAmount, 'El pago de la compañía')
+    if (!calculated.ok || !paid.ok) {
+      return NextResponse.json({ success: false, error: !calculated.ok ? calculated.error : (paid as { error: string }).error }, { status: 400 })
+    }
+    const { jobNumber, vehicle, serviceType, observation } = texts.value
+    const paidAmount = paid.value
+    let calculatedAmount = calculated.value ?? undefined
 
     // Compañía actual del trabajo y, si se pide moverlo, la nueva
     const oldCompany = await resolveWriteCompany(userId, entry.companyId)
@@ -395,10 +433,16 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'startTime y endTime son requeridos' }, { status: 400 })
     }
 
-    const newStart = new Date(startTime)
-    const newEnd = new Date(endTime)
+    const newStart = new Date(String(startTime))
+    const newEnd = new Date(String(endTime))
     const duration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000)
 
+    if (!Number.isFinite(duration)) {
+      return NextResponse.json({ success: false, error: 'Horas inválidas' }, { status: 400 })
+    }
+    if (duration > 7 * 24 * 3600) {
+      return NextResponse.json({ success: false, error: 'Un registro no puede pasar de 7 días' }, { status: 400 })
+    }
     if (duration <= 0) {
       return NextResponse.json({ success: false, error: 'El tiempo de fin debe ser posterior al inicio' }, { status: 400 })
     }

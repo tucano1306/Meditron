@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getWeekNumberFromUTCDate } from '@/lib/utils'
+import { intInRange, MAX_MONEY } from '@/lib/input'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,16 +16,19 @@ export async function POST(request: Request) {
     }
 
     const userId = authResult.user.id
-    const { weekNumber, year, companyPaid } = await request.json()
+    const body = await request.json()
+    const weekNumber = intInRange(body.weekNumber, 1, 53)
+    const year = intInRange(body.year, 2000, 2100)
+    const { companyPaid } = body
 
-    if (!weekNumber || !year || companyPaid === undefined) {
+    if (weekNumber === null || year === null || companyPaid === undefined) {
       return NextResponse.json(
         { success: false, error: 'weekNumber, year y companyPaid son requeridos' },
         { status: 400 }
       )
     }
 
-    if (typeof companyPaid !== 'number' || companyPaid < 0) {
+    if (typeof companyPaid !== 'number' || !Number.isFinite(companyPaid) || companyPaid < 0 || companyPaid > MAX_MONEY) {
       return NextResponse.json(
         { success: false, error: 'companyPaid debe ser un número positivo' },
         { status: 400 }

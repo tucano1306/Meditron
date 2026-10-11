@@ -108,8 +108,9 @@ export async function updateWeekTotals(weekId: string, userId: string) {
     return sum + ((entry.duration || 0) / 3600) * HOURLY_RATE
   }, 0)
 
-  await prisma.week.update({
-    where: { id: weekId },
+  // Con userId: nunca se tocan los totales de la semana de otra persona
+  await prisma.week.updateMany({
+    where: { id: weekId, userId },
     data: {
       totalHours,
       earnings

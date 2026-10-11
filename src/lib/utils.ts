@@ -292,6 +292,18 @@ export function parseClientDateTime(isoString: string): Date {
   return new Date(isoString)
 }
 
+/**
+ * "Ahora" según el teléfono (clientTime). Si no viene, no es una fecha válida
+ * o se aleja más de 12 horas del reloj del servidor, se usa la hora del servidor.
+ */
+export function clientNow(clientTime: unknown): Date {
+  const serverNow = new Date()
+  if (typeof clientTime !== 'string' && typeof clientTime !== 'number') return serverNow
+  const parsed = new Date(clientTime)
+  if (Number.isNaN(parsed.getTime()) || Math.abs(parsed.getTime() - serverNow.getTime()) > 12 * 3600 * 1000) return serverNow
+  return parsed
+}
+
 // ========== FUNCIONES DE FORMATO CON ZONA HORARIA FLORIDA ==========
 
 /**

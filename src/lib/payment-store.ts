@@ -5,6 +5,7 @@ import type { PaymentEntry, Prisma } from '@prisma/client'
 import { floridaShiftToUTC } from './utils'
 import { toDateKey } from './companies'
 import { isPaymentMethod, type PaymentJob } from './payment-jobs'
+import { invalid } from './input'
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 const TIME = /^\d{2}:\d{2}$/
@@ -38,13 +39,13 @@ function money(value: unknown, field: string, required: boolean): Result<number 
     return required ? { ok: false, error: `${field} es obligatorio` } : { ok: true, value: null }
   }
   const n = typeof value === 'string' ? Number(value) : value
-  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 100000) return { ok: false, error: `${field} inválido` }
+  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 100000) return { ok: false, error: invalid(field) }
   return { ok: true, value: Math.round(n * 100) / 100 }
 }
 
 function text(value: unknown, field: string, max: number): Result<string | null> {
   if (value === undefined || value === null) return { ok: true, value: null }
-  if (typeof value !== 'string') return { ok: false, error: `${field} inválido` }
+  if (typeof value !== 'string') return { ok: false, error: invalid(field) }
   const trimmed = value.trim()
   if (trimmed.length > max) return { ok: false, error: `${field}: máximo ${max} caracteres` }
   return { ok: true, value: trimmed || null }

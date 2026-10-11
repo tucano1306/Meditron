@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
 import { WeeklyPdfButton } from './WeeklyPdfButton'
 
+// Texto del usuario dentro del HTML de impresión: se escapa para que no se interprete como código
+function escapeHtml(text: string): string {
+  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+}
+
 const ITEMS_PER_PAGE = 5
 
 interface Entry {
@@ -150,7 +155,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readon
                   <div>
                     <div class="entry-date">
                       ${formatShortDateFlorida(entry.date)}
-                      ${entry.jobNumber ? `<span class="job-badge">#${entry.jobNumber}</span>` : ''}
+                      ${entry.jobNumber ? `<span class="job-badge">#${escapeHtml(entry.jobNumber)}</span>` : ''}
                     </div>
                     <div class="entry-time">
                       ${formatTimeInFlorida(entry.startTime)}

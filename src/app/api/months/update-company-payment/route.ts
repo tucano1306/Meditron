@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
+import { intInRange, optionalMoney } from '@/lib/input'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,32 +15,39 @@ export async function PUT(request: NextRequest) {
     }
 
     const userId = authResult.user.id
-    const { year, month, companyPaid } = await request.json()
+    const body = await request.json()
+    const year = intInRange(body.year, 2000, 2100)
+    const month = intInRange(body.month, 1, 12)
+    const paid = optionalMoney(body.companyPaid, 'El pago de la compañía')
 
-    if (!year || !month) {
+    if (year === null || month === null) {
       return NextResponse.json(
-        { success: false, error: 'Year and month are required' },
+        { success: false, error: 'Año o mes inválido' },
         { status: 400 }
       )
     }
+    if (!paid.ok) {
+      return NextResponse.json({ success: false, error: paid.error }, { status: 400 })
+    }
+    const companyPaid = paid.value ?? null
 
     // Buscar o crear el resumen mensual
     const monthSummary = await prisma.monthSummary.upsert({
       where: {
         year_month_userId: {
-          year: Number(year),
-          month: Number(month),
+          year,
+          month,
           userId
         }
       },
       update: {
-        companyPaid: companyPaid === null ? null : Number(companyPaid)
+        companyPaid
       },
       create: {
-        year: Number(year),
-        month: Number(month),
+        year,
+        month,
         userId,
-        companyPaid: companyPaid === null ? null : Number(companyPaid),
+        companyPaid,
         totalHours: 0,
         earnings: 0
       }

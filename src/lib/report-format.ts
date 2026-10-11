@@ -76,3 +76,14 @@ export function dailyTotals(period: { start: string; entries: { date: string; du
     }
   })
 }
+
+/**
+ * Celda de CSV. Un texto que empieza con = + - @ (o tabulador) Excel lo toma
+ * como fórmula: se le antepone un apóstrofo para que se vea como texto y no se
+ * ejecute (inyección de fórmulas). Los números negativos se dejan igual.
+ */
+export function csvCell(value: string | number | null | undefined): string {
+  let text = value === null || value === undefined ? '' : String(value)
+  if (/^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text)) text = `'${text}`
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
+}

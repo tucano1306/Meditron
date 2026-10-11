@@ -203,3 +203,14 @@ model PaymentEntry {
   @@index([userId])
   @@index([userId, paymentStatus])
 }
+
+/// Intentos recientes de acciones sensibles (inicio de sesión fallido,
+/// registro) para frenar ataques de fuerza bruta. Se limpian solos.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@index([createdAt])
+}

@@ -4,7 +4,7 @@ import { COMPANY_COLORS, isPayType, type PayRule } from './companies'
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
-const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
+const EMAIL = /^[^\s@,;<>()"]+@[^\s@,;<>()"]+\.[^\s@,;<>()"]+$/
 /** Destinatarios máximos del reporte semanal */
 export const MAX_REPORT_EMAILS = 5
 

@@ -3,17 +3,12 @@ import { validateSession } from '@/lib/auth-utils'
 import { getUserCompany } from '@/lib/company-store'
 import { getPayPeriods } from '@/lib/pay-periods'
 import { companyFileSlug } from '@/lib/weekly-report-pdf'
-import { dayName, formatKeyUS, formatTime12, hoursDecimal, noteText } from '@/lib/report-format'
+import { csvCell, dayName, formatKeyUS, formatTime12, hoursDecimal, noteText } from '@/lib/report-format'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
-
-function csvCell(value: string | number | null | undefined): string {
-  const text = value === null || value === undefined ? '' : String(value)
-  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
-}
 
 // GET - Exporta a CSV los trabajos de una compañía (?companyId) entre ?from y ?to (YYYY-MM-DD)
 export async function GET(request: NextRequest) {

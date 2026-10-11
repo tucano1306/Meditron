@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
-import { parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
+import { clientNow, parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
 import { ruleFor, toDateKey } from '@/lib/companies'
 import { recalculateCompanyAmounts } from '@/lib/pay-periods'
 import { getUserCompanies, getUserCompany, resolveWriteCompany } from '@/lib/company-store'
 import { lastEndTime, validateStartTime } from '@/lib/timer-start'
+import { parseEntryTexts } from '@/lib/input'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -27,10 +28,10 @@ export async function POST(request: NextRequest) {
     let requestedStart: Date | null = null
     try {
       const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
+      now = clientNow(body.clientTime)
       companyId = body.companyId
       // Se olvidó iniciar el cronómetro: empieza desde una hora anterior
-      if (body.startTime) requestedStart = parseClientDateTime(body.startTime)
+      if (body.startTime) requestedStart = parseClientDateTime(String(body.startTime))
     } catch {
       now = new Date()
     }
@@ -90,9 +91,8 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error starting timer:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: 'Error al iniciar el timer', details: errorMessage },
+      { success: false, error: 'Error al iniciar el timer' },
       { status: 500 }
     )
   }
@@ -109,21 +109,19 @@ export async function PUT(request: NextRequest) {
     const userId = authResult.user.id
     
     // Obtener la hora del cliente (UTC), jobNumber y vehicle si se envía
-    let now: Date
-    let jobNumber: string | undefined
-    let vehicle: string | undefined
-    let observation: string | undefined
-    let serviceType: string | undefined
+    let now = new Date()
+    let body: Record<string, unknown> = {}
     try {
-      const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
-      jobNumber = body.jobNumber
-      vehicle = body.vehicle
-      observation = body.observation
-      serviceType = body.serviceType
+      body = await request.json()
+      now = clientNow(body.clientTime)
     } catch {
-      now = new Date()
+      // Sin body: se termina ahora y sin cambiar los datos del trabajo
     }
+    const texts = parseEntryTexts(body)
+    if (!texts.ok) {
+      return NextResponse.json({ success: false, error: texts.error }, { status: 400 })
+    }
+    const { jobNumber, vehicle, observation, serviceType } = texts.value
 
     // Asegura que el turno tenga compañía (los creados antes de existir las compañías)
     await getUserCompanies(userId)
@@ -183,8 +181,8 @@ export async function PUT(request: NextRequest) {
         calculatedAmount,
         jobNumber: jobNumber || activeEntry.jobNumber,
         vehicle: vehicle || activeEntry.vehicle,
-        observation: observation ?? activeEntry.observation,
-        serviceType: serviceType ?? activeEntry.serviceType,
+        observation: observation === undefined ? activeEntry.observation : observation,
+        serviceType: serviceType === undefined ? activeEntry.serviceType : serviceType,
         companyId: company.id,
         date: correctDate,
         weekId: correctWeek.id
@@ -315,7 +313,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { jobNumber, vehicle, observation, serviceType, action, companyId } = body
+    const { action, companyId } = body
 
     // Buscar timer activo
     const activeEntry = await prisma.timeEntry.findFirst({
@@ -393,11 +391,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Actualizar jobNumber, vehicle, observation y/o serviceType
-    const updateData: { jobNumber?: string; vehicle?: string; observation?: string; serviceType?: string; companyId?: string } = {}
-    if (jobNumber !== undefined) updateData.jobNumber = jobNumber
-    if (vehicle !== undefined) updateData.vehicle = vehicle
-    if (observation !== undefined) updateData.observation = observation
-    if (serviceType !== undefined) updateData.serviceType = serviceType
+    const texts = parseEntryTexts(body)
+    if (!texts.ok) {
+      return NextResponse.json({ success: false, error: texts.error }, { status: 400 })
+    }
+    const updateData: { jobNumber?: string | null; vehicle?: string | null; observation?: string | null; serviceType?: string | null; companyId?: string } = { ...texts.value }
     // Mover el turno en curso a otra compañía del usuario
     if (companyId !== undefined) {
       const company = await getUserCompany(userId, companyId)

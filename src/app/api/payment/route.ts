@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
+import { clientNow, parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
 import { checkStartTime, lastPaymentEndTime } from '@/lib/timer-start'
 import { parseJobInput, serializeJob, withDerivedFields } from '@/lib/payment-store'
 
@@ -19,15 +19,20 @@ export async function POST(request: NextRequest) {
     const userId = authResult.user.id
     
     // Obtener la hora del cliente (UTC) si se envía, sino usar hora actual UTC
-    let now: Date
+    let now = new Date()
     let requestedStart: Date | null = null
+    let body: Record<string, unknown> = {}
     try {
-      const body = await request.json()
-      now = body.clientTime ? parseClientDateTime(body.clientTime) : new Date()
+      body = await request.json()
+      now = clientNow(body.clientTime)
       // Se olvidó iniciar el cronómetro: empieza desde una hora anterior
-      if (body.startTime) requestedStart = parseClientDateTime(body.startTime)
+      if (body.startTime) requestedStart = parseClientDateTime(String(body.startTime))
     } catch {
-      now = new Date()
+      // Sin body: empieza ahora
+    }
+    const start = parseJobInput({ jobNumber: body.jobNumber }, true)
+    if (!start.ok) {
+      return NextResponse.json({ success: false, error: start.error }, { status: 400 })
     }
 
     if (requestedStart) {
@@ -57,21 +62,12 @@ export async function POST(request: NextRequest) {
     const floridaComponents = getFloridaDateComponents(now)
     const localDate = new Date(Date.UTC(floridaComponents.year, floridaComponents.month - 1, floridaComponents.day))
 
-    // Obtener jobNumber si se envía
-    let jobNumber: string | undefined
-    try {
-      const body = await request.clone().json()
-      jobNumber = body.jobNumber
-    } catch {
-      // No body or no jobNumber
-    }
-
     // Crear nueva entrada de pago (startTime en UTC)
     const entry = await prisma.paymentEntry.create({
       data: {
         startTime: now,
         date: localDate,
-        jobNumber: jobNumber || null,
+        jobNumber: (start.value.jobNumber as string | null | undefined) ?? null,
         userId
       }
     })
@@ -85,9 +81,8 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error starting payment entry:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: 'Error al iniciar el trabajo', details: errorMessage },
+      { success: false, error: 'Error al iniciar el trabajo' },
       { status: 500 }
     )
   }
@@ -103,20 +98,22 @@ export async function PUT(request: Request) {
 
     const userId = authResult.user.id
     const body = await request.json()
-    const { amount, clientTime, jobNumber, vehicle } = body
 
     // Usar la hora UTC del cliente si se envía, sino usar hora actual UTC
-    const now = clientTime ? parseClientDateTime(clientTime) : new Date()
+    const now = clientNow(body.clientTime)
 
-    if (typeof amount !== 'number' || amount <= 0) {
+    if (typeof body.amount !== 'number' || body.amount <= 0) {
       return NextResponse.json(
         { success: false, error: 'Monto inválido' },
         { status: 400 }
       )
     }
 
-    // Detalles del trabajo al terminarlo: propina, cliente, notas, método y si ya se cobró
+    // Detalles del trabajo al terminarlo: pago, propina, cliente, notas, método y si ya se cobró
     const details = parseJobInput({
+      amount: body.amount,
+      jobNumber: body.jobNumber,
+      vehicle: body.vehicle,
       tip: body.tip,
       client: body.client,
       notes: body.notes,
@@ -126,6 +123,9 @@ export async function PUT(request: Request) {
     if (!details.ok) {
       return NextResponse.json({ success: false, error: details.error }, { status: 400 })
     }
+    const amount = details.value.amount as number
+    const jobNumber = details.value.jobNumber as string | null | undefined
+    const vehicle = details.value.vehicle as string | null | undefined
 
     // Buscar trabajo activo
     const activeEntry = await prisma.paymentEntry.findFirst({
@@ -279,9 +279,8 @@ async function handleActiveStartUpdate(userId: string, startTime: unknown) {
 }
 
 // Helper: Actualizar trabajo activo (jobNumber/vehicle)
-async function handleActiveEntryUpdate(userId: string, body: { jobNumber?: string; vehicle?: string; client?: string; notes?: string }) {
-  const { jobNumber, vehicle } = body
-  const details = parseJobInput({ client: body.client, notes: body.notes }, true)
+async function handleActiveEntryUpdate(userId: string, body: Record<string, unknown>) {
+  const details = parseJobInput({ jobNumber: body.jobNumber, vehicle: body.vehicle, client: body.client, notes: body.notes }, true)
   if (!details.ok) {
     return NextResponse.json({ success: false, error: details.error }, { status: 400 })
   }
@@ -300,9 +299,10 @@ async function handleActiveEntryUpdate(userId: string, body: { jobNumber?: strin
     )
   }
 
-  const updateData: { jobNumber?: string; vehicle?: string; client?: string | null; notes?: string | null } = {}
-  if (jobNumber !== undefined) updateData.jobNumber = jobNumber
-  if (vehicle !== undefined) updateData.vehicle = vehicle
+  // Solo los campos que vinieron (parseJobInput ya los validó)
+  const updateData: { jobNumber?: string | null; vehicle?: string | null; client?: string | null; notes?: string | null } = {}
+  if (body.jobNumber !== undefined) updateData.jobNumber = details.value.jobNumber as string | null
+  if (body.vehicle !== undefined) updateData.vehicle = details.value.vehicle as string | null
   if (body.client !== undefined) updateData.client = details.value.client as string | null
   if (body.notes !== undefined) updateData.notes = details.value.notes as string | null
   

@@ -167,9 +167,8 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error getting dashboard:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: 'Error al obtener dashboard', details: errorMessage },
+      { success: false, error: 'Error al obtener dashboard' },
       { status: 500 }
     )
   }
@@ -186,7 +185,7 @@ export async function PATCH(request: Request) {
     const body = await request.json()
     const { hourlyRate } = body
 
-    if (typeof hourlyRate !== 'number' || hourlyRate <= 0) {
+    if (typeof hourlyRate !== 'number' || !Number.isFinite(hourlyRate) || hourlyRate <= 0 || hourlyRate > 10000) {
       return NextResponse.json(
         { success: false, error: 'Tarifa inválida' },
         { status: 400 }
@@ -205,9 +204,8 @@ export async function PATCH(request: Request) {
     })
   } catch (error) {
     console.error('Error updating hourly rate:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: 'Error al actualizar tarifa', details: errorMessage },
+      { success: false, error: 'Error al actualizar tarifa' },
       { status: 500 }
     )
   }

@@ -3,17 +3,12 @@ import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { serializeJob } from '@/lib/payment-store'
 import { jobEarned, methodLabel, ratePerHour, vehicleLabel } from '@/lib/payment-jobs'
-import { dayName, formatKeyUS, formatTime12, hoursDecimal, noteText } from '@/lib/report-format'
+import { csvCell, dayName, formatKeyUS, formatTime12, hoursDecimal, noteText } from '@/lib/report-format'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
-
-function csvCell(value: string | number | null | undefined): string {
-  const text = value === null || value === undefined ? '' : String(value)
-  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
-}
 
 // GET - Exporta a CSV (Excel / Google Sheets) los trabajos por pago entre ?from y ?to
 export async function GET(request: NextRequest) {

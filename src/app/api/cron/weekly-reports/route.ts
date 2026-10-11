@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { getUserCompanies } from '@/lib/company-store'
 import { addDaysToKey, getPayPeriod } from '@/lib/companies'
@@ -12,6 +13,12 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+/** Compara el encabezado con el secreto sin delatar por el tiempo cuántas letras coinciden */
+function isAuthorized(header: string | null, secret: string): boolean {
+  const digest = (text: string) => createHash('sha256').update(text).digest()
+  return timingSafeEqual(digest(header ?? ''), digest(`Bearer ${secret}`))
+}
+
 // GET - Envío automático semanal (Vercel Cron, una vez al día por la mañana).
 // Para cada compañía con el envío automático activado manda el reporte de la
 // semana que acaba de terminar: el día en que empieza la semana nueva o, si ese
@@ -23,7 +30,7 @@ export const maxDuration = 60
 // que ya se envió no se vuelve a enviar.
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET
-  if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (secret && !isAuthorized(request.headers.get('authorization'), secret)) {
     return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 })
   }
   if (!isEmailConfigured()) {

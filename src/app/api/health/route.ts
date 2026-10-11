@@ -4,25 +4,14 @@ import { prisma } from '@/lib/prisma'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// GET - ¿Está viva la app y su base de datos? Es pública, así que no dice nada
+// de la configuración ni de los errores (eso queda en los logs del servidor).
 export async function GET() {
-  const checks = {
-    timestamp: new Date().toISOString(),
-    database: false,
-    databaseError: null as string | null,
-    env: {
-      hasDbUrl: !!process.env.DATABASE_URL,
-      hasAuthSecret: !!(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET),
-      nodeEnv: process.env.NODE_ENV
-    }
-  }
-
   try {
-    // Test database connection
     await prisma.$queryRaw`SELECT 1`
-    checks.database = true
+    return NextResponse.json({ ok: true, database: true, timestamp: new Date().toISOString() })
   } catch (error) {
-    checks.databaseError = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Health check failed:', error)
+    return NextResponse.json({ ok: false, database: false, timestamp: new Date().toISOString() }, { status: 503 })
   }
-
-  return NextResponse.json(checks)
 }

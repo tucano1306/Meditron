@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
+import { optionalText, TEXT_LIMITS } from '@/lib/input'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,7 @@ export async function PATCH(request: NextRequest) {
     const userId = authResult.user.id
     const { entryId, correctionPending, correctionNote, correctionResolved, correctionResolvedNote } = await request.json()
 
-    if (!entryId || typeof correctionPending !== 'boolean') {
+    if (typeof entryId !== 'string' || !entryId || typeof correctionPending !== 'boolean') {
       return NextResponse.json(
         { success: false, error: 'entryId y correctionPending son requeridos' },
         { status: 400 }
@@ -35,16 +36,22 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    const note = optionalText(correctionNote, 'La nota', TEXT_LIMITS.correctionNote)
+    const resolvedNote = optionalText(correctionResolvedNote, 'La nota', TEXT_LIMITS.correctionNote)
+    if (!note.ok || !resolvedNote.ok) {
+      return NextResponse.json({ success: false, error: !note.ok ? note.error : (resolvedNote as { error: string }).error }, { status: 400 })
+    }
+
     const updateData: Record<string, unknown> = {
       correctionPending,
-      correctionNote: correctionPending ? (correctionNote ?? null) : null,
+      correctionNote: correctionPending ? (note.value ?? null) : null,
     }
 
     // Si se marca como corregido, guardar ese estado y su nota
     if (typeof correctionResolved === 'boolean') {
       updateData.correctionResolved = correctionResolved
       updateData.correctionResolvedNote = correctionResolved
-        ? (correctionResolvedNote ?? null)
+        ? (resolvedNote.value ?? null)
         : null
     }
 

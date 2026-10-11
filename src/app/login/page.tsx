@@ -26,7 +26,9 @@ export default function LoginPage() {
     })
 
     if (result?.error) {
-      setError('Email o contraseña incorrectos')
+      setError(result.code === 'too_many_attempts'
+        ? 'Demasiados intentos fallidos. Espera 15 minutos e intenta de nuevo.'
+        : 'Email o contraseña incorrectos')
       setIsLoading(false)
     } else {
       globalThis.location.href = '/mode-select'
