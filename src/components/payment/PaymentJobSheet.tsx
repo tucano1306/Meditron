@@ -14,6 +14,7 @@ import {
 } from '@/lib/payment-jobs'
 import { METHOD_ICONS, PAY_ACCENT, PendingPill } from './shared'
 import { floridaDateKey } from './data'
+import { TimeField } from '../TimeField'
 
 // Hoja de un trabajo por pago: ver su detalle, editarlo, duplicarlo o agregar
 // uno nuevo. En el teléfono sube desde abajo; en pantallas grandes es un panel.
@@ -251,14 +252,14 @@ function JobForm({ initial, busy, error, submitLabel, onSubmit }: JobFormProps) 
           <input type="date" value={draft.date} max={getFloridaDateString()} onChange={e => set({ date: e.target.value })} className={inputClass} style={{ fontSize: '16px' }} required />
         </label>
         <div className="grid grid-cols-2 gap-3">
-          <label className={labelClass}>
+          <div className={labelClass}>
             Empezó
-            <input type="time" value={draft.start} onChange={e => set({ start: e.target.value })} className={inputClass} style={{ fontSize: '16px' }} required />
-          </label>
-          <label className={labelClass}>
+            <TimeField value={draft.start} onChange={start => set({ start })} title="¿A qué hora empezó?" accent={PAY_ACCENT} className={inputClass} />
+          </div>
+          <div className={labelClass}>
             Terminó
-            <input type="time" value={draft.end} onChange={e => set({ end: e.target.value })} className={inputClass} style={{ fontSize: '16px' }} required />
-          </label>
+            <TimeField value={draft.end} onChange={end => set({ end })} title="¿A qué hora terminó?" accent={PAY_ACCENT} className={inputClass} />
+          </div>
         </div>
         {crossesMidnight && <p className="text-[12px] text-[#787774]">Terminó al día siguiente (cruzó la medianoche).</p>}
       </section>

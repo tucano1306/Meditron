@@ -10,6 +10,7 @@ import type { PayPeriodSummary, PeriodEntry } from '@/lib/pay-periods'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 import { WeeklyPdfButton } from './WeeklyPdfButton'
 import { ExportCard } from './ExportCard'
+import { TimeField } from './TimeField'
 import { WeeklyReportSender } from './WeeklyReportSender'
 
 // Vistas de una compañía agrupadas por su semana de pago (el día de inicio que
@@ -603,14 +604,14 @@ export function AddHoursForm({ company, onSaved, initialDate, startOpen = false,
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClass} style={{ fontSize: '16px' }} />
       </label>
       <div className="grid grid-cols-2 gap-2">
-        <label className="block text-[11px] text-[#787774]">
+        <div className="block text-[11px] text-[#787774]">
           Entrada
-          <input type="time" value={start} onChange={e => setStart(e.target.value)} className={inputClass} style={{ fontSize: '16px' }} />
-        </label>
-        <label className="block text-[11px] text-[#787774]">
+          <TimeField value={start} onChange={setStart} title="Hora de entrada" className={inputClass} />
+        </div>
+        <div className="block text-[11px] text-[#787774]">
           Salida
-          <input type="time" value={end} onChange={e => setEnd(e.target.value)} className={inputClass} style={{ fontSize: '16px' }} />
-        </label>
+          <TimeField value={end} onChange={setEnd} title="Hora de salida" className={inputClass} />
+        </div>
       </div>
       <label className="block text-[11px] text-[#787774]">
         Nota (opcional)

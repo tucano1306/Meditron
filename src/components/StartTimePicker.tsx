@@ -5,6 +5,7 @@ import { AlertTriangle, History, Play, X, Check } from 'lucide-react'
 import { formatCurrency, formatDuration, floridaWallTimeToUTC, getFloridaDateComponents } from '@/lib/utils'
 import { formatTime12 } from '@/lib/report-format'
 import { formatHM } from '@/lib/display'
+import { TimeField } from './TimeField'
 
 // Elegir a qué hora empezó el turno: para cuando se olvidó iniciar el cronómetro
 // (mode "start") o para corregir el inicio del turno en curso (mode "adjust").
@@ -70,8 +71,8 @@ function minutesAgo(minutes: number, base: number): Date {
 type Selection = { minutes: number } | { at: Date }
 
 const TONES = {
-  neutral: { border: 'border-[#37352f]', chip: 'bg-[#37352f] text-white', button: 'bg-[#37352f] hover:bg-[#2f2d28]' },
-  blue: { border: 'border-blue-300', chip: 'bg-blue-600 text-white', button: 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' },
+  neutral: { border: 'border-[#37352f]', chip: 'bg-[#37352f] text-white', button: 'bg-[#37352f] hover:bg-[#2f2d28]', accent: '#37352f' },
+  blue: { border: 'border-blue-300', chip: 'bg-blue-600 text-white', button: 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700', accent: '#2563eb' },
 }
 
 export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minStart, rate, companyName, tone = 'neutral', busy, error, onConfirm, onCancel }: StartTimePickerProps) {
@@ -141,22 +142,22 @@ export function StartTimePicker({ mode, currentStart, currentElapsed = 0, minSta
       </div>
 
       {/* Hora exacta */}
-      <label className="flex items-center justify-between gap-3 rounded-lg border border-[rgba(55,53,47,0.12)] px-3 py-2">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-[rgba(55,53,47,0.12)] px-3 py-2">
         <span className="text-[13px] text-[#787774]">O elige la hora exacta</span>
         <span className="flex items-center gap-2">
           {isAnotherDay(choice, now) && <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">ayer</span>}
-          <input
-            type="time"
+          <TimeField
             value={toTimeInput(choice)}
-            onChange={e => {
-              const next = fromTimeInput(e.target.value, Date.now())
+            onChange={value => {
+              const next = fromTimeInput(value, Date.now())
               if (next) setSelection({ at: next })
             }}
-            className="rounded-[4px] border border-[rgba(55,53,47,0.16)] px-2 py-1 text-[#37352f] focus:border-[#37352f] focus:outline-none"
-            style={{ fontSize: '16px' }}
+            title={mode === 'adjust' ? '¿A qué hora empezó el turno?' : '¿A qué hora empezaste?'}
+            accent={colors.accent}
+            className="min-w-[118px] rounded-[6px] border border-[rgba(55,53,47,0.16)] px-2.5 py-1.5 text-[16px] font-semibold hover:border-[#37352f]"
           />
         </span>
-      </label>
+      </div>
 
       {/* Vista previa en vivo */}
       <div className="rounded-lg bg-[rgba(55,53,47,0.04)] px-3 py-3 text-center">
