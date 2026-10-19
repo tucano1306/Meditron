@@ -3,7 +3,7 @@ import { overtimeRulesOf, tracksJobDetails, weekLabel, type Company } from './co
 import type { PayPeriodSummary, PeriodEntry } from './pay-periods'
 import type { ReportIdentity } from './report-identity'
 import {
-  dailyTotals, dayName, formatKeyLong, formatKeyShort, formatKeyUS, formatTime12, hoursDecimal, money, noteText,
+  breakLabel, dailyTotals, dayName, formatKeyLong, formatKeyShort, formatKeyUS, formatTime12, hoursDecimal, money, noteText,
 } from './report-format'
 
 // Hoja carta vertical
@@ -48,8 +48,12 @@ function buildColumns(company: Company, period: PayPeriodSummary): Column[] {
   columns.push(
     { header: 'Entrada', width: 54, value: e => formatTime12(e.startTime) },
     { header: 'Salida', width: 54, value: e => (e.endTime ? formatTime12(e.endTime) : '') },
-    { header: 'Horas', width: 42, align: 'right', value: e => hoursDecimal(e.duration ?? 0) },
   )
+  // Break sin pago: solo si alguna vez se descontó en la semana
+  if (period.breakSeconds > 0) {
+    columns.push({ header: 'Break', width: 42, align: 'right', value: e => (e.breakSeconds > 0 ? breakLabel(e.breakSeconds) : '—') })
+  }
+  columns.push({ header: 'Horas', width: 42, align: 'right', value: e => hoursDecimal(e.duration ?? 0) })
   if (hasOvertime) {
     columns.push(
       { header: 'Regular', width: 46, align: 'right', value: e => hoursDecimal(e.regularSeconds) },
@@ -116,9 +120,14 @@ function drawHeaderRow(page: PDFPage, columns: Column[], top: number, fonts: Fon
 
 function summaryRows(company: Company, period: PayPeriodSummary): { label: string; value: string; strong?: boolean }[] {
   const ot = overtimeRulesOf(period.rule)
+  // Las horas ya vienen sin el break: se aclara cuánto se descontó
+  const breakRow = period.breakSeconds > 0
+    ? [{ label: 'Break sin pago (ya descontado de las horas)', value: `${hoursDecimal(period.breakSeconds)} h` }]
+    : []
   if (ot) {
     const unit = period.rule.payType === 'daily_overtime' ? 'día' : 'semana'
     return [
+      ...breakRow,
       { label: 'Horas totales', value: `${hoursDecimal(period.totalSeconds)} h` },
       { label: `Horas regulares (hasta ${ot.thresholdHours} h/${unit}) × ${money(ot.baseRate)}`, value: `${hoursDecimal(period.regularSeconds)} h = ${money(period.regularPay)}` },
       { label: `Horas extra (${ot.multiplier}x) × ${money(ot.baseRate * ot.multiplier)}`, value: `${hoursDecimal(period.overtimeSeconds)} h = ${money(period.overtimePay)}` },
@@ -127,6 +136,7 @@ function summaryRows(company: Company, period: PayPeriodSummary): { label: strin
   }
   const rows: { label: string; value: string; strong?: boolean }[] = [
     { label: 'Trabajos', value: String(period.entries.length) },
+    ...breakRow,
     { label: 'Horas totales', value: `${hoursDecimal(period.totalSeconds)} h` },
     { label: 'Total calculado', value: money(period.totalPay), strong: true },
   ]

@@ -10,7 +10,7 @@ import {
 } from '@/lib/utils'
 import {
   Clock, ChevronDown, ChevronRight, AlertTriangle, BadgeCheck,
-  Pencil, Car, Wrench, FileText,
+  Pencil, Car, Wrench, FileText, Coffee,
 } from 'lucide-react'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
 import { useCompanies } from '@/hooks/useCompanies'
@@ -20,6 +20,8 @@ interface Entry {
   startTime: string
   endTime: string | null
   duration: number | null
+  /** Break sin pago ya descontado de `duration` */
+  breakSeconds?: number | null
   date: string
   jobNumber?: string | null
   vehicle?: string | null
@@ -111,6 +113,12 @@ function EntryChips({ entry, showCompany }: { readonly entry: Entry; readonly sh
         <span className={`${chip} bg-[rgba(55,53,47,0.06)] text-[#37352f]`}>
           <Clock className="h-2.5 w-2.5" />
           {formatDuration(entry.duration)}
+        </span>
+      )}
+      {!!entry.breakSeconds && (
+        <span className={`${chip} bg-[rgba(55,53,47,0.06)] text-[#787774]`}>
+          <Coffee className="h-2.5 w-2.5" />
+          −{Math.round(entry.breakSeconds / 60)} min break
         </span>
       )}
       {entry.vehicle && (

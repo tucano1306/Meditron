@@ -22,6 +22,7 @@ interface Entry {
   startTime: string
   endTime: string | null
   duration: number | null
+  breakSeconds?: number | null
   date: string
   companyId?: string | null
   jobNumber?: string | null

@@ -38,6 +38,11 @@ export function hoursDecimal(seconds: number): string {
   return (seconds / 3600).toFixed(2)
 }
 
+/** Break descontado de un turno: "30 min" */
+export function breakLabel(seconds: number): string {
+  return `${Math.round(seconds / 60)} min`
+}
+
 const moneyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 export function money(amount: number): string {

@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare, ArrowLeftRight, Repeat, ArrowRightLeft, Check, Undo2, History } from 'lucide-react'
+import { Play, Square, Pause, Clock, Smartphone, Settings, Hash, Pencil, Bus, MessageSquare, ArrowLeftRight, Repeat, ArrowRightLeft, Check, Undo2, History, Coffee } from 'lucide-react'
 import { formatDuration, formatCurrency, HOURLY_RATE, getFloridaDateString } from '@/lib/utils'
-import { describeRule, overtimeAmount, ruleFor, type Company, type OvertimeRules } from '@/lib/companies'
+import { breakRuleOf, breakToDeduct, describeRule, overtimeAmount, ruleFor, type Company, type OvertimeRules } from '@/lib/companies'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import type { TimerState } from '@/types'
-import { formatTime12 } from '@/lib/report-format'
+import { breakLabel, formatTime12 } from '@/lib/report-format'
 import { formatHM } from '@/lib/display'
 import { StartTimePicker } from './StartTimePicker'
 
@@ -66,7 +66,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const [observation, setObservation] = useState('')
   const [isEditingObservation, setIsEditingObservation] = useState(false)
   const [observationInput, setObservationInput] = useState('')
-  const [result, setResult] = useState<{ duration: number; earnings: number; jobNumber?: string; vehicle?: string; company?: string } | null>(null)
+  const [result, setResult] = useState<{ duration: number; earnings: number; breakSeconds: number; jobNumber?: string; vehicle?: string; company?: string } | null>(null)
   // Compañía del trabajo en curso (sale de su nota); sin trabajo en curso manda la vista elegida
   const [entryCompany, setEntryCompany] = useState<string | null>(null)
   // Confirmación de "cambiar de trabajo" (detener el turno de una compañía y empezar el de la otra)
@@ -81,6 +81,10 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   )
   // Fin del último turno: el siguiente no puede empezar antes
   const [lastEnd, setLastEnd] = useState<Date | null>(null)
+  // ¿Se descuenta el break sin pago de la compañía en este turno?
+  const [applyBreak, setApplyBreak] = useState(true)
+  // De la entrada real a ahora (incluye pausas): para saber si el turno ya llega al break
+  const [shiftSeconds, setShiftSeconds] = useState(0)
   
   // PWA and background support
   const { startBackgroundTimer, stopBackgroundTimer } = useServiceWorker()
@@ -116,6 +120,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         if (typeof data.data.companyId === 'string') setEntryCompany(data.data.companyId)
         setEntryStart((running || paused) && data.data.startTime ? new Date(data.data.startTime) : null)
         setLastEnd(data.data.lastEndTime ? new Date(data.data.lastEndTime) : null)
+        setApplyBreak(data.data.applyBreak !== false)
         if (job) setJobNumber(job)
         if (vehicle) setVehicleType(vehicle)
         if (data.data.serviceType) setServiceType(data.data.serviceType)
@@ -140,6 +145,15 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     return () => clearInterval(interval)
   }, [isRunning, isPaused, startTime])
 
+  // Largo del turno (con pausas), también mientras está en pausa
+  useEffect(() => {
+    if ((!isRunning && !isPaused) || !entryStart) return
+    const tick = () => setShiftSeconds(Math.max(0, Math.floor((Date.now() - entryStart.getTime()) / 1000)))
+    const first = setTimeout(tick, 0)
+    const interval = setInterval(tick, 1000)
+    return () => { clearTimeout(first); clearInterval(interval) }
+  }, [isRunning, isPaused, entryStart])
+
   const resetTimerState = useCallback(() => {
     setIsRunning(false)
     setIsPaused(false)
@@ -152,6 +166,8 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     setEntryCompany(null)
     setEntryStart(null)
     setPicker(null)
+    setApplyBreak(true)
+    setShiftSeconds(0)
   }, [])
 
   const activeCompany: string = (isRunning || isPaused) ? (entryCompany ?? company) : company
@@ -162,6 +178,11 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const overtimeRules = activeCompany === company ? overtime?.rules ?? null : null
   const priorSeconds = overtime?.completedSeconds ?? 0
   const activeRate = activeConfig ? ruleFor(activeConfig, getFloridaDateString()).hourlyRate : hourlyRate
+  // Break sin pago de la compañía del turno: lo que se descontaría si terminara ahora
+  const breakRule = breakRuleOf(activeConfig)
+  const hasShift = isRunning || isPaused
+  const pendingBreak = hasShift && applyBreak ? breakToDeduct(breakRule, Math.max(shiftSeconds, elapsedSeconds), elapsedSeconds) : 0
+  const paidSeconds = Math.max(0, elapsedSeconds - pendingBreak)
 
   // `startAt`: se olvidó iniciar el cronómetro y empieza desde una hora anterior
   const handleStart = useCallback(async (target: string = company, startAt?: Date) => {
@@ -225,9 +246,9 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         const savedJobNumber = jobNumber
         const savedVehicle = vehicleType
         const savedCompany = activeCompany
-        const finalDuration = elapsedSeconds
-        // El servidor ya aplicó la tarifa (y el overtime de Tecnofuel)
-        const finalEarnings = data.data?.entry?.calculatedAmount ?? (elapsedSeconds / 3600) * activeRate
+        // El servidor ya descontó el break y aplicó la tarifa (y el overtime)
+        const finalDuration: number = data.data?.entry?.duration ?? elapsedSeconds
+        const finalEarnings = data.data?.entry?.calculatedAmount ?? (finalDuration / 3600) * activeRate
                 
         resetTimerState()
         setLastEnd(new Date())
@@ -238,6 +259,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         setResult({
           duration: finalDuration,
           earnings: finalEarnings,
+          breakSeconds: data.data?.entry?.breakSeconds ?? 0,
           jobNumber: savedJobNumber || data.data.entry?.jobNumber,
           vehicle: savedVehicle || data.data.entry?.vehicle,
           company: savedCompany
@@ -321,9 +343,31 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     }
   }, [elapsedSeconds])
 
+  // Lo que se cobraría al terminar ahora (ya sin el break, si aplica)
   const currentEarnings = overtimeRules
-    ? overtimeAmount(priorSeconds, elapsedSeconds, overtimeRules)
-    : (elapsedSeconds / 3600) * activeRate
+    ? overtimeAmount(priorSeconds, paidSeconds, overtimeRules)
+    : (paidSeconds / 3600) * activeRate
+
+  // Quitar o volver a poner el break en este turno
+  const handleToggleBreak = useCallback(async () => {
+    const next = !applyBreak
+    setApplyBreak(next)
+    try {
+      const res = await fetch('/api/timer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'break', apply: next })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setApplyBreak(!next)
+        setError(data.error || 'No se pudo cambiar el break')
+      }
+    } catch {
+      setApplyBreak(!next)
+      setError('Error de conexión')
+    }
+  }, [applyBreak])
 
   function getTimerColor() {
     if (isRunning) return 'text-[#37352f]'
@@ -662,6 +706,39 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
     )
   }
 
+  // Break sin pago de la compañía: cuánto se descontará y si aplica en este turno
+  const renderBreakSection = () => {
+    if (!hasShift || !breakRule) return null
+    const full = breakRule.minutes * 60
+    let status: string
+    if (!applyBreak) status = 'No se descuenta en este turno'
+    else if (Math.max(shiftSeconds, elapsedSeconds) < breakRule.afterHours * 3600) status = `Se descuenta si el turno llega a ${breakRule.afterHours} h`
+    else if (pendingBreak === 0) status = 'Tu pausa ya cubre el break: no se descuenta más'
+    else if (pendingBreak < full) status = `Se descontarán ${breakLabel(pendingBreak)} (lo demás ya lo pausaste)`
+    else status = `Se descontarán ${breakLabel(pendingBreak)} al terminar`
+    return (
+      <div className={`flex items-center gap-3 rounded-[6px] border p-3 transition-colors ${applyBreak ? 'border-[rgba(55,53,47,0.09)]' : 'border-dashed border-[rgba(55,53,47,0.2)] bg-[rgba(55,53,47,0.02)]'}`}>
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[rgba(55,53,47,0.06)] text-[#37352f]">
+          <Coffee className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-semibold text-[#37352f]">Break sin pago · {breakRule.minutes} min</div>
+          <div className="text-[12px] text-[#787774]">{status}</div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={applyBreak}
+          aria-label="Descontar el break en este turno"
+          onClick={handleToggleBreak}
+          className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors touch-manipulation ${applyBreak ? 'bg-[#37352f]' : 'bg-[rgba(55,53,47,0.2)]'}`}
+        >
+          <span className={`absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white shadow transition-transform ${applyBreak ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+    )
+  }
+
   const renderVehicleSection = () => {
     if (!isRunning && !isPaused) return null
     if (!activeConfig?.trackVehicle && !vehicleType) return null
@@ -734,7 +811,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
         )}
         <div className="grid grid-cols-2 gap-4 text-center">
           <div>
-            <div className="text-[12px] text-[#787774]">Duración</div>
+            <div className="text-[12px] text-[#787774]">{result.breakSeconds > 0 ? 'Horas pagadas' : 'Duración'}</div>
             <div className="text-[18px] font-semibold text-[#37352f]">{formatDuration(result.duration)}</div>
           </div>
           <div>
@@ -742,6 +819,12 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
             <div className="text-[18px] font-semibold text-[#37352f]">{formatCurrency(result.earnings)}</div>
           </div>
         </div>
+        {result.breakSeconds > 0 && (
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-[#787774]">
+            <Coffee className="h-3.5 w-3.5" />
+            Se descontaron {breakLabel(result.breakSeconds)} de break sin pago
+          </div>
+        )}
       </div>
     )
   }
@@ -749,7 +832,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
   const renderRateEditor = () => {
     if (overtimeRules && activeConfig) {
       const thresholdSeconds = overtimeRules.thresholdHours * 3600
-      const periodSeconds = priorSeconds + ((isRunning || isPaused) ? elapsedSeconds : 0)
+      const periodSeconds = priorSeconds + (hasShift ? paidSeconds : 0)
       const remaining = thresholdSeconds - periodSeconds
       return (
         <div className="text-[12px] text-[#787774] space-y-0.5">
@@ -1061,6 +1144,7 @@ export function Timer({ onTimerStop, initialState, hourlyRate = HOURLY_RATE, onR
 
         {renderAdjustPicker()}
         {renderNotice()}
+        {renderBreakSection()}
         {renderJobNumberSection()}
         {renderVehicleSection()}
         {renderServiceTypeSection()}

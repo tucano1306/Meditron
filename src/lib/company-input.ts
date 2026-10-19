@@ -71,6 +71,8 @@ export interface CompanyFields {
   /** Correos del reporte semanal, separados por coma (null = ninguno) */
   reportEmails?: string | null
   autoSendReport?: boolean
+  breakMinutes?: number
+  breakAfterHours?: number
 }
 
 const FLAG_FIELDS = ['trackJobNumber', 'trackVehicle', 'trackServiceType', 'trackCompanyPaid', 'archived', 'autoSendReport'] as const
@@ -105,6 +107,18 @@ export function parseCompanyInput(body: Record<string, unknown>, partial: boolea
     const emails = parseEmailList(body.reportEmails)
     if (!emails.ok) return emails
     value.reportEmails = emails.value.length > 0 ? emails.value.join(', ') : null
+  }
+  if (body.breakMinutes !== undefined) {
+    const minutes = num(body.breakMinutes)
+    if (minutes === null || !Number.isInteger(minutes) || minutes < 0 || minutes > 120) {
+      return { ok: false, error: 'El break debe ser de 0 a 120 minutos' }
+    }
+    value.breakMinutes = minutes
+  }
+  if (body.breakAfterHours !== undefined) {
+    const hours = num(body.breakAfterHours)
+    if (hours === null || hours < 0 || hours > 16) return { ok: false, error: 'Las horas mínimas para el break deben estar entre 0 y 16' }
+    value.breakAfterHours = hours
   }
   if (body.sortOrder !== undefined) {
     const order = num(body.sortOrder)

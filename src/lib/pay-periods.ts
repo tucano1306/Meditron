@@ -99,7 +99,10 @@ export interface PeriodEntry {
   id: string
   startTime: string
   endTime: string | null
+  /** Tiempo pagado (ya sin el break) */
   duration: number | null
+  /** Break sin pago descontado, en segundos */
+  breakSeconds: number
   date: string
   companyId: string | null
   jobNumber: string | null
@@ -136,6 +139,8 @@ export interface PayPeriodSummary {
   overtimePay: number
   totalPay: number
   companyPaidTotal: number
+  /** Break sin pago descontado en la semana, en segundos */
+  breakSeconds: number
   hasRunningEntry: boolean
 }
 
@@ -145,7 +150,7 @@ function emptyPeriod(company: Company, start: string, end: string): PayPeriodSum
   return {
     companyId: company.id, start, end, rule: ruleFor(company, start), entries: [],
     totalSeconds: 0, regularSeconds: 0, overtimeSeconds: 0,
-    regularPay: 0, overtimePay: 0, totalPay: 0, companyPaidTotal: 0,
+    regularPay: 0, overtimePay: 0, totalPay: 0, companyPaidTotal: 0, breakSeconds: 0,
     hasRunningEntry: false,
   }
 }
@@ -175,6 +180,7 @@ function summarizePeriod(company: Company, start: string, end: string, entries: 
       startTime: e.startTime.toISOString(),
       endTime: e.endTime?.toISOString() ?? null,
       duration: e.duration,
+      breakSeconds: e.breakSeconds ?? 0,
       date: e.date.toISOString(),
       companyId: e.companyId,
       jobNumber: e.jobNumber,
@@ -199,6 +205,7 @@ function summarizePeriod(company: Company, start: string, end: string, entries: 
     summary.overtimePay += pay.amount - regularPay
     summary.totalPay += pay.amount
     summary.companyPaidTotal += e.companyPaid ?? 0
+    summary.breakSeconds += e.breakSeconds ?? 0
   }
   return summary
 }

@@ -3,7 +3,7 @@
 
 import { addDaysToKey, getPayPeriod, overtimeRulesOf, tracksJobDetails, type Company } from './companies'
 import type { PayPeriodSummary } from './pay-periods'
-import { dailyTotals, formatKeyLong, formatKeyShort, formatTime12, hoursDecimal, money } from './report-format'
+import { breakLabel, dailyTotals, formatKeyLong, formatKeyShort, formatTime12, hoursDecimal, money } from './report-format'
 import { formatRange } from './display'
 import type { ReportIdentity } from './report-identity'
 
@@ -47,6 +47,9 @@ export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Compan
 
   // ── Totales ──
   const totals: [string, string][] = [['Horas totales', `${hoursDecimal(period.totalSeconds)} h`]]
+  // Las horas ya vienen sin el break: se aclara cuánto se descontó
+  const hasBreaks = period.breakSeconds > 0
+  if (hasBreaks) totals.push(['Break sin pago (ya descontado)', `${hoursDecimal(period.breakSeconds)} h`])
   if (ot) {
     totals.push(
       [`Regulares × ${money(ot.baseRate)}`, `${hoursDecimal(period.regularSeconds)} h`],
@@ -68,7 +71,8 @@ export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Compan
 
   const entryRows = period.entries.map(e => {
     const job = company.trackJobNumber ? cell(escapeHtml(e.jobNumber ? `#${e.jobNumber}` : '—')) : ''
-    return `<tr>${cell(escapeHtml(formatKeyShort(e.date.slice(0, 10))))}${job}${cell(formatTime12(e.startTime))}${cell(e.endTime ? formatTime12(e.endTime) : '—')}${cell(hoursDecimal(e.duration ?? 0), 'right')}${cell(money(e.amount), 'right')}</tr>`
+    const breakCell = hasBreaks ? cell(e.breakSeconds > 0 ? breakLabel(e.breakSeconds) : '—', 'right') : ''
+    return `<tr>${cell(escapeHtml(formatKeyShort(e.date.slice(0, 10))))}${job}${cell(formatTime12(e.startTime))}${cell(e.endTime ? formatTime12(e.endTime) : '—')}${breakCell}${cell(hoursDecimal(e.duration ?? 0), 'right')}${cell(money(e.amount), 'right')}</tr>`
   }).join('')
 
   const html = `<!doctype html>
@@ -111,7 +115,7 @@ export function buildWeeklyReportEmail(period: PayPeriodSummary, company: Compan
   <tr><td style="padding:24px 28px 0;">
     <div style="font-size:15px;font-weight:700;margin-bottom:8px;">Detalle</div>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:13px;border-collapse:collapse;">
-      ${head([['Fecha', 'left'], ...(company.trackJobNumber ? [['Job #', 'left'] as [string, 'left']] : []), ['Entrada', 'left'], ['Salida', 'left'], ['Horas', 'right'], ['Monto', 'right']])}
+      ${head([['Fecha', 'left'], ...(company.trackJobNumber ? [['Job #', 'left'] as [string, 'left']] : []), ['Entrada', 'left'], ['Salida', 'left'], ...(hasBreaks ? [['Break', 'right'] as [string, 'right']] : []), ['Horas', 'right'], ['Monto', 'right']])}
       ${entryRows}
     </table>
     <div style="font-size:12px;color:${MUTED};margin-top:10px;">El PDF adjunto tiene el detalle completo de cada ${kind === 'trabajos' ? 'trabajo' : 'turno'}.</div>

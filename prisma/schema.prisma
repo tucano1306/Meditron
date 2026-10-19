@@ -44,6 +44,10 @@ model Company {
   reportEmails     String?
   /// Enviar solo el reporte al terminar cada semana de pago
   autoSendReport   Boolean  @default(false)
+  /// Break sin pago que se descuenta de cada turno, en minutos (0 = no se descuenta)
+  breakMinutes     Int      @default(0)
+  /// El break solo se descuenta en turnos de al menos estas horas (0 = en todos)
+  breakAfterHours  Float    @default(6)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -115,6 +119,9 @@ model TimeEntry {
   correctionNote         String?
   correctionResolved     Boolean   @default(false)
   correctionResolvedNote String?
+  /// Break sin pago ya descontado de `duration`, en segundos. En un turno en
+  /// curso: null = según la compañía al terminar, 0 = no descontar
+  breakSeconds           Int?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 

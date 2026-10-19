@@ -45,6 +45,10 @@ export interface Company {
   reportEmails: string[]
   /** El reporte se envía solo al terminar cada semana de pago */
   autoSendReport: boolean
+  /** Break sin pago que se descuenta de cada turno, en minutos (0 = no se descuenta) */
+  breakMinutes: number
+  /** Solo en turnos de al menos estas horas (0 = en todos) */
+  breakAfterHours: number
   /** Versiones del esquema de pago, de la más antigua a la más reciente */
   payRules: PayRule[]
 }
@@ -76,6 +80,45 @@ export function defaultCompany(companies: Company[]): Company | null {
 
 export function companyOfEntry(companyId: string | null | undefined, companies: Company[]): Company | null {
   return companies.find(c => c.id === companyId) ?? defaultCompany(companies)
+}
+
+// ── Break sin pago ────────────────────────────────────────────────────────────
+
+export const BREAK_MINUTE_OPTIONS = [15, 30, 45, 60]
+export const BREAK_AFTER_OPTIONS: { hours: number; label: string }[] = [
+  { hours: 0, label: 'Siempre' },
+  { hours: 4, label: '4 h o más' },
+  { hours: 5, label: '5 h o más' },
+  { hours: 6, label: '6 h o más' },
+  { hours: 8, label: '8 h o más' },
+]
+
+export interface BreakRule {
+  minutes: number
+  afterHours: number
+}
+
+/** Break que descuenta la compañía, o null si no descuenta */
+export function breakRuleOf(company: Pick<Company, 'breakMinutes' | 'breakAfterHours'> | null | undefined): BreakRule | null {
+  if (!company || company.breakMinutes <= 0) return null
+  return { minutes: company.breakMinutes, afterHours: Math.max(0, company.breakAfterHours) }
+}
+
+/** "30 min sin pago en turnos de 6 h o más" */
+export function describeBreak(rule: BreakRule): string {
+  return `${rule.minutes} min sin pago ${rule.afterHours > 0 ? `en turnos de ${rule.afterHours} h o más` : 'en cada turno'}`
+}
+
+/**
+ * Segundos de break a descontar de un turno de `shiftSeconds` (de la entrada a
+ * la salida). Lo que ya se pausó el cronómetro cuenta como break: así no se
+ * descuenta dos veces. Nunca deja el turno en menos de un minuto.
+ */
+export function breakToDeduct(rule: BreakRule | null, shiftSeconds: number, workedSeconds: number): number {
+  if (!rule || shiftSeconds < rule.afterHours * 3600) return 0
+  const paused = Math.max(0, shiftSeconds - workedSeconds)
+  const wanted = Math.max(0, rule.minutes * 60 - paused)
+  return Math.max(0, Math.min(wanted, workedSeconds - 60))
 }
 
 // ── Reglas de pago ────────────────────────────────────────────────────────────

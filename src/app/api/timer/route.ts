@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getOrCreateWeek, updateWeekTotals, updateMonthSummary } from '@/lib/week-utils'
 import { clientNow, parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
-import { ruleFor, toDateKey } from '@/lib/companies'
+import { breakRuleOf, breakToDeduct, ruleFor, toDateKey } from '@/lib/companies'
 import { recalculateCompanyAmounts } from '@/lib/pay-periods'
 import { getUserCompanies, getUserCompany, resolveWriteCompany } from '@/lib/company-store'
 import { lastEndTime, validateStartTime } from '@/lib/timer-start'
@@ -166,6 +166,13 @@ export async function PUT(request: NextRequest) {
     if (!company) {
       return NextResponse.json({ success: false, error: 'Compañía no encontrada' }, { status: 400 })
     }
+
+    // Break sin pago de la compañía, salvo que se haya quitado en este turno.
+    // Lo que se pausó el cronómetro cuenta como break (no se descuenta dos veces)
+    const shiftSeconds = Math.floor((now.getTime() - activeEntry.startTime.getTime()) / 1000)
+    const breakSeconds = activeEntry.breakSeconds === 0 ? 0 : breakToDeduct(breakRuleOf(company), shiftSeconds, duration)
+    duration -= breakSeconds
+
     const calculatedAmount = (duration / 3600) * ruleFor(company, toDateKey(correctDate)).hourlyRate
 
     // Recalcular la semana correcta basada en la fecha de fin (por si cruzó límite de semana)
@@ -178,6 +185,7 @@ export async function PUT(request: NextRequest) {
       data: {
         endTime: now,
         duration,
+        breakSeconds,
         calculatedAmount,
         jobNumber: jobNumber || activeEntry.jobNumber,
         vehicle: vehicle || activeEntry.vehicle,
@@ -278,6 +286,8 @@ export async function GET() {
           serviceType: activeEntry.serviceType,
           companyId: activeEntry.companyId,
           accumulatedSeconds: activeEntry.accumulatedSeconds,
+          // false = en este turno no se descuenta el break de la compañía
+          applyBreak: activeEntry.breakSeconds !== 0,
           elapsedSeconds: Math.max(0, elapsedSeconds),
           lastEndTime: await lastEndTime(userId, activeEntry.id)
         }
@@ -375,6 +385,18 @@ export async function PATCH(request: NextRequest) {
         success: true,
         data: { entry: updated, startTime: updated.startTime, isPaused, elapsedSeconds: Math.max(0, elapsedSeconds) }
       })
+    }
+
+    // Descontar o no el break de la compañía al terminar este turno
+    if (action === 'break') {
+      if (typeof body.apply !== 'boolean') {
+        return NextResponse.json({ success: false, error: 'Datos inválidos' }, { status: 400 })
+      }
+      const updated = await prisma.timeEntry.update({
+        where: { id: activeEntry.id },
+        data: { breakSeconds: body.apply ? null : 0 }
+      })
+      return NextResponse.json({ success: true, data: { entry: updated, applyBreak: body.apply } })
     }
 
     // Acción de reanudar

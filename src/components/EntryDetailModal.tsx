@@ -5,13 +5,14 @@ import { createPortal } from 'react-dom'
 import {
   X, Clock, Briefcase, Car, Wrench, DollarSign, Pencil,
   AlertTriangle, BadgeCheck, ChevronRight, Trash2, CalendarDays,
-  FileText, History, Save, Building2
+  FileText, History, Save, Building2, Coffee
 } from 'lucide-react'
 import {
   formatCurrency, formatDuration, formatShortDateFlorida,
   formatTimeInFlorida, getFloridaDateComponents, floridaShiftToUTC
 } from '@/lib/utils'
-import { companyOfEntry, overtimeRulesOf, payScopeOf, ruleFor, weekLabel, type Company } from '@/lib/companies'
+import { breakRuleOf, companyOfEntry, overtimeRulesOf, payScopeOf, ruleFor, weekLabel, type Company } from '@/lib/companies'
+import { formatHM } from '@/lib/display'
 import { useCompanies } from '@/hooks/useCompanies'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -21,6 +22,8 @@ export interface ModalEntry {
   startTime: string
   endTime: string | null
   duration: number | null
+  /** Break sin pago ya descontado de `duration`, en segundos */
+  breakSeconds?: number | null
   date: string
   jobNumber?: string | null
   vehicle?: string | null
@@ -182,12 +185,83 @@ function TimeSection({ entry, editing, editDate, editStart, editEnd, onDateChang
           </div>
           {!!entry.duration && (
             <div className="text-right">
-              <div className="text-xs text-gray-400">Duración</div>
+              <div className="text-xs text-gray-400">{entry.breakSeconds ? 'Pagadas' : 'Duración'}</div>
               <div className="text-sm font-bold text-gray-800">{formatDuration(entry.duration)}</div>
+              {!!entry.breakSeconds && <div className="text-[11px] text-gray-500">−{Math.round(entry.breakSeconds / 60)} min de break</div>}
             </div>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// Break sin pago del turno: ponerlo o quitarlo (ajusta horas y monto al instante)
+interface BreakSectionProps {
+  readonly entry: ModalEntry
+  readonly company: Company | null
+  readonly editing: boolean
+  readonly onUpdate: () => void
+}
+
+function BreakSection({ entry, company, editing, onUpdate }: BreakSectionProps) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const rule = breakRuleOf(company)
+  const current = entry.breakSeconds ?? 0
+  if (!entry.endTime || (!rule && current === 0)) return null
+
+  const applied = current > 0
+  const minutes = applied ? Math.round(current / 60) : rule?.minutes ?? 30
+  const worked = (entry.duration ?? 0) + current
+
+  const toggle = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/entries?id=${entry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ breakMinutes: applied ? 0 : minutes }),
+      })
+      const data = await res.json()
+      if (data.success) onUpdate()
+      else setError(data.error || 'No se pudo cambiar el break')
+    } catch {
+      setError('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-gray-700 border border-gray-100">
+          <Coffee className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-gray-800">Break sin pago · {minutes} min</div>
+          <div className="text-xs text-gray-500">
+            {applied
+              ? `Trabajado ${formatHM(worked)} → se pagan ${formatHM(entry.duration ?? 0)}`
+              : `No se descontó. Si lo descuentas se pagan ${formatHM(Math.max(0, worked - minutes * 60))}`}
+          </div>
+          {editing && <div className="text-[11px] text-gray-400">Guarda o cancela la edición para cambiarlo</div>}
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={applied}
+          aria-label="Descontar el break en este turno"
+          onClick={toggle}
+          disabled={saving || editing}
+          className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors touch-manipulation disabled:opacity-50 ${applied ? 'bg-gray-900' : 'bg-gray-300'}`}
+        >
+          <span className={`absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white shadow transition-transform ${applied ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+      {error && <div className="px-3 pb-2.5 text-xs text-red-600">{error}</div>}
     </div>
   )
 }
@@ -598,9 +672,11 @@ function DetailTab({ entry, companies, hourlyRate: fallbackRate, startInEditMode
     if (!timesChanged) return
     const dur = computeDurationSeconds(editDate, editStart, editEnd)
     if (dur && dur > 0) {
-      setCustomAmount(((dur / 3600) * hourlyRate).toFixed(2))
+      // Se paga sin el break del turno
+      const paid = Math.max(0, dur - (entry.breakSeconds ?? 0))
+      setCustomAmount(((paid / 3600) * hourlyRate).toFixed(2))
     }
-  }, [editing, amountTouched, editDate, editStart, editEnd, hourlyRate])
+  }, [editing, amountTouched, editDate, editStart, editEnd, hourlyRate, entry.breakSeconds])
 
   const handleAmountChange = (v: string) => {
     setAmountTouched(true)
@@ -611,7 +687,8 @@ function DetailTab({ entry, companies, hourlyRate: fallbackRate, startInEditMode
     setSelectedCompanyId(next.id)
     // Al pasar a una compañía por hora se usa su tarifa (salvo monto editado a mano)
     if (payScopeOf(next, editDate, entry.id).kind === 'entry' && !amountTouched) {
-      const dur = computeDurationSeconds(editDate, editStart, editEnd) ?? entry.duration ?? 0
+      const raw = computeDurationSeconds(editDate, editStart, editEnd)
+      const dur = raw === null ? entry.duration ?? 0 : Math.max(0, raw - (entry.breakSeconds ?? 0))
       setCustomAmount(((dur / 3600) * ruleFor(next, editDate).hourlyRate).toFixed(2))
     }
   }
@@ -677,6 +754,7 @@ function DetailTab({ entry, companies, hourlyRate: fallbackRate, startInEditMode
     <div className="space-y-4">
       {editing && company && companies.length > 1 && <CompanySection companies={companies} company={company} onChange={handleCompanyChange} />}
       <TimeSection entry={entry} editing={editing} editDate={editDate} editStart={editStart} editEnd={editEnd} onDateChange={setEditDate} onStartChange={setEditStart} onEndChange={setEditEnd} />
+      <BreakSection entry={entry} company={company ?? null} editing={editing} onUpdate={onUpdate} />
       {company && tracksJobDetails && (
         <JobSection entry={entry} company={company} editing={editing} jobNumber={jobNumber} vehicle={vehicle} serviceType={serviceType} onJobChange={setJobNumber} onVehicleChange={setVehicle} onServiceChange={setServiceType} />
       )}

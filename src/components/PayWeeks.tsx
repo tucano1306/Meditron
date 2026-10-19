@@ -1,10 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, ChevronLeft, Clock, Plus, Flame, FileText, X, Check } from 'lucide-react'
-import { addDaysToKey, overtimeRulesOf, weekLabel, type Company, type PayRule } from '@/lib/companies'
+import { ChevronDown, ChevronRight, ChevronLeft, Clock, Plus, Flame, FileText, X, Check, Coffee } from 'lucide-react'
+import { addDaysToKey, breakRuleOf, breakToDeduct, overtimeRulesOf, weekLabel, type Company, type PayRule } from '@/lib/companies'
 import { floridaShiftToUTC, getFloridaDateString } from '@/lib/utils'
-import { formatKeyShort, formatTime12, hoursDecimal, money, noteText } from '@/lib/report-format'
+import { breakLabel, formatKeyShort, formatTime12, hoursDecimal, money, noteText } from '@/lib/report-format'
 import { formatHM, formatRange, withAlpha } from '@/lib/display'
 import type { PayPeriodSummary, PeriodEntry } from '@/lib/pay-periods'
 import { EntryDetailModal, type ModalEntry } from './EntryDetailModal'
@@ -158,6 +158,12 @@ function EntryRow({ entry, rule, onOpen }: { readonly entry: PeriodEntry; readon
           <div className="text-[12px] font-semibold text-emerald-700">{money(entry.amount)}</div>
         </div>
       </div>
+      {entry.breakSeconds > 0 && (
+        <div className="mt-1 flex items-center gap-1 text-[11px] text-[#787774]">
+          <Coffee className="h-3 w-3" />
+          {breakLabel(entry.breakSeconds)} de break sin pago descontado
+        </div>
+      )}
       {entry.overtimeSeconds > 0 && (
         <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#9a4a0b]">
           <Flame className="h-3 w-3" />
@@ -532,8 +538,15 @@ export function AddHoursForm({ company, onSaved, initialDate, startOpen = false,
   const [error, setError] = useState<string | null>(null)
   const [savedSummary, setSavedSummary] = useState<string | null>(null)
 
+  // Break sin pago de la compañía: se descuenta salvo que se quite en este registro
+  const [deductBreak, setDeductBreak] = useState(true)
+
   const times = floridaShiftToUTC(date, start, end)
   const seconds = times ? Math.floor((times.end.getTime() - times.start.getTime()) / 1000) : 0
+  const breakRule = breakRuleOf(company)
+  const ruleBreak = breakToDeduct(breakRule, seconds, seconds)
+  const breakSeconds = deductBreak ? ruleBreak : 0
+  const paidSeconds = Math.max(0, seconds - breakSeconds)
 
   const handleSave = async () => {
     if (!times) {
@@ -551,13 +564,14 @@ export function AddHoursForm({ company, onSaved, initialDate, startOpen = false,
           endTime: times.end.toISOString(),
           companyId: company.id,
           observation: note.trim() || null,
+          breakMinutes: Math.round(breakSeconds / 60),
         }),
       })
       const data = await res.json()
       if (data.success) {
         setOpen(false)
         setNote('')
-        setSavedSummary(`${formatHM(seconds)} guardadas el ${formatKeyShort(date)}`)
+        setSavedSummary(`${formatHM(paidSeconds)} guardadas el ${formatKeyShort(date)}${breakSeconds > 0 ? ` (sin ${breakLabel(breakSeconds)} de break)` : ''}`)
         onSaved()
       } else {
         setError(data.error || 'No se pudo guardar')
@@ -617,9 +631,37 @@ export function AddHoursForm({ company, onSaved, initialDate, startOpen = false,
         Nota (opcional)
         <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Ej: lugar, cliente, carga..." className={inputClass} style={{ fontSize: '16px' }} />
       </label>
-      <div className="flex items-center justify-between text-[13px]">
-        <span className="text-[#787774]">Total del turno</span>
-        <span className="font-semibold text-[#37352f]">{times ? formatHM(seconds) : '—'}</span>
+      {breakRule && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={deductBreak}
+          onClick={() => setDeductBreak(!deductBreak)}
+          className="flex w-full items-center gap-3 rounded-[6px] border border-[rgba(55,53,47,0.12)] px-3 py-2 text-left touch-manipulation"
+        >
+          <Coffee className="h-4 w-4 flex-shrink-0 text-[#787774]" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-semibold text-[#37352f]">Descontar break sin pago ({breakRule.minutes} min)</span>
+            <span className="block text-[11px] text-[#787774]">
+              {deductBreak && times && ruleBreak === 0 ? `No aplica: el turno dura menos de ${breakRule.afterHours} h` : 'Como lo descuenta la compañía'}
+            </span>
+          </span>
+          <span className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${deductBreak ? 'bg-[#37352f]' : 'bg-[rgba(55,53,47,0.2)]'}`}>
+            <span className={`absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white shadow transition-transform ${deductBreak ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+          </span>
+        </button>
+      )}
+      <div className="space-y-0.5 text-[13px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[#787774]">Total del turno</span>
+          <span className="font-semibold text-[#37352f]">{times ? formatHM(seconds) : '—'}</span>
+        </div>
+        {times && breakSeconds > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-[#787774]">Se pagan (sin el break)</span>
+            <span className="font-semibold text-[#37352f]">{formatHM(paidSeconds)}</span>
+          </div>
+        )}
       </div>
       {error && <div className="text-[13px] text-[#dc2626] bg-[#fef2f2] border border-[#fecaca] py-2 px-3 rounded-[4px]">{error}</div>}
       <button

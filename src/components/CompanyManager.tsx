@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, ChevronRight, ArrowLeft, Archive, ArchiveRestore, Trash2, Check } from 'lucide-react'
+import { X, Plus, ChevronRight, ArrowLeft, Archive, ArchiveRestore, Trash2, Check, Coffee } from 'lucide-react'
 import {
-  COMPANY_COLORS, DAY_NAMES, FIRST_RULE_DATE, PAY_TYPES,
-  describeRule, getPayPeriod, ruleFor, weekShortLabel,
+  BREAK_AFTER_OPTIONS, BREAK_MINUTE_OPTIONS, COMPANY_COLORS, DAY_NAMES, FIRST_RULE_DATE, PAY_TYPES,
+  breakRuleOf, describeBreak, describeRule, getPayPeriod, ruleFor, weekShortLabel,
   type Company, type PayRule, type PayType,
 } from '@/lib/companies'
 import { getFloridaDateString } from '@/lib/utils'
@@ -119,6 +119,9 @@ interface DetailsDraft {
   /** Correos del reporte semanal, separados por coma */
   reportEmails: string
   autoSendReport: boolean
+  /** Break sin pago en minutos (0 = no se descuenta) */
+  breakMinutes: number
+  breakAfterHours: number
 }
 
 const TRACK_OPTIONS: { key: keyof Pick<DetailsDraft, 'trackJobNumber' | 'trackVehicle' | 'trackServiceType' | 'trackCompanyPaid'>; label: string }[] = [
@@ -139,7 +142,68 @@ function draftFromCompany(company?: Company): DetailsDraft {
     trackCompanyPaid: company?.trackCompanyPaid ?? false,
     reportEmails: company?.reportEmails.join(', ') ?? '',
     autoSendReport: company?.autoSendReport ?? false,
+    breakMinutes: company?.breakMinutes ?? 0,
+    breakAfterHours: company?.breakAfterHours ?? 6,
   }
+}
+
+const chipClass = (active: boolean) =>
+  `rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white' : 'bg-[rgba(55,53,47,0.06)] text-[#37352f] hover:bg-[rgba(55,53,47,0.12)]'}`
+
+/** Break sin pago que la compañía descuenta de cada turno (opcional) */
+function BreakFields({ draft, onChange }: { readonly draft: DetailsDraft; readonly onChange: (patch: Partial<DetailsDraft>) => void }) {
+  const enabled = draft.breakMinutes > 0
+  return (
+    <div className={`rounded-lg border p-3 space-y-3 transition-colors ${enabled ? 'border-[#37352f] bg-[rgba(55,53,47,0.02)]' : 'border-[rgba(55,53,47,0.16)]'}`}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={() => onChange({ breakMinutes: enabled ? 0 : 30 })}
+        className="flex w-full items-center gap-3 text-left touch-manipulation"
+      >
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[rgba(55,53,47,0.06)] text-[#37352f]">
+          <Coffee className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-semibold text-[#37352f]">Te descuentan un break sin pago</span>
+          <span className="block text-[12px] text-[#787774]">
+            {enabled ? describeBreak({ minutes: draft.breakMinutes, afterHours: draft.breakAfterHours }) : 'Ej: 30 min de almuerzo que no se paga'}
+          </span>
+        </span>
+        <span className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${enabled ? 'bg-[#37352f]' : 'bg-[rgba(55,53,47,0.2)]'}`}>
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+        </span>
+      </button>
+      {enabled && (
+        <div className="space-y-3 animate-fade-in">
+          <div>
+            <div className="mb-1.5 text-[11px] text-[#787774]">¿Cuánto dura?</div>
+            <div className="flex flex-wrap gap-1.5">
+              {BREAK_MINUTE_OPTIONS.map(minutes => (
+                <button key={minutes} type="button" onClick={() => onChange({ breakMinutes: minutes })} className={chipClass(draft.breakMinutes === minutes)}>
+                  {minutes} min
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-1.5 text-[11px] text-[#787774]">¿En qué turnos?</div>
+            <div className="flex flex-wrap gap-1.5">
+              {BREAK_AFTER_OPTIONS.map(option => (
+                <button key={option.hours} type="button" onClick={() => onChange({ breakAfterHours: option.hours })} className={chipClass(draft.breakAfterHours === option.hours)}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-[11px] leading-relaxed text-[#787774]">
+            Se descuenta al terminar cada turno. Si pausas el cronómetro durante el break, la pausa cuenta y no se descuenta dos veces. En un turno concreto lo puedes quitar.
+          </p>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function DetailsFields({ draft, onChange }: { readonly draft: DetailsDraft; readonly onChange: (draft: DetailsDraft) => void }) {
@@ -186,6 +250,7 @@ function DetailsFields({ draft, onChange }: { readonly draft: DetailsDraft; read
           ))}
         </div>
       </div>
+      <BreakFields draft={draft} onChange={set} />
       <label className="block text-[11px] text-[#787774]">
         Correos para el reporte semanal (opcional)
         <input
@@ -263,6 +328,39 @@ function EditCompany({ company, onChanged, onDeleted }: { readonly company: Comp
   const [effectiveFrom, setEffectiveFrom] = useState(() => getPayPeriod(today, company.weekStartsOn).start)
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null)
+  // Break en turnos ya registrados: desde qué día y el resultado
+  const [breakFrom, setBreakFrom] = useState(() => getPayPeriod(today, company.weekStartsOn).start)
+  const [breakMessage, setBreakMessage] = useState<{ error: boolean; text: string } | null>(null)
+  const savedBreak = breakRuleOf(company)
+
+  const changeBreaks = async (apply: boolean) => {
+    setBusy('breaks')
+    setBreakMessage(null)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/breaks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: breakFrom, apply }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setBreakMessage({ error: true, text: data.error || 'No se pudo aplicar' })
+        return
+      }
+      const changed: number = data.data.changed
+      setBreakMessage({
+        error: false,
+        text: changed === 0
+          ? 'No había turnos que cambiar'
+          : `${changed} turno${changed === 1 ? '' : 's'} ${apply ? 'con' : 'sin'} break · horas y montos recalculados`,
+      })
+      onChanged()
+    } catch {
+      setBreakMessage({ error: true, text: 'Error de conexión' })
+    } finally {
+      setBusy(null)
+    }
+  }
 
   const run = async (label: string, action: () => Promise<string | null>, success: string) => {
     setBusy(label)
@@ -293,6 +391,45 @@ function EditCompany({ company, onChanged, onDeleted }: { readonly company: Comp
         <button type="button" onClick={saveDetails} disabled={busy !== null} className="w-full py-2.5 rounded-xl bg-[#37352f] text-white text-[14px] font-semibold disabled:opacity-50 touch-manipulation">
           {busy === 'details' ? 'Guardando...' : 'Guardar datos'}
         </button>
+      </section>
+
+      <section className="space-y-2">
+        <div className={sectionTitle}>Break en turnos ya registrados</div>
+        <div className="rounded-lg border border-[rgba(55,53,47,0.16)] p-3 space-y-3">
+          <p className="text-[12px] leading-relaxed text-[#787774]">
+            {savedBreak
+              ? `Descuenta ${describeBreak(savedBreak)} a los turnos que ya registraste, o quítaselo.`
+              : 'Activa y guarda el break arriba para descontarlo de turnos anteriores. También puedes quitárselo a turnos que ya lo tienen.'}
+          </p>
+          <label className="block text-[11px] text-[#787774]">
+            Desde
+            <input type="date" value={breakFrom} max={today} onChange={e => setBreakFrom(e.target.value)} className={inputClass} style={{ fontSize: '16px' }} />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => changeBreaks(true)}
+              disabled={busy !== null || !savedBreak || !breakFrom}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-[#37352f] py-2.5 text-[14px] font-semibold text-white disabled:opacity-40 touch-manipulation"
+            >
+              <Coffee className="h-4 w-4" />
+              {busy === 'breaks' ? 'Aplicando...' : 'Descontar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => changeBreaks(false)}
+              disabled={busy !== null || !breakFrom}
+              className="rounded-xl border border-[rgba(55,53,47,0.16)] py-2.5 text-[14px] font-semibold text-[#37352f] disabled:opacity-40 touch-manipulation"
+            >
+              Quitar break
+            </button>
+          </div>
+          {breakMessage && (
+            <div className={`text-[13px] py-2 px-3 rounded-lg border animate-fade-in ${breakMessage.error ? 'text-[#dc2626] bg-[#fef2f2] border-[#fecaca]' : 'text-emerald-700 bg-emerald-50 border-emerald-200'}`}>
+              {breakMessage.text}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="space-y-2">
@@ -374,21 +511,13 @@ function CompanyRow({ company, onOpen }: { readonly company: Company; readonly o
 
 /** Hoja para ver, crear y configurar las compañías del usuario. */
 export function CompanyManager({ companies, onClose, onChanged, startCreating = false }: CompanyManagerProps) {
+  // Se abre solo al tocar "Configurar" (nunca en el servidor), así que ya hay document
   const [view, setView] = useState<View>({ mode: startCreating ? 'create' : 'list' })
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    // Montaje en el cliente para poder usar el portal
-    const id = requestAnimationFrame(() => setMounted(true))
-    return () => cancelAnimationFrame(id)
-  }, [])
 
   const afterChange = async () => {
     await refreshCompanies()
     onChanged()
   }
-
-  if (!mounted) return null
 
   const editing = view.mode === 'edit' ? companies.find(c => c.id === view.id) : undefined
   let title = 'Compañías'

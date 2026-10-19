@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const periods = await getPayPeriods(user.id, company, { from, to })
 
     const header = [
-      'Compañía', 'Semana de pago', 'Fecha', 'Día', 'Entrada', 'Salida', 'Horas',
+      'Compañía', 'Semana de pago', 'Fecha', 'Día', 'Entrada', 'Salida', 'Break (min)', 'Horas',
       'Horas regulares', 'Horas extra', 'Monto', 'Job #', 'Vehículo', 'Servicio', 'Pagado empresa', 'Nota',
     ]
     const rows: string[][] = []
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
           dayName(day),
           formatTime12(e.startTime),
           e.endTime ? formatTime12(e.endTime) : '',
+          String(Math.round(e.breakSeconds / 60)),
           hoursDecimal(e.duration ?? 0),
           hoursDecimal(e.regularSeconds),
           hoursDecimal(e.overtimeSeconds),
