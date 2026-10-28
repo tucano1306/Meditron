@@ -23,6 +23,7 @@ model User {
   monthSummaries MonthSummary[]
   paymentEntries PaymentEntry[]
   companies      Company[]
+  orgMembers     OrgMember[]
 }
 
 // Compañía (empleador) de un usuario. Cada persona configura las suyas: qué
@@ -247,4 +248,129 @@ model WeekPayment {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, weekStart])
+}
+
+// ── Modo empresa: los empleados marcan entrada y salida y solo el
+// administrador puede cambiar las horas ─────────────────────────────────────
+
+/// Empresa que controla la entrada y salida de sus empleados
+model Organization {
+  id                 String   @id @default(cuid())
+  name               String
+  /// Código con el que los empleados piden unirse
+  joinCode           String   @unique
+  /// Día en que empieza la semana de pago: 0 = domingo ... 6 = sábado
+  weekStartsOn       Int      @default(1)
+  /// Exigir estar dentro del radio de una oficina para marcar
+  requireLocation    Boolean  @default(true)
+  overtimeAfterHours Float    @default(40)
+  overtimeMultiplier Float    @default(1.5)
+  /// Break sin pago que se descuenta al marcar la salida (0 = ninguno)
+  breakMinutes       Int      @default(0)
+  breakAfterHours    Float    @default(6)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  members   OrgMember[]
+  locations OrgLocation[]
+  shifts    OrgShift[]
+}
+
+/// Oficina donde se puede marcar: centro y radio
+model OrgLocation {
+  id           String   @id @default(cuid())
+  name         String
+  address      String
+  latitude     Float
+  longitude    Float
+  /// Radio permitido en metros (1 milla = 1609 m)
+  radiusMeters Float    @default(1609.34)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
+/// Persona dentro de una empresa
+model OrgMember {
+  id         String   @id @default(cuid())
+  /// admin | employee
+  role       String   @default("employee")
+  /// pending (pidió unirse) | active | inactive
+  status     String   @default("pending")
+  hourlyRate Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orgId  String
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shifts OrgShift[]
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+/// Turno marcado por un empleado (o agregado por un administrador). La hora la
+/// pone el servidor; el empleado no puede cambiarla
+model OrgShift {
+  id               String    @id @default(cuid())
+  clockIn          DateTime
+  clockOut         DateTime?
+  /// Día (de Florida) de la entrada
+  date             DateTime  @db.Date
+  /// Break sin pago descontado al marcar la salida
+  breakSeconds     Int       @default(0)
+  inLatitude       Float?
+  inLongitude      Float?
+  inAccuracy       Float?
+  /// Metros a la oficina más cercana al marcar
+  inDistance       Float?
+  outLatitude      Float?
+  outLongitude     Float?
+  outAccuracy      Float?
+  outDistance      Float?
+  /// clock (marcado por el empleado) | admin (agregado por un administrador)
+  source           String    @default("clock")
+  /// Pedido de corrección del empleado
+  correctionNote   String?
+  /// pending | resolved | rejected
+  correctionStatus String?
+  /// Respuesta del administrador
+  adminNote        String?
+  /// Borrado por un administrador (se conserva para el historial)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  orgId    String
+  org      Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  memberId String
+  member   OrgMember      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  edits    OrgShiftEdit[]
+
+  @@index([orgId, date])
+  @@index([memberId, clockIn])
+}
+
+/// Historial de cambios de un turno: quién, cuándo, antes, después y por qué
+model OrgShiftEdit {
+  id        String   @id @default(cuid())
+  /// create | update | delete | resolve | reject
+  action    String
+  before    Json?
+  after     Json?
+  reason    String
+  /// Usuario que hizo el cambio
+  editorId  String
+  createdAt DateTime @default(now())
+
+  shiftId String
+  shift   OrgShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId])
 }

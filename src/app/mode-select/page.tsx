@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { ArrowRight, Clock, DollarSign, Loader2, LogOut, Pause, Plus, Settings2 } from 'lucide-react'
+import { ArrowRight, Building2, Clock, DollarSign, Loader2, LogOut, Pause, Plus, Settings2 } from 'lucide-react'
 import { CompanyManager } from '@/components/CompanyManager'
 import { refreshCompanies, useCompanies } from '@/hooks/useCompanies'
 import { dateKeyToUTC, overtimeRulesOf, ruleFor, weekShortLabel, type Company, type PayRule } from '@/lib/companies'
@@ -433,6 +433,13 @@ export default function ModeSelectPage() {
     router.push(`/dashboard/hourly?company=${encodeURIComponent(companyId)}`)
   }
 
+  // Abrió una invitación de empresa antes de iniciar sesión: se la lleva allá
+  useEffect(() => {
+    try {
+      if (status === 'authenticated' && localStorage.getItem('meditron_pending_join')) router.push('/team')
+    } catch { /* sin almacenamiento */ }
+  }, [status, router])
+
   const openPaymentMode = () => {
     setOpening('payment')
     try {
@@ -598,6 +605,25 @@ export default function ModeSelectPage() {
               <span className="mt-0.5 block text-[13px] text-[#787774]">Registra el tiempo e ingresa el monto al terminar cada trabajo</span>
             </span>
             {opening === 'payment' ? (
+              <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-[#787774]" />
+            ) : (
+              <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#787774] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-[#37352f]" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setOpening('team'); router.push('/team') }}
+            className="group mt-3 flex w-full items-center gap-4 rounded-2xl border border-[rgba(55,53,47,0.09)] bg-white p-4 text-left shadow-[0_1px_2px_rgba(15,15,15,0.04)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-16px_rgba(15,15,15,0.25)] animate-card-in touch-manipulation"
+            style={{ animationDelay: '380ms' }}
+          >
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[rgba(46,117,204,0.1)] text-[#2e75cc] transition-transform duration-200 group-hover:scale-105">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold text-[#37352f]">Empresa</span>
+              <span className="mt-0.5 block text-[13px] text-[#787774]">Marca entrada y salida desde la oficina, o administra a tus empleados</span>
+            </span>
+            {opening === 'team' ? (
               <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-[#787774]" />
             ) : (
               <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#787774] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-[#37352f]" />
