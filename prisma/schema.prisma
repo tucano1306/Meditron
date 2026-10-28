@@ -56,6 +56,7 @@ model Company {
   payRules         CompanyPayRule[]
   timeEntries      TimeEntry[]
   reportDeliveries ReportDelivery[]
+  weekPayments     WeekPayment[]
 
   @@index([userId])
 }
@@ -220,4 +221,30 @@ model RateLimitHit {
 
   @@index([key, createdAt])
   @@index([createdAt])
+}
+
+/// Pago que hizo la empresa por una semana de pago (lo que dice el talonario),
+/// para saber qué semanas ya se cobraron y comparar con lo que calcula la app
+model WeekPayment {
+  id        String   @id @default(cuid())
+  /// Primer día de la semana de pago
+  weekStart DateTime @db.Date
+  /// Lo que pagó la empresa por la semana, bruto (antes de impuestos)
+  amount    Float
+  /// Lo que llegó al banco o el cheque, después de impuestos (opcional)
+  netAmount Float?
+  /// Horas que pagó la empresa según el talonario (opcional)
+  hours     Float?
+  /// Día en que se recibió el pago
+  paidOn    DateTime @db.Date
+  /// Número de cheque, depósito o talonario (opcional)
+  reference String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, weekStart])
 }

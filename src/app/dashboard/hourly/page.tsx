@@ -11,7 +11,8 @@ import { WeeklySummaryCard } from '@/components/WeeklySummaryCard'
 import { RateCalculator } from '@/components/RateCalculator'
 import { CompanySearch } from '@/components/CompanySearch'
 import { InstallPWA } from '@/components/InstallPWA'
-import { AddHoursForm, PayWeeksList, PayWeeksSummary } from '@/components/PayWeeks'
+import { AddHoursForm, PayWeeksList, PayWeeksSummary, type PayFilter } from '@/components/PayWeeks'
+import { PaymentsBanner } from '@/components/WeekPayment'
 import { CompanyManager } from '@/components/CompanyManager'
 import { WeeklyReportSender } from '@/components/WeeklyReportSender'
 import { ExportCard } from '@/components/ExportCard'
@@ -152,6 +153,10 @@ export default function HourlyDashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [managerOpen, setManagerOpen] = useState(false)
+  // Pestaña abierta y filtro de semanas (el aviso de pagos lleva a "Por cobrar")
+  const [tab, setTab] = useState('today')
+  const [weeksView, setWeeksView] = useState<{ filter: PayFilter; n: number }>({ filter: 'all', n: 0 })
+  const tabsRef = useRef<HTMLDivElement>(null)
   // Al abrir la app con un turno en curso se muestra la compañía de ese turno
   const followedRunningEntry = useRef(false)
 
@@ -366,8 +371,25 @@ export default function HourlyDashboardPage() {
           <WeeklyReportSender key={company.id} company={company} variant="banner" refreshTrigger={refreshKey} />
         </div>
 
+        {/* Semanas que la empresa todavía no paga (o pagó de menos) */}
+        {!jobsView && (
+          <div className="mb-6 empty:hidden">
+            <PaymentsBanner
+              key={company.id}
+              company={company}
+              refreshTrigger={refreshKey}
+              onReview={() => {
+                setWeeksView(v => ({ filter: 'owed', n: v.n + 1 }))
+                setTab('weeks')
+                tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+            />
+          </div>
+        )}
+
         {/* Pestañas: el contenido se adapta a cómo trabaja la compañía */}
-        <Tabs defaultValue="today" className="w-full" onValueChange={(tab) => { if (tab === 'months') setRefreshKey(prev => prev + 1) }}>
+        <div ref={tabsRef} className="scroll-mt-20">
+        <Tabs value={tab} className="w-full" onValueChange={next => { setTab(next); if (next === 'months') setRefreshKey(prev => prev + 1) }}>
           <TabsList className="flex w-full mb-5 h-auto bg-white rounded-xl border border-[rgba(55,53,47,0.09)] shadow-sm p-1 gap-0.5">
             {tabs.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className={tabTriggerClass}>
@@ -393,7 +415,7 @@ export default function HourlyDashboardPage() {
             {jobsView ? (
               <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} companyId={company.id} />
             ) : (
-              <PayWeeksList key={company.id} company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
+              <PayWeeksList key={`${company.id}:${weeksView.n}`} company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} initialFilter={weeksView.filter} />
             )}
           </TabsContent>
 
@@ -426,6 +448,7 @@ export default function HourlyDashboardPage() {
             <CompanySearch key={company.id} company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} />
           </TabsContent>
         </Tabs>
+        </div>
 
         <footer className="text-center mt-8 text-[12px] text-[#787774] pb-8">
           Las semanas de pago de {company.name} van de {weekLabel(company.weekStartsOn)}

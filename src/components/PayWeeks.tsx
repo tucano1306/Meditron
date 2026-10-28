@@ -12,6 +12,8 @@ import { WeeklyPdfButton } from './WeeklyPdfButton'
 import { ExportCard } from './ExportCard'
 import { TimeField } from './TimeField'
 import { WeeklyReportSender } from './WeeklyReportSender'
+import { MarkOlderPaid, PayStatusPill, WeekPaymentPanel } from './WeekPayment'
+import { weekPayStatus } from '@/lib/week-payments'
 
 // Vistas de una compañía agrupadas por su semana de pago (el día de inicio que
 // configuró, con overtime si aplica): lista de semanas, resumen con gráfica y
@@ -25,6 +27,9 @@ interface PayWeeksProps {
   readonly refreshTrigger?: number
   readonly onRefresh?: () => void
 }
+
+/** Filtro de la lista de semanas según si ya se cobraron */
+export type PayFilter = 'all' | 'owed' | 'paid'
 
 interface PeriodsData {
   current: PayPeriodSummary
@@ -202,12 +207,15 @@ function EntryGrid({ period, onOpenEntry }: { readonly period: PayPeriodSummary;
 interface PeriodCardProps {
   readonly period: PayPeriodSummary
   readonly company: Company
+  readonly today: string
   readonly expanded: boolean
   readonly onToggle: () => void
   readonly onOpenEntry: (entry: PeriodEntry) => void
+  readonly onPaymentChanged: () => void
 }
 
-function PeriodCard({ period, company, expanded, onToggle, onOpenEntry }: PeriodCardProps) {
+function PeriodCard({ period, company, today, expanded, onToggle, onOpenEntry, onPaymentChanged }: PeriodCardProps) {
+  const status = weekPayStatus(period, today)
   return (
     <div className={`rounded-xl overflow-hidden transition-all duration-200 ${expanded ? 'bg-white shadow-md ring-2 ring-[#37352f]' : 'bg-gray-50 shadow-sm ring-1 ring-gray-200'}`}>
       <button
@@ -232,6 +240,7 @@ function PeriodCard({ period, company, expanded, onToggle, onOpenEntry }: Period
                   EN CURSO
                 </span>
               )}
+              <PayStatusPill status={status} />
             </div>
             <div className="text-[11px] text-[#787774]">
               {period.entries.length} {period.entries.length === 1 ? 'registro' : 'registros'}
@@ -252,6 +261,7 @@ function PeriodCard({ period, company, expanded, onToggle, onOpenEntry }: Period
           </div>
           <EntryGrid period={period} onOpenEntry={onOpenEntry} />
           <PayBreakdown period={period} />
+          <WeekPaymentPanel company={company} period={period} onChanged={onPaymentChanged} />
         </div>
       )}
     </div>
@@ -259,18 +269,40 @@ function PeriodCard({ period, company, expanded, onToggle, onOpenEntry }: Period
 }
 
 /** Pestaña "Semanas": todas las semanas de pago con sus turnos */
-export function PayWeeksList({ company, refreshTrigger = 0, onRefresh }: PayWeeksProps) {
+export function PayWeeksList({ company, refreshTrigger = 0, onRefresh, initialFilter = 'all' }: PayWeeksProps & { readonly initialFilter?: PayFilter }) {
   const { data, error, reload } = usePayPeriods(company, refreshTrigger)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [page, setPage] = useState(1)
+  const [filter, setFilter] = useState<PayFilter>(initialFilter)
   const [selectedEntry, setSelectedEntry] = useState<ModalEntry | null>(null)
 
   if (error) return <div className="py-8 text-center text-[13px] text-[#dc2626]">{error}</div>
   if (!data) return <Loading company={company} />
 
-  const totalPages = Math.max(1, Math.ceil(data.periods.length / ITEMS_PER_PAGE))
+  const today = getFloridaDateString()
+  const stateOf = (period: PayPeriodSummary) => weekPayStatus(period, today).state
+  const isOwed = (period: PayPeriodSummary) => stateOf(period) === 'owed' || stateOf(period) === 'short'
+  const isPaid = (period: PayPeriodSummary) => ['paid', 'short', 'over'].includes(stateOf(period))
+  const owedPeriods = data.periods.filter(isOwed)
+  const paidCount = data.periods.filter(isPaid).length
+  const filtered = data.periods.filter(p => (filter === 'owed' ? isOwed(p) : filter === 'paid' ? isPaid(p) : true))
+  const owedTotal = owedPeriods.reduce((sum, p) => sum + weekPayStatus(p, today).owed, 0)
+  const showFilter = owedPeriods.length > 0 || paidCount > 0
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE))
   const currentPage = Math.min(page, totalPages)
-  const visible = data.periods.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const visible = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const paymentChanged = () => { reload(); onRefresh?.() }
+  const filters: { value: PayFilter; label: string }[] = [
+    { value: 'all', label: 'Todas' },
+    { value: 'owed', label: owedPeriods.length > 0 ? `Por cobrar (${owedPeriods.length})` : 'Por cobrar' },
+    { value: 'paid', label: 'Pagadas' },
+  ]
+  const emptyText = {
+    all: `Aún no hay horas de ${company.name}. Inicia el cronómetro o agrega horas.`,
+    owed: '¡Todo cobrado! No hay semanas pendientes de pago.',
+    paid: 'Todavía no marcas ninguna semana como pagada.',
+  }[filter]
 
   return (
     <section className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-3 sm:p-4 shadow-sm">
@@ -279,10 +311,35 @@ export function PayWeeksList({ company, refreshTrigger = 0, onRefresh }: PayWeek
         <span className="text-[14px] font-semibold text-[#37352f]">Semanas de {company.name}</span>
         <span className="text-[11px] text-[#787774]">({weekLabel(company.weekStartsOn).toLowerCase()})</span>
       </div>
-      {visible.length === 0 ? (
-        <div className="py-6 text-center text-[13px] text-[#787774]">
-          Aún no hay horas de {company.name}. Inicia el cronómetro o agrega horas.
+      {showFilter && (
+        <div className="mb-3 space-y-2">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-[rgba(55,53,47,0.06)] p-1" role="tablist" aria-label="Filtrar semanas">
+            {filters.map(f => (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={filter === f.value}
+                onClick={() => { setFilter(f.value); setPage(1) }}
+                className={`rounded-lg py-1.5 text-[12px] font-semibold transition-all touch-manipulation ${filter === f.value ? 'bg-white text-[#37352f] shadow-sm' : 'text-[#787774] hover:text-[#37352f]'}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {filter === 'owed' && owedPeriods.length > 0 && (
+            <div className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+              <span>Falta cobrar</span>
+              <span className="font-bold tabular-nums">{money(owedTotal)}</span>
+            </div>
+          )}
+          {filter !== 'paid' && (
+            <MarkOlderPaid company={company} owed={data.periods.filter(p => stateOf(p) === 'owed')} onChanged={paymentChanged} />
+          )}
         </div>
+      )}
+      {visible.length === 0 ? (
+        <div className="py-6 text-center text-[13px] text-[#787774]">{emptyText}</div>
       ) : (
         <div className="space-y-2">
           {visible.map(period => (
@@ -290,9 +347,11 @@ export function PayWeeksList({ company, refreshTrigger = 0, onRefresh }: PayWeek
               key={period.start}
               period={period}
               company={company}
+              today={today}
               expanded={expanded === period.start}
               onToggle={() => setExpanded(prev => (prev === period.start ? null : period.start))}
               onOpenEntry={entry => setSelectedEntry(entry)}
+              onPaymentChanged={paymentChanged}
             />
           ))}
         </div>
@@ -327,7 +386,7 @@ function emptyPeriod(template: PayPeriodSummary, start: string): PayPeriodSummar
   return {
     ...template, start, end: addDaysToKey(start, 6), entries: [],
     totalSeconds: 0, regularSeconds: 0, overtimeSeconds: 0,
-    regularPay: 0, overtimePay: 0, totalPay: 0, companyPaidTotal: 0, hasRunningEntry: false,
+    regularPay: 0, overtimePay: 0, totalPay: 0, companyPaidTotal: 0, breakSeconds: 0, hasRunningEntry: false, payment: null,
   }
 }
 
@@ -459,8 +518,9 @@ export function PayWeeksSummary({ company, refreshTrigger = 0, onRefresh }: PayW
       <section key={week.start} className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-4 shadow-sm animate-fade-in">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="text-[12px] font-medium uppercase tracking-wide text-[#787774]">
+            <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium uppercase tracking-wide text-[#787774]">
               {week.start === data.current.start ? 'Semana actual' : 'Semana de pago'}
+              <PayStatusPill status={weekPayStatus(week, getFloridaDateString())} />
             </div>
             <div className="text-[13px] text-[#37352f] mt-0.5">
               {formatKeyShort(week.start)} → {formatKeyShort(week.end)}
@@ -474,6 +534,9 @@ export function PayWeeksSummary({ company, refreshTrigger = 0, onRefresh }: PayW
         <OvertimeMeter period={week} />
         <div className="mt-3">
           <PayBreakdown period={week} />
+        </div>
+        <div className="mt-3">
+          <WeekPaymentPanel company={company} period={week} onChanged={() => { reload(); onRefresh?.() }} />
         </div>
         {week.hasRunningEntry && (
           <div className="mt-2 text-[11px] text-[#787774]">
@@ -500,7 +563,7 @@ export function PayWeeksSummary({ company, refreshTrigger = 0, onRefresh }: PayW
       </section>
 
       {/* Enviar por correo la semana elegida en la gráfica */}
-      <WeeklyReportSender key={week.start} company={company} variant="card" date={week.start} refreshTrigger={refreshTrigger} />
+      <WeeklyReportSender key={`report-${week.start}`} company={company} variant="card" date={week.start} refreshTrigger={refreshTrigger} />
 
       <ExportCard company={company} />
 

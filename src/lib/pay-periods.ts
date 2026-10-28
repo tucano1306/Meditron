@@ -13,6 +13,7 @@ import {
   type Company,
   type PayRule,
 } from './companies'
+import type { WeekPayment } from './week-payments'
 
 type CompletedEntry = AmountInput & {
   calculatedAmount: number | null
@@ -142,6 +143,8 @@ export interface PayPeriodSummary {
   /** Break sin pago descontado en la semana, en segundos */
   breakSeconds: number
   hasRunningEntry: boolean
+  /** Lo que pagó la empresa por la semana (null = aún no registrado) */
+  payment: WeekPayment | null
 }
 
 type DbEntry = Awaited<ReturnType<typeof prisma.timeEntry.findMany>>[number]
@@ -151,7 +154,7 @@ function emptyPeriod(company: Company, start: string, end: string): PayPeriodSum
     companyId: company.id, start, end, rule: ruleFor(company, start), entries: [],
     totalSeconds: 0, regularSeconds: 0, overtimeSeconds: 0,
     regularPay: 0, overtimePay: 0, totalPay: 0, companyPaidTotal: 0, breakSeconds: 0,
-    hasRunningEntry: false,
+    hasRunningEntry: false, payment: null,
   }
 }
 
@@ -210,6 +213,34 @@ function summarizePeriod(company: Company, start: string, end: string, entries: 
   return summary
 }
 
+type DbPayment = Awaited<ReturnType<typeof prisma.weekPayment.findMany>>[number]
+
+export function serializePayment(p: DbPayment): WeekPayment {
+  return {
+    id: p.id,
+    weekStart: toDateKey(p.weekStart),
+    amount: p.amount,
+    netAmount: p.netAmount,
+    hours: p.hours,
+    paidOn: toDateKey(p.paidOn),
+    reference: p.reference,
+    note: p.note,
+  }
+}
+
+/** Pagos de la compañía; cada uno va a la semana que contiene su inicio */
+async function findPayments(company: Company, from?: string, to?: string): Promise<WeekPayment[]> {
+  const weekStart: { gte?: Date; lte?: Date } = {}
+  if (from) weekStart.gte = dateKeyToUTC(from)
+  if (to) weekStart.lte = dateKeyToUTC(to)
+  const rows = await prisma.weekPayment.findMany({ where: { companyId: company.id, ...(from || to ? { weekStart } : {}) } })
+  return rows.map(serializePayment)
+}
+
+function paymentFor(payments: WeekPayment[], start: string, end: string): WeekPayment | null {
+  return payments.find(p => p.weekStart >= start && p.weekStart <= end) ?? null
+}
+
 /**
  * Agrupa los trabajos de una compañía en sus semanas de pago, de la más
  * reciente a la más antigua. `from`/`to` (YYYY-MM-DD) limitan las semanas.
@@ -223,10 +254,13 @@ export async function getPayPeriods(
   if (range.from) date.gte = dateKeyToUTC(getPayPeriod(range.from, company.weekStartsOn).start)
   if (range.to) date.lte = dateKeyToUTC(getPayPeriod(range.to, company.weekStartsOn).end)
 
-  const all = await prisma.timeEntry.findMany({
-    where: { userId, companyId: company.id, ...(range.from || range.to ? { date } : {}) },
-    orderBy: { startTime: 'asc' },
-  })
+  const [all, payments] = await Promise.all([
+    prisma.timeEntry.findMany({
+      where: { userId, companyId: company.id, ...(range.from || range.to ? { date } : {}) },
+      orderBy: { startTime: 'asc' },
+    }),
+    findPayments(company, date.gte ? toDateKey(date.gte) : undefined, date.lte ? toDateKey(date.lte) : undefined),
+  ])
 
   const groups = new Map<string, DbEntry[]>()
   for (const entry of all) {
@@ -237,7 +271,10 @@ export async function getPayPeriods(
   }
 
   return [...groups.entries()]
-    .map(([start, entries]) => summarizePeriod(company, start, getPayPeriod(start, company.weekStartsOn).end, entries))
+    .map(([start, entries]) => {
+      const end = getPayPeriod(start, company.weekStartsOn).end
+      return { ...summarizePeriod(company, start, end, entries), payment: paymentFor(payments, start, end) }
+    })
     .sort((a, b) => b.start.localeCompare(a.start))
 }
 
@@ -245,5 +282,7 @@ export async function getPayPeriods(
 export async function getSinglePayPeriod(userId: string, company: Company, dateKey: string): Promise<PayPeriodSummary> {
   const { start, end } = getPayPeriod(dateKey, company.weekStartsOn)
   const [period] = await getPayPeriods(userId, company, { from: start, to: end })
-  return period ?? emptyPeriod(company, start, end)
+  if (period) return period
+  // Sin horas pero quizá con el pago registrado
+  return { ...emptyPeriod(company, start, end), payment: paymentFor(await findPayments(company, start, end), start, end) }
 }

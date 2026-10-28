@@ -124,6 +124,14 @@ function summaryRows(company: Company, period: PayPeriodSummary): { label: strin
   const breakRow = period.breakSeconds > 0
     ? [{ label: 'Break sin pago (ya descontado de las horas)', value: `${hoursDecimal(period.breakSeconds)} h` }]
     : []
+  // Lo que pagó la empresa por la semana y la diferencia con lo calculado
+  const payment = period.payment
+  const paymentRows = payment
+    ? [
+        { label: `Pagado por ${company.name} (${formatKeyUS(payment.paidOn)})`, value: money(payment.amount) },
+        { label: 'Diferencia (pagado - calculado)', value: signedMoney(payment.amount - period.totalPay) },
+      ]
+    : []
   if (ot) {
     const unit = period.rule.payType === 'daily_overtime' ? 'día' : 'semana'
     return [
@@ -132,6 +140,7 @@ function summaryRows(company: Company, period: PayPeriodSummary): { label: strin
       { label: `Horas regulares (hasta ${ot.thresholdHours} h/${unit}) × ${money(ot.baseRate)}`, value: `${hoursDecimal(period.regularSeconds)} h = ${money(period.regularPay)}` },
       { label: `Horas extra (${ot.multiplier}x) × ${money(ot.baseRate * ot.multiplier)}`, value: `${hoursDecimal(period.overtimeSeconds)} h = ${money(period.overtimePay)}` },
       { label: 'TOTAL A COBRAR', value: money(period.totalPay), strong: true },
+      ...paymentRows,
     ]
   }
   const rows: { label: string; value: string; strong?: boolean }[] = [
@@ -140,14 +149,22 @@ function summaryRows(company: Company, period: PayPeriodSummary): { label: strin
     { label: 'Horas totales', value: `${hoursDecimal(period.totalSeconds)} h` },
     { label: 'Total calculado', value: money(period.totalPay), strong: true },
   ]
-  if (company.trackCompanyPaid && period.companyPaidTotal > 0) {
+  if (payment) {
+    rows.push(...paymentRows)
+  } else if (company.trackCompanyPaid && period.companyPaidTotal > 0) {
     const diff = period.companyPaidTotal - period.totalPay
     rows.push(
       { label: 'Pagado por la empresa', value: money(period.companyPaidTotal) },
-      { label: 'Diferencia', value: `${diff >= 0 ? '+' : '-'}${money(Math.abs(diff))}` },
+      { label: 'Diferencia', value: signedMoney(diff) },
     )
   }
   return rows
+}
+
+/** "+$12.50" / "-$12.50" / "$0.00" */
+function signedMoney(value: number): string {
+  if (Math.abs(value) < 0.005) return money(0)
+  return `${value > 0 ? '+' : '-'}${money(Math.abs(value))}`
 }
 
 export async function buildWeeklyReportPdf(
