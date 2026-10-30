@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, ChevronLeft, Clock, Plus, Flame, FileText, X, Check, Coffee } from 'lucide-react'
 import { addDaysToKey, breakRuleOf, breakToDeduct, overtimeRulesOf, weekLabel, type Company, type PayRule } from '@/lib/companies'
 import { floridaShiftToUTC, getFloridaDateString } from '@/lib/utils'
@@ -13,7 +13,7 @@ import { ExportCard } from './ExportCard'
 import { TimeField } from './TimeField'
 import { WeeklyReportSender } from './WeeklyReportSender'
 import { MarkOlderPaid, PayStatusPill, WeekPaymentPanel } from './WeekPayment'
-import { weekPayStatus } from '@/lib/week-payments'
+import { weekPayStatus, type WeekPayState } from '@/lib/week-payments'
 
 // Vistas de una compañía agrupadas por su semana de pago (el día de inicio que
 // configuró, con overtime si aplica): lista de semanas, resumen con gráfica y
@@ -394,8 +394,17 @@ interface WeeksChartProps {
   readonly weeks: PayPeriodSummary[]
   readonly selected: string
   readonly currentStart: string
+  readonly today: string
   readonly color: string
   readonly onSelect: (start: string) => void
+}
+
+/** Punto bajo cada barra con el estado del pago de esa semana */
+const PAY_DOTS: Partial<Record<WeekPayState, { color: string; label: string }>> = {
+  paid: { color: 'bg-emerald-500', label: 'Pagada' },
+  owed: { color: 'bg-amber-400', label: 'Por cobrar' },
+  short: { color: 'bg-red-500', label: 'Te deben' },
+  over: { color: 'bg-blue-500', label: 'De más' },
 }
 
 /** Rayado del color de la compañía: distingue el overtime con cualquier color */
@@ -404,7 +413,8 @@ function overtimeFill(color: string): string {
 }
 
 // Horas por semana de pago (overtime apilado y rayado); tocar una barra la selecciona
-function WeeksChart({ weeks, selected, currentStart, color, onSelect }: WeeksChartProps) {
+function WeeksChart({ weeks, selected, currentStart, today, color, onSelect }: WeeksChartProps) {
+  const states = weeks.map(w => weekPayStatus(w, today).state)
   const ot = overtimeRulesOf(weeks[weeks.length - 1].rule)
   const threshold = ot && weeks[weeks.length - 1].rule.payType === 'weekly_overtime' ? ot.thresholdHours * 3600 : null
   const scale = Math.max(threshold ?? 40 * 3600, ...weeks.map(w => w.totalSeconds)) * 1.08
@@ -412,16 +422,17 @@ function WeeksChart({ weeks, selected, currentStart, color, onSelect }: WeeksCha
   return (
     <div>
       <div className="flex items-end gap-1.5 sm:gap-2" role="listbox" aria-label="Semanas de pago">
-        {weeks.map(week => {
+        {weeks.map((week, i) => {
           const isSelected = week.start === selected
           const regular = week.totalSeconds - week.overtimeSeconds
+          const dot = PAY_DOTS[states[i]]
           return (
             <button
               key={week.start}
               type="button"
               role="option"
               aria-selected={isSelected}
-              aria-label={`Semana ${formatRange(week.start, week.end)}: ${formatHM(week.totalSeconds)}, ${money(week.totalPay)}`}
+              aria-label={`Semana ${formatRange(week.start, week.end)}: ${formatHM(week.totalSeconds)}, ${money(week.totalPay)}${dot ? `, ${dot.label.toLowerCase()}` : ''}`}
               onClick={() => onSelect(week.start)}
               className="group flex flex-1 flex-col items-center gap-1 touch-manipulation"
             >
@@ -447,6 +458,7 @@ function WeeksChart({ weeks, selected, currentStart, color, onSelect }: WeeksCha
               <span className={`text-[10px] leading-tight whitespace-nowrap ${isSelected ? 'font-bold text-[#37352f]' : 'text-[#9b9a97]'}`}>
                 {week.start === currentStart ? 'Actual' : formatKeyShort(week.start).split(' ').slice(1).join(' ')}
               </span>
+              <span className={`h-1.5 w-1.5 rounded-full ${dot?.color ?? 'bg-transparent'}`} />
             </button>
           )
         })}
@@ -468,6 +480,12 @@ function WeeksChart({ weeks, selected, currentStart, color, onSelect }: WeeksCha
             </span>
           </>
         )}
+        {Object.entries(PAY_DOTS).filter(([state]) => states.includes(state as WeekPayState)).map(([state, dot]) => (
+          <span key={state} className="inline-flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${dot.color}`} />
+            {dot.label}
+          </span>
+        ))}
       </div>
     </div>
   )
@@ -479,6 +497,17 @@ export function PayWeeksSummary({ company, refreshTrigger = 0, onRefresh }: PayW
   const [selected, setSelected] = useState<string | null>(null)
   const [showEntries, setShowEntries] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState<ModalEntry | null>(null)
+  // En el teléfono el detalle queda debajo de la gráfica: al tocar una barra se baja hasta él
+  // (también si se toca otra vez la semana que ya está elegida)
+  const detailRef = useRef<HTMLElement>(null)
+  const [taps, setTaps] = useState(0)
+
+  useEffect(() => {
+    const detail = detailRef.current
+    if (taps === 0 || !detail) return
+    const box = detail.getBoundingClientRect()
+    if (box.top < 0 || box.bottom > window.innerHeight) detail.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [taps])
 
   if (error) return <div className="py-8 text-center text-[13px] text-[#dc2626]">{error}</div>
   if (!data) return <Loading company={company} />
@@ -511,11 +540,12 @@ export function PayWeeksSummary({ company, refreshTrigger = 0, onRefresh }: PayW
           selected={week.start}
           currentStart={data.current.start}
           color={company.color}
-          onSelect={start => { setSelected(start); setShowEntries(false) }}
+          today={getFloridaDateString()}
+          onSelect={start => { setSelected(start); setShowEntries(false); setTaps(t => t + 1) }}
         />
       </section>
 
-      <section key={week.start} className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-4 shadow-sm animate-fade-in">
+      <section key={week.start} ref={detailRef} className="scroll-mt-20 rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-4 shadow-sm animate-fade-in">
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium uppercase tracking-wide text-[#787774]">
