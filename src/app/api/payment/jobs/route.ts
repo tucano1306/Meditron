@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { parseJobInput, serializeJob, withDerivedFields } from '@/lib/payment-store'
+import { jobInclude, parseJobInput, serializeJob, withDerivedFields } from '@/lib/payment-store'
+import { rebalanceDayPay, resolveJobCompany } from '@/lib/pay-company-store'
 import { summarizeJobs } from '@/lib/payment-jobs'
 
 export const runtime = 'nodejs'
@@ -12,7 +13,7 @@ const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 const MAX_RESULTS = 500
 
 // GET - Trabajos terminados. Filtros: ?from y ?to (YYYY-MM-DD), ?status
-// (paid|pending) y ?q (busca en cliente, número de trabajo y notas)
+// (paid|pending), ?companyId y ?q (busca en cliente, compañía, número de trabajo y notas)
 export async function GET(request: NextRequest) {
   try {
     const authResult = await validateSession()
@@ -31,16 +32,19 @@ export async function GET(request: NextRequest) {
     }
     const status = searchParams.get('status')
     if (status === 'paid' || status === 'pending') where.paymentStatus = status
-    const q = searchParams.get('q')?.trim()
+    const companyId = searchParams.get('companyId')
+    if (companyId) where.companyId = companyId.slice(0, 40)
+    const q = searchParams.get('q')?.trim().slice(0, 80)
     if (q) {
       where.OR = [
         { client: { contains: q, mode: 'insensitive' } },
         { jobNumber: { contains: q, mode: 'insensitive' } },
         { notes: { contains: q, mode: 'insensitive' } },
+        { company: { name: { contains: q, mode: 'insensitive' } } },
       ]
     }
 
-    const rows = await prisma.paymentEntry.findMany({ where, orderBy: { startTime: 'desc' }, take: MAX_RESULTS })
+    const rows = await prisma.paymentEntry.findMany({ where, include: jobInclude, orderBy: { startTime: 'desc' }, take: MAX_RESULTS })
     const jobs = rows.map(serializeJob)
     return NextResponse.json({ success: true, data: { jobs, totals: summarizeJobs(jobs), truncated: rows.length === MAX_RESULTS } })
   } catch (error) {
@@ -49,19 +53,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Agregar un trabajo ya terminado (sin cronómetro)
+// POST - Agregar un trabajo ya terminado (sin cronómetro). Con una compañía que
+// paga por día y `autoPay`, el pago lo pone la compañía (una vez por día)
 export async function POST(request: NextRequest) {
   try {
     const authResult = await validateSession()
     if (!authResult.success) return authResult.response
     const userId = authResult.user.id
 
-    const parsed = parseJobInput(await request.json(), false)
+    const body = await request.json()
+    const parsed = parseJobInput(body, false)
     if (!parsed.ok) return NextResponse.json({ success: false, error: parsed.error }, { status: 400 })
+    const choice = await resolveJobCompany(userId, body, null)
+    if (!choice.ok) return NextResponse.json({ success: false, error: choice.error }, { status: 400 })
 
     const data = withDerivedFields(parsed.value, null)
-    const row = await prisma.paymentEntry.create({
-      data: { ...(data as Prisma.PaymentEntryUncheckedCreateInput), userId, completed: true },
+    const row = await prisma.$transaction(async tx => {
+      const created = await tx.paymentEntry.create({
+        data: {
+          ...(data as Prisma.PaymentEntryUncheckedCreateInput),
+          companyId: choice.value.companyId,
+          amountAuto: choice.value.amountAuto,
+          userId,
+          completed: true,
+        },
+      })
+      await rebalanceDayPay(tx, userId, created.companyId, created.date)
+      return tx.paymentEntry.findUniqueOrThrow({ where: { id: created.id }, include: jobInclude })
     })
     return NextResponse.json({ success: true, data: serializeJob(row) })
   } catch (error) {

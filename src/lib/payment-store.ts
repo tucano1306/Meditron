@@ -6,6 +6,7 @@ import { floridaShiftToUTC } from './utils'
 import { toDateKey } from './companies'
 import { isPaymentMethod, type PaymentJob } from './payment-jobs'
 import { invalid } from './input'
+import { isPayCompanyType } from './pay-companies'
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
 const TIME = /^\d{2}:\d{2}$/
@@ -13,7 +14,14 @@ const MAX_SHIFT_SECONDS = 24 * 3600
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string }
 
-export function serializeJob(row: PaymentEntry): PaymentJob {
+/** Lo que se trae de la compañía junto con cada trabajo */
+export const jobInclude = {
+  company: { select: { name: true, color: true, payType: true } },
+} satisfies Prisma.PaymentEntryInclude
+
+type JobRow = PaymentEntry & { company?: { name: string; color: string; payType: string } | null }
+
+export function serializeJob(row: JobRow): PaymentJob {
   const start = row.startTime
   const end = row.endTime ?? row.startTime
   return {
@@ -31,6 +39,15 @@ export function serializeJob(row: PaymentEntry): PaymentJob {
     paymentMethod: isPaymentMethod(row.paymentMethod) ? row.paymentMethod : null,
     paymentStatus: row.paymentStatus === 'pending' ? 'pending' : 'paid',
     paidAt: row.paidAt?.toISOString() ?? null,
+    companyId: row.companyId,
+    company: row.company
+      ? {
+          name: row.company.name,
+          color: row.company.color,
+          payType: isPayCompanyType(row.company.payType) ? row.company.payType : 'variable',
+        }
+      : null,
+    autoPay: row.amountAuto,
   }
 }
 
@@ -78,7 +95,10 @@ export function parseJobInput(body: Record<string, unknown>, partial: boolean): 
     data.duration = seconds
   }
 
-  if (body.amount !== undefined || !partial) {
+  // Con `autoPay` el pago lo pone la compañía (paga por día): se calcula al guardar
+  if (body.autoPay === true) {
+    if (!partial) data.amount = 0
+  } else if (body.amount !== undefined || !partial) {
     const amount = money(body.amount, 'El pago', true)
     if (!amount.ok) return amount
     if (!amount.value) return { ok: false, error: 'El pago debe ser mayor que 0' }

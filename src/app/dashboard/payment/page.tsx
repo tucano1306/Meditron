@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { BarChart3, Briefcase, Check, DollarSign, Hourglass, LogOut, Plus, Undo2 } from 'lucide-react'
 import { PaymentTimer } from '@/components/PaymentTimer'
+import { resetCompanies } from '@/hooks/useCompanies'
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PaymentSummaryCards } from '@/components/payment/PaymentSummaryCards'
@@ -12,12 +13,26 @@ import { PaymentJobsPanel } from '@/components/payment/PaymentJobsPanel'
 import { PaymentCollectPanel } from '@/components/payment/PaymentCollectPanel'
 import { PaymentInsightsPanel } from '@/components/payment/PaymentInsightsPanel'
 import { PaymentJobSheet, type SheetMode } from '@/components/payment/PaymentJobSheet'
+import { PayCompanyManager } from '@/components/payment/PayCompanyManager'
 import { useFetchData, type PaymentSummary } from '@/components/payment/data'
 import { PAY_ACCENT } from '@/components/payment/shared'
-import { jobEarned, ratePerHour, type PaymentJob } from '@/lib/payment-jobs'
+import { isCoveredByDayPay, jobEarned, ratePerHour, type PaymentJob } from '@/lib/payment-jobs'
+import type { PayCompany } from '@/lib/pay-companies'
 import { formatCurrency } from '@/lib/utils'
 
 type Tab = 'jobs' | 'collect' | 'insights'
+
+/** Compañía elegida la última vez (se propone al iniciar el siguiente trabajo) */
+const COMPANY_KEY = 'meditron_pay_company'
+
+function savedCompanyId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return localStorage.getItem(COMPANY_KEY)
+  } catch {
+    return null
+  }
+}
 
 interface Toast {
   text: string
@@ -35,8 +50,23 @@ export default function PaymentDashboardPage() {
   const [sheet, setSheet] = useState<SheetMode | null>(null)
   const [toast, setToast] = useState<Toast | null>(null)
   const tabsRef = useRef<HTMLDivElement>(null)
+  // Compañías: la elegida para el próximo trabajo y la hoja para configurarlas
+  const [companiesKey, setCompaniesKey] = useState(0)
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(savedCompanyId)
+  const [manager, setManager] = useState<{ create: boolean } | null>(null)
 
   const { data: summary } = useFetchData<PaymentSummary>(status === 'authenticated' ? `/api/payment/summary?r=${refreshKey}` : null)
+  const { data: companies } = useFetchData<PayCompany[]>(status === 'authenticated' ? `/api/payment/companies?r=${companiesKey}-${refreshKey}` : null)
+  // Si la compañía guardada ya no existe, no se propone ninguna
+  const companyId = companies && selectedCompany && !companies.some(c => c.id === selectedCompany) ? null : selectedCompany
+
+  const changeCompany = useCallback((id: string | null) => {
+    setSelectedCompany(id)
+    try {
+      if (id) localStorage.setItem(COMPANY_KEY, id)
+      else localStorage.removeItem(COMPANY_KEY)
+    } catch { /* sin almacenamiento */ }
+  }, [])
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -63,6 +93,10 @@ export default function PaymentDashboardPage() {
       return
     }
     const earned = jobEarned(job)
+    if (isCoveredByDayPay(job) && earned === 0) {
+      setToast({ text: `Guardado · el pago de hoy con ${job.company?.name ?? 'la compañía'} ya estaba anotado`, job })
+      return
+    }
     setToast({ text: `Trabajo guardado · ${formatCurrency(earned)} · ${formatCurrency(ratePerHour(earned, job.duration))}/h`, job })
   }, [refresh])
 
@@ -73,6 +107,8 @@ export default function PaymentDashboardPage() {
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
+    // Que la siguiente cuenta en este teléfono no vea las compañías de esta
+    resetCompanies()
     router.push('/login')
   }
 
@@ -113,7 +149,13 @@ export default function PaymentDashboardPage() {
       </header>
 
       <main className="mx-auto max-w-3xl space-y-5 px-4 pb-16 pt-6">
-        <PaymentTimer onComplete={handleTimerComplete} />
+        <PaymentTimer
+          onComplete={handleTimerComplete}
+          companies={companies}
+          companyId={companyId}
+          onCompanyChange={changeCompany}
+          onManageCompanies={create => setManager({ create: Boolean(create) })}
+        />
 
         {/* Un trabajo hecho sin cronómetro */}
         <button
@@ -180,8 +222,23 @@ export default function PaymentDashboardPage() {
         <PaymentJobSheet
           key={sheet.kind === 'create' ? 'create' : sheet.job.id}
           mode={sheet}
+          companies={companies}
+          defaultCompanyId={companyId}
           onClose={() => setSheet(null)}
           onChanged={text => handleChanged(text)}
+        />
+      )}
+
+      {manager && companies && (
+        <PayCompanyManager
+          companies={companies}
+          startCreating={manager.create}
+          onClose={() => setManager(null)}
+          onChanged={(text, created) => {
+            setCompaniesKey(k => k + 1)
+            if (created) changeCompany(created.id)
+            handleChanged(text)
+          }}
         />
       )}
 

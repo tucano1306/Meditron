@@ -6,7 +6,7 @@ import { formatCurrency, getFloridaDateString, getMonthName } from '@/lib/utils'
 import { formatHM } from '@/lib/display'
 import { formatKeyLong, formatTime12 } from '@/lib/report-format'
 import { addDaysToKey } from '@/lib/companies'
-import { jobEarned, jobTitle, methodLabel, ratePerHour, summarizeJobs, vehicleLabel, type PaymentJob } from '@/lib/payment-jobs'
+import { isCoveredByDayPay, jobEarned, jobTitle, methodLabel, ratePerHour, summarizeJobs, vehicleLabel, type PaymentJob } from '@/lib/payment-jobs'
 import { useFetchData, type JobsResult } from './data'
 import { METHOD_ICONS, PendingPill, RateBadge, relativeDayLabel } from './shared'
 
@@ -20,6 +20,8 @@ interface JobCardProps {
 
 export function JobCard({ job, averageRate, onOpen }: JobCardProps) {
   const earned = jobEarned(job)
+  const covered = isCoveredByDayPay(job)
+  const title = jobTitle(job)
   return (
     <button
       type="button"
@@ -33,11 +35,15 @@ export function JobCard({ job, averageRate, onOpen }: JobCardProps) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-[14px] font-semibold text-[#37352f]">{jobTitle(job)}</span>
+          {job.company && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: job.company.color }} aria-hidden />}
+          <span className="truncate text-[14px] font-semibold text-[#37352f]">{title}</span>
           {job.paymentStatus === 'pending' && <PendingPill small />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          {job.jobNumber && job.client && (
+          {job.company && job.company.name !== title && (
+            <span className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${job.company.color}1a`, color: job.company.color }}>{job.company.name}</span>
+          )}
+          {job.jobNumber && title !== `Trabajo #${job.jobNumber}` && (
             <span className="rounded-md bg-[#37352f] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-white">#{job.jobNumber}</span>
           )}
           {job.vehicle && <span className="rounded-md bg-[rgba(55,53,47,0.06)] px-1.5 py-0.5 text-[10px] text-[#787774]">{vehicleLabel(job.vehicle)}</span>}
@@ -51,9 +57,13 @@ export function JobCard({ job, averageRate, onOpen }: JobCardProps) {
         </div>
       </div>
       <div className="flex flex-shrink-0 flex-col items-end justify-center gap-1">
-        <span className="text-[16px] font-bold tabular-nums text-[#0f7b6c]">{formatCurrency(earned)}</span>
+        <span className={`text-[16px] font-bold tabular-nums ${earned > 0 ? 'text-[#0f7b6c]' : 'text-[#9b9a97]'}`}>{formatCurrency(earned)}</span>
         {job.tip > 0 && <span className="text-[10px] text-[#787774] tabular-nums">incl. {formatCurrency(job.tip)} propina</span>}
-        <RateBadge rate={ratePerHour(earned, job.duration)} average={averageRate} />
+        {earned === 0 ? (
+          <span className="rounded-md bg-[rgba(55,53,47,0.06)] px-1.5 py-0.5 text-[10px] font-semibold text-[#787774]">{covered ? 'Día ya pagado' : 'Sin pago'}</span>
+        ) : (
+          <RateBadge rate={ratePerHour(earned, job.duration)} average={averageRate} />
+        )}
       </div>
     </button>
   )
@@ -137,7 +147,7 @@ export function PaymentJobsPanel({ refreshKey, averageRate, onOpen, onAdd }: Pay
               type="search"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar cliente, trabajo # o nota"
+              placeholder="Buscar compañía, cliente o nota"
               className="w-full rounded-lg border border-[rgba(55,53,47,0.16)] bg-white py-2 pl-9 pr-9 text-[#37352f] placeholder:text-[#b4b4b0] focus:border-[#37352f] focus:outline-none"
               style={{ fontSize: '16px' }}
             />

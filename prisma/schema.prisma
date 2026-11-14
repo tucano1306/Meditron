@@ -23,6 +23,7 @@ model User {
   monthSummaries MonthSummary[]
   paymentEntries PaymentEntry[]
   companies      Company[]
+  payCompanies   PayCompany[]
   orgMembers     OrgMember[]
 }
 
@@ -202,15 +203,46 @@ model PaymentEntry {
   paymentStatus   String    @default("paid")
   /// Cuándo se cobró
   paidAt          DateTime?
+  /// El pago lo pone la compañía (paga por día): un solo pago por día aunque
+  /// haya varios registros, y se reacomoda al borrar o mover uno
+  amountAuto      Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   PayCompany? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   @@index([date])
   @@index([userId])
   @@index([userId, paymentStatus])
+  @@index([companyId, date])
+}
+
+/// Compañía del modo "Por pago" y cómo paga: un monto fijo por día, un monto
+/// fijo por trabajo o lo que toque cada vez
+model PayCompany {
+  id            String   @id @default(cuid())
+  name          String
+  color         String   @default("#2e75cc")
+  /// 'per_day' | 'per_job' | 'variable'
+  payType       String   @default("per_day")
+  /// Lo que paga por día o por trabajo (null si es variable)
+  rate          Float?
+  /// Cómo suele pagar (cash, zelle, check...) para proponerlo al guardar
+  paymentMethod String?
+  /// Paga después: los trabajos quedan "por cobrar" hasta que paga
+  paysLater     Boolean  @default(true)
+  archived      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId  String
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries PaymentEntry[]
+
+  @@index([userId])
 }
 
 /// Intentos recientes de acciones sensibles (inicio de sesión fallido,

@@ -3,15 +3,17 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  ArrowLeft, Bus, CalendarDays, Check, Clock, Copy, Hash, Loader2, NotebookPen, Pencil, Trash2, User, Wallet, X,
+  ArrowLeft, Building2, Bus, CalendarDays, Check, Clock, Copy, Hash, Loader2, NotebookPen, Pencil, Trash2, User, Wallet, X,
 } from 'lucide-react'
 import { formatCurrency, floridaShiftToUTC, getFloridaDateComponents, getFloridaDateString } from '@/lib/utils'
 import { formatKeyLong, formatTime12 } from '@/lib/report-format'
 import { formatHM } from '@/lib/display'
 import {
-  jobEarned, jobTitle, methodLabel, PAYMENT_METHODS, ratePerHour, vehicleLabel, VEHICLES,
+  isCoveredByDayPay, jobEarned, jobTitle, methodLabel, PAYMENT_METHODS, ratePerHour, vehicleLabel, VEHICLES,
   type PaymentJob, type PaymentMethod, type PaymentStatus,
 } from '@/lib/payment-jobs'
+import { describePay, paysPerDay, suggestedAmount, type PayCompany } from '@/lib/pay-companies'
+import { PayAmountField, plannedAmount, useDayCovered } from './PayAmountField'
 import { METHOD_ICONS, PAY_ACCENT, PendingPill } from './shared'
 import { floridaDateKey } from './data'
 import { TimeField } from '../TimeField'
@@ -26,12 +28,19 @@ export type SheetMode =
 
 interface PaymentJobSheetProps {
   readonly mode: SheetMode
+  /** Compañías del modo por pago (null mientras cargan) */
+  readonly companies: PayCompany[] | null
+  /** Compañía que se propone al agregar un trabajo */
+  readonly defaultCompanyId?: string | null
   readonly onClose: () => void
   /** Se guardó, borró o cambió de estado un trabajo */
   readonly onChanged: (message: string) => void
 }
 
 export interface JobDraft {
+  companyId: string
+  /** El pago lo pone la compañía (paga por día) */
+  autoPay: boolean
   date: string
   start: string
   end: string
@@ -56,6 +65,8 @@ function hhmm(iso: string | Date): string {
 
 function draftFromJob(job: PaymentJob): JobDraft {
   return {
+    companyId: job.companyId ?? '',
+    autoPay: job.autoPay,
     date: job.date,
     start: hhmm(job.startTime),
     end: hhmm(job.endTime),
@@ -70,17 +81,37 @@ function draftFromJob(job: PaymentJob): JobDraft {
   }
 }
 
-function emptyDraft(): JobDraft {
+/** Lo que propone una compañía al elegirla: su pago, si paga después y cómo */
+function companyDefaults(company: PayCompany | null, lastMethod: PaymentMethod | ''): Partial<JobDraft> {
+  if (!company) return { companyId: '', autoPay: false }
+  const suggested = suggestedAmount(company)
+  return {
+    companyId: company.id,
+    autoPay: paysPerDay(company),
+    amount: suggested && !paysPerDay(company) ? String(suggested) : '',
+    paymentStatus: company.paysLater ? 'pending' : 'paid',
+    paymentMethod: company.paymentMethod ?? lastMethod,
+  }
+}
+
+function lastUsedMethod(): PaymentMethod | '' {
+  try {
+    return (localStorage.getItem(LAST_METHOD_KEY) as PaymentMethod | null) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function emptyDraft(company: PayCompany | null): JobDraft {
   // Por defecto: un trabajo de una hora que acaba de terminar (redondeado a 5 min)
   const end = new Date(Math.floor(Date.now() / (5 * 60000)) * 5 * 60000)
   const start = new Date(end.getTime() - 3600 * 1000)
-  let lastMethod: PaymentMethod | '' = ''
-  try {
-    lastMethod = (localStorage.getItem(LAST_METHOD_KEY) as PaymentMethod | null) ?? ''
-  } catch { /* sin almacenamiento disponible */ }
+  const lastMethod = lastUsedMethod()
   return {
+    companyId: '', autoPay: false,
     date: getFloridaDateString(), start: hhmm(start), end: hhmm(end), amount: '', tip: '', client: '',
     jobNumber: '', vehicle: '', paymentMethod: lastMethod, paymentStatus: 'paid', notes: '',
+    ...companyDefaults(company, lastMethod),
   }
 }
 
@@ -126,6 +157,7 @@ function JobDetail({ job, busy, onEdit, onDuplicate, onToggleStatus, onDelete }:
   const earned = jobEarned(job)
   const rate = ratePerHour(earned, job.duration)
   const pending = job.paymentStatus === 'pending'
+  const covered = isCoveredByDayPay(job)
 
   return (
     <div className="space-y-5">
@@ -138,11 +170,14 @@ function JobDetail({ job, busy, onEdit, onDuplicate, onToggleStatus, onDelete }:
           </div>
           <div className="text-right">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-[#787774]">Por hora</div>
-            <div className="mt-1 text-[20px] font-bold leading-none tabular-nums text-[#37352f]">{formatCurrency(rate)}</div>
+            <div className="mt-1 text-[20px] font-bold leading-none tabular-nums text-[#37352f]">{covered ? '—' : formatCurrency(rate)}</div>
           </div>
         </div>
+        {covered && (
+          <p className="mt-3 text-[12px] text-[#787774]">El pago de este día con {job.company?.name ?? 'la compañía'} está en otro registro. Este suma horas, no dinero.</p>
+        )}
         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[#787774] tabular-nums">
-          <span>Pago {formatCurrency(job.amount)}</span>
+          <span>{job.autoPay ? 'Pago del día' : 'Pago'} {formatCurrency(job.amount)}</span>
           {job.tip > 0 && <span>+ Propina {formatCurrency(job.tip)}</span>}
           <span>· {formatHM(job.duration)}</span>
         </div>
@@ -172,9 +207,22 @@ function JobDetail({ job, busy, onEdit, onDuplicate, onToggleStatus, onDelete }:
 
       {/* Datos */}
       <div className="divide-y divide-[rgba(55,53,47,0.08)] rounded-xl border border-[rgba(55,53,47,0.09)] px-4">
+        {job.company && (
+          <DetailRow
+            icon={<Building2 className="h-4 w-4" />}
+            label="Compañía"
+            value={(
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: job.company.color }} />
+                <span className="font-semibold">{job.company.name}</span>
+                {job.autoPay && <span className="text-[12px] text-[#787774]">· paga por día</span>}
+              </span>
+            )}
+          />
+        )}
         <DetailRow icon={<CalendarDays className="h-4 w-4" />} label="Fecha" value={formatKeyLong(job.date)} />
         <DetailRow icon={<Clock className="h-4 w-4" />} label="Horario" value={`${formatTime12(job.startTime)} → ${formatTime12(job.endTime)}`} />
-        {job.client && <DetailRow icon={<User className="h-4 w-4" />} label="Cliente" value={job.client} />}
+        {job.client && <DetailRow icon={<User className="h-4 w-4" />} label={job.company ? 'Descripción' : 'Cliente'} value={job.client} />}
         {job.jobNumber && <DetailRow icon={<Hash className="h-4 w-4" />} label="Trabajo #" value={<span className="font-mono font-semibold">{job.jobNumber}</span>} />}
         {job.vehicle && <DetailRow icon={<Bus className="h-4 w-4" />} label="Vehículo" value={vehicleLabel(job.vehicle)} />}
         {job.paymentMethod && (
@@ -221,30 +269,83 @@ function JobDetail({ job, busy, onEdit, onDuplicate, onToggleStatus, onDelete }:
 
 interface JobFormProps {
   readonly initial: JobDraft
+  readonly companies: PayCompany[] | null
+  /** Trabajo que se edita (para no contarlo al ver si el día ya tiene pago) */
+  readonly jobId?: string
   readonly busy: boolean
   readonly error: string | null
   readonly submitLabel: string
   readonly onSubmit: (draft: JobDraft) => void
 }
 
-function JobForm({ initial, busy, error, submitLabel, onSubmit }: JobFormProps) {
+function JobForm({ initial, companies, jobId, busy, error, submitLabel, onSubmit }: JobFormProps) {
   const [draft, setDraft] = useState(initial)
   const clients = useClientSuggestions()
   const set = (patch: Partial<JobDraft>) => setDraft(d => ({ ...d, ...patch }))
 
+  // Las archivadas solo aparecen si este trabajo ya es de una de ellas
+  const choices = (companies ?? []).filter(c => !c.archived || c.id === initial.companyId)
+  const company = choices.find(c => c.id === draft.companyId) ?? null
+  const covered = useDayCovered(company, draft.date, jobId)
+
   const times = floridaShiftToUTC(draft.date, draft.start, draft.end)
   const seconds = times ? Math.round((times.end.getTime() - times.start.getTime()) / 1000) : 0
-  const amount = toNumber(draft.amount)
+  const amount = plannedAmount(company, draft.autoPay, toNumber(draft.amount), covered)
   const tip = toNumber(draft.tip)
   const earned = amount + tip
   const crossesMidnight = Boolean(times) && draft.end <= draft.start
-  const canSave = Boolean(times) && seconds > 0 && amount > 0 && !busy
+  const payReady = draft.autoPay && paysPerDay(company) ? covered !== null : amount > 0
+  const canSave = Boolean(times) && seconds > 0 && payReady && !busy
+
+  const pickCompany = (next: PayCompany | null) => {
+    if (next?.id === company?.id) return
+    // El monto escrito se respeta; el propuesto por la compañía anterior se cambia
+    const previousSuggestion = suggestedAmount(company)
+    const typed = draft.amount && Number(draft.amount) !== previousSuggestion
+    const defaults = companyDefaults(next, draft.paymentMethod)
+    setDraft(d => ({ ...d, ...defaults, amount: typed && !defaults.autoPay ? d.amount : defaults.amount ?? '' }))
+  }
 
   return (
     <form
       className="space-y-5"
       onSubmit={e => { e.preventDefault(); if (canSave) onSubmit(draft) }}
     >
+      {/* Para quién */}
+      {choices.length > 0 && (
+        <section>
+          <div className={labelClass}>Compañía</div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Compañía">
+            {choices.map(c => {
+              const active = c.id === draft.companyId
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => pickCompany(active ? null : c)}
+                  className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white' : 'bg-[rgba(55,53,47,0.06)] text-[#37352f] hover:bg-[rgba(55,53,47,0.12)]'}`}
+                >
+                  <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                  <span className="truncate">{c.name}</span>
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!draft.companyId}
+              onClick={() => pickCompany(null)}
+              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors touch-manipulation ${!draft.companyId ? 'bg-[#37352f] text-white' : 'bg-[rgba(55,53,47,0.06)] text-[#787774] hover:bg-[rgba(55,53,47,0.12)]'}`}
+            >
+              Sin compañía
+            </button>
+          </div>
+          {company && <p className="mt-1.5 text-[11px] text-[#787774]">{describePay(company)} · {company.paysLater ? 'paga después' : 'paga al terminar'}</p>}
+        </section>
+      )}
+
       {/* Cuándo */}
       <section className="space-y-3">
         <label className={labelClass}>
@@ -266,13 +367,15 @@ function JobForm({ initial, busy, error, submitLabel, onSubmit }: JobFormProps) 
 
       {/* Cuánto */}
       <section className="grid grid-cols-2 gap-3">
-        <label className={labelClass}>
-          Pago
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 mt-0.5 -translate-y-1/2 text-[#9b9a97]">$</span>
-            <input type="number" inputMode="decimal" step="0.01" min="0" value={draft.amount} onChange={e => set({ amount: e.target.value })} placeholder="0.00" className={`${inputClass} pl-7 text-[18px] font-semibold tabular-nums`} style={{ fontSize: '18px' }} required autoFocus={!initial.amount} />
-          </div>
-        </label>
+        <PayAmountField
+          company={company}
+          autoPay={draft.autoPay}
+          amount={draft.amount}
+          covered={covered}
+          onAutoChange={autoPay => set({ autoPay })}
+          onAmountChange={value => set({ amount: value })}
+          autoFocus={!initial.amount && !initial.autoPay}
+        />
         <label className={labelClass}>
           Propina <span className="font-normal text-[#9b9a97]">(opcional)</span>
           <div className="relative">
@@ -336,7 +439,7 @@ function JobForm({ initial, busy, error, submitLabel, onSubmit }: JobFormProps) 
       {/* Detalles */}
       <section className="space-y-3">
         <label className={labelClass}>
-          Cliente o descripción <span className="font-normal text-[#9b9a97]">(opcional)</span>
+          {company ? 'Descripción' : 'Cliente o descripción'} <span className="font-normal text-[#9b9a97]">(opcional)</span>
           <input type="text" list="payment-clients" value={draft.client} maxLength={80} onChange={e => set({ client: e.target.value })} placeholder="Ej: Hotel Marriott, boda Pérez…" className={inputClass} style={{ fontSize: '16px' }} />
           <datalist id="payment-clients">
             {clients.map(c => <option key={c} value={c} />)}
@@ -382,12 +485,16 @@ function JobForm({ initial, busy, error, submitLabel, onSubmit }: JobFormProps) 
   )
 }
 
-function draftToBody(draft: JobDraft) {
+function draftToBody(draft: JobDraft, companies: PayCompany[] | null) {
+  const company = companies?.find(c => c.id === draft.companyId) ?? null
+  const autoPay = draft.autoPay && paysPerDay(company)
   return {
+    companyId: company ? company.id : null,
+    autoPay,
     date: draft.date,
     start: draft.start,
     end: draft.end,
-    amount: toNumber(draft.amount),
+    ...(autoPay ? {} : { amount: toNumber(draft.amount) }),
     tip: draft.tip.trim() ? toNumber(draft.tip) : null,
     client: draft.client,
     jobNumber: draft.jobNumber,
@@ -400,7 +507,7 @@ function draftToBody(draft: JobDraft) {
 
 // ── Hoja ──────────────────────────────────────────────────────────────────────
 
-export function PaymentJobSheet({ mode: initialMode, onClose, onChanged }: PaymentJobSheetProps) {
+export function PaymentJobSheet({ mode: initialMode, companies, defaultCompanyId = null, onClose, onChanged }: PaymentJobSheetProps) {
   const [mode, setMode] = useState<SheetMode>(initialMode)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -431,11 +538,11 @@ export function PaymentJobSheet({ mode: initialMode, onClose, onChanged }: Payme
         try { localStorage.setItem(LAST_METHOD_KEY, draft.paymentMethod) } catch { /* sin almacenamiento */ }
       }
       if (mode.kind === 'edit') {
-        const job = await request(`/api/payment/jobs/${mode.job.id}`, 'PATCH', draftToBody(draft))
+        const job = await request(`/api/payment/jobs/${mode.job.id}`, 'PATCH', draftToBody(draft, companies))
         onChanged('Trabajo actualizado')
         if (job) setMode({ kind: 'view', job })
       } else {
-        await request('/api/payment/jobs', 'POST', draftToBody(draft))
+        await request('/api/payment/jobs', 'POST', draftToBody(draft, companies))
         onChanged(draft.paymentStatus === 'pending' ? 'Trabajo agregado como por cobrar' : 'Trabajo agregado')
         onClose()
       }
@@ -525,10 +632,18 @@ export function PaymentJobSheet({ mode: initialMode, onClose, onChanged }: Payme
             </>
           )}
           {mode.kind === 'edit' && (
-            <JobForm key={`edit-${mode.job.id}`} initial={draftFromJob(mode.job)} busy={busy === 'save'} error={error} submitLabel="Guardar cambios" onSubmit={save} />
+            <JobForm key={`edit-${mode.job.id}`} initial={draftFromJob(mode.job)} companies={companies} jobId={mode.job.id} busy={busy === 'save'} error={error} submitLabel="Guardar cambios" onSubmit={save} />
           )}
           {mode.kind === 'create' && (
-            <JobForm key={`create-${JSON.stringify(mode.prefill ?? {})}`} initial={{ ...emptyDraft(), ...mode.prefill }} busy={busy === 'save'} error={error} submitLabel="Guardar trabajo" onSubmit={save} />
+            <JobForm
+              key={`create-${JSON.stringify(mode.prefill ?? {})}`}
+              initial={{ ...emptyDraft(companies?.find(c => c.id === defaultCompanyId && !c.archived) ?? null), ...mode.prefill }}
+              companies={companies}
+              busy={busy === 'save'}
+              error={error}
+              submitLabel="Guardar trabajo"
+              onSubmit={save}
+            />
           )}
         </div>
       </div>

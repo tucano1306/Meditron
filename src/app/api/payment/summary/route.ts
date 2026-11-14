@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { serializeJob } from '@/lib/payment-store'
+import { jobInclude, serializeJob } from '@/lib/payment-store'
 import { addDaysToKey, getPayPeriod } from '@/lib/companies'
 import { jobEarned, ratePerHour, summarizeJobs, type PaymentJob } from '@/lib/payment-jobs'
 import { getFloridaDateString } from '@/lib/utils'
@@ -35,6 +35,27 @@ function topGroups(jobs: PaymentJob[], keyOf: (job: PaymentJob) => string | null
     .slice(0, limit)
 }
 
+/** Lo ganado con cada compañía (los días cuentan para las que pagan por día) */
+function companyGroups(jobs: PaymentJob[]) {
+  const groups = new Map<string, { id: string; name: string; color: string; perDay: boolean; earned: number; count: number; seconds: number; pending: number; dates: Set<string> }>()
+  for (const job of jobs) {
+    if (!job.companyId || !job.company) continue
+    const group = groups.get(job.companyId) ?? {
+      id: job.companyId, name: job.company.name, color: job.company.color, perDay: job.company.payType === 'per_day',
+      earned: 0, count: 0, seconds: 0, pending: 0, dates: new Set<string>(),
+    }
+    group.earned += jobEarned(job)
+    group.count += 1
+    group.seconds += job.duration
+    if (job.paymentStatus === 'pending') group.pending += jobEarned(job)
+    group.dates.add(job.date)
+    groups.set(job.companyId, group)
+  }
+  return [...groups.values()]
+    .map(({ dates, ...g }) => ({ ...g, days: dates.size, rate: ratePerHour(g.earned, g.seconds) }))
+    .sort((a, b) => b.earned - a.earned)
+}
+
 // GET - Resumen del modo por pago: hoy, semana, mes, lo que falta por cobrar,
 // los días de esta semana, las últimas 8 semanas y lo más destacado del mes
 export async function GET() {
@@ -52,10 +73,12 @@ export async function GET() {
     const [rows, pendingRows] = await Promise.all([
       prisma.paymentEntry.findMany({
         where: { userId, completed: true, date: { gte: new Date(`${from}T00:00:00Z`) } },
+        include: jobInclude,
         orderBy: { startTime: 'asc' },
       }),
       prisma.paymentEntry.findMany({
         where: { userId, completed: true, paymentStatus: 'pending' },
+        include: jobInclude,
         orderBy: { date: 'asc' },
       }),
     ])
@@ -92,6 +115,7 @@ export async function GET() {
         weeks,
         topClients: topGroups(monthJobs, j => j.client, 5),
         byMethod: topGroups(monthJobs, j => j.paymentMethod, 7),
+        byCompany: companyGroups(monthJobs),
         bestJob: best,
       },
     })

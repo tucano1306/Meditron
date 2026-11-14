@@ -21,7 +21,7 @@ export const METHOD_ICONS: Record<PaymentMethod, ReactNode> = {
 
 export function PendingPill({ small = false }: { readonly small?: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full bg-amber-100 font-semibold text-amber-800 ring-1 ring-amber-200 ${small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'}`}>
+    <span className={`inline-flex flex-shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-100 font-semibold text-amber-800 ring-1 ring-amber-200 ${small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'}`}>
       <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
       Por cobrar
     </span>

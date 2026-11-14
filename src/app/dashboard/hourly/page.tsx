@@ -21,7 +21,7 @@ import { Calendar, BarChart3, Calculator, Clock, LogOut, Plus, Search, Settings2
 import { describeRule, ruleFor, weekLabel, weekShortLabel, type Company, type OvertimeRules } from '@/lib/companies'
 import { saveCompanyRate } from '@/lib/company-client'
 import { getFloridaDateString } from '@/lib/utils'
-import { refreshCompanies, useCompanies } from '@/hooks/useCompanies'
+import { refreshCompanies, resetCompanies, useCompanies } from '@/hooks/useCompanies'
 
 const COMPANY_STORAGE_KEY = 'meditron_company_id'
 
@@ -246,6 +246,8 @@ export default function HourlyDashboardPage() {
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
+    // Que la siguiente cuenta en este teléfono no vea las compañías de esta
+    resetCompanies()
     router.push('/login')
   }
 

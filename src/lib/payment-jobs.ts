@@ -51,6 +51,17 @@ export interface PaymentJob {
   paymentMethod: PaymentMethod | null
   paymentStatus: PaymentStatus
   paidAt: string | null
+  companyId: string | null
+  /** Compañía que paga el trabajo (ver pay-companies) */
+  company: JobCompany | null
+  /** El pago lo pone la compañía (paga por día): un solo pago por día */
+  autoPay: boolean
+}
+
+export interface JobCompany {
+  name: string
+  color: string
+  payType: 'per_day' | 'per_job' | 'variable'
 }
 
 /** Pago + propina */
@@ -63,9 +74,14 @@ export function ratePerHour(earned: number, seconds: number): number {
   return seconds > 0 ? earned / (seconds / 3600) : 0
 }
 
-/** Nombre del trabajo para mostrar: cliente, número o "Trabajo" */
-export function jobTitle(job: Pick<PaymentJob, 'client' | 'jobNumber'>): string {
-  return job.client || (job.jobNumber ? `Trabajo #${job.jobNumber}` : 'Trabajo')
+/** Nombre del trabajo para mostrar: cliente, compañía, número o "Trabajo" */
+export function jobTitle(job: Pick<PaymentJob, 'client' | 'jobNumber'> & { company?: Pick<JobCompany, 'name'> | null }): string {
+  return job.client || job.company?.name || (job.jobNumber ? `Trabajo #${job.jobNumber}` : 'Trabajo')
+}
+
+/** Registro de un día que la compañía ya pagó en otro registro: suma horas, no dinero */
+export function isCoveredByDayPay(job: Pick<PaymentJob, 'autoPay' | 'amount'>): boolean {
+  return job.autoPay && job.amount === 0
 }
 
 export interface JobTotals {

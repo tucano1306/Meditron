@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { clientNow, parseClientDateTime, getFloridaDateComponents } from '@/lib/utils'
 import { checkStartTime, lastPaymentEndTime } from '@/lib/timer-start'
-import { parseJobInput, serializeJob, withDerivedFields } from '@/lib/payment-store'
+import { jobInclude, parseJobInput, serializeJob, withDerivedFields } from '@/lib/payment-store'
+import { rebalanceDayPay, rebalanceDays, resolveJobCompany } from '@/lib/pay-company-store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,11 @@ export async function POST(request: NextRequest) {
     const start = parseJobInput({ jobNumber: body.jobNumber }, true)
     if (!start.ok) {
       return NextResponse.json({ success: false, error: start.error }, { status: 400 })
+    }
+    // Compañía del trabajo (opcional): se puede cambiar mientras corre
+    const choice = await resolveJobCompany(userId, { companyId: body.companyId }, null)
+    if (!choice.ok) {
+      return NextResponse.json({ success: false, error: choice.error }, { status: 400 })
     }
 
     if (requestedStart) {
@@ -68,6 +74,7 @@ export async function POST(request: NextRequest) {
         startTime: now,
         date: localDate,
         jobNumber: (start.value.jobNumber as string | null | undefined) ?? null,
+        companyId: choice.value.companyId,
         userId
       }
     })
@@ -102,7 +109,8 @@ export async function PUT(request: Request) {
     // Usar la hora UTC del cliente si se envía, sino usar hora actual UTC
     const now = clientNow(body.clientTime)
 
-    if (typeof body.amount !== 'number' || body.amount <= 0) {
+    const autoPay = body.autoPay === true
+    if (!autoPay && (typeof body.amount !== 'number' || body.amount <= 0)) {
       return NextResponse.json(
         { success: false, error: 'Monto inválido' },
         { status: 400 }
@@ -111,6 +119,7 @@ export async function PUT(request: Request) {
 
     // Detalles del trabajo al terminarlo: pago, propina, cliente, notas, método y si ya se cobró
     const details = parseJobInput({
+      autoPay,
       amount: body.amount,
       jobNumber: body.jobNumber,
       vehicle: body.vehicle,
@@ -123,7 +132,6 @@ export async function PUT(request: Request) {
     if (!details.ok) {
       return NextResponse.json({ success: false, error: details.error }, { status: 400 })
     }
-    const amount = details.value.amount as number
     const jobNumber = details.value.jobNumber as string | null | undefined
     const vehicle = details.value.vehicle as string | null | undefined
 
@@ -142,6 +150,13 @@ export async function PUT(request: Request) {
       )
     }
 
+    // Compañía del trabajo y si el pago lo pone ella (paga por día)
+    const choice = await resolveJobCompany(userId, { companyId: body.companyId, autoPay }, activeEntry)
+    if (!choice.ok) {
+      return NextResponse.json({ success: false, error: choice.error }, { status: 400 })
+    }
+    const amount = autoPay ? 0 : details.value.amount as number
+
     // Calcular duración y tarifa por hora
     const duration = Math.floor(
       (now.getTime() - new Date(activeEntry.startTime).getTime()) / 1000
@@ -154,20 +169,26 @@ export async function PUT(request: Request) {
     const floridaEndComponents = getFloridaDateComponents(now)
     const correctDate = new Date(Date.UTC(floridaEndComponents.year, floridaEndComponents.month - 1, floridaEndComponents.day))
 
-    // Actualizar entrada
-    const updatedEntry = await prisma.paymentEntry.update({
-      where: { id: activeEntry.id },
-      data: {
-        ...withDerivedFields(details.value, null),
-        endTime: now,
-        duration,
-        amount,
-        hourlyRate,
-        jobNumber: jobNumber || activeEntry.jobNumber,
-        vehicle: vehicle || activeEntry.vehicle,
-        date: correctDate,
-        completed: true
-      }
+    // Actualizar entrada y repartir el pago del día si la compañía paga por día
+    const updatedEntry = await prisma.$transaction(async tx => {
+      const saved = await tx.paymentEntry.update({
+        where: { id: activeEntry.id },
+        data: {
+          ...withDerivedFields(details.value, null),
+          endTime: now,
+          duration,
+          amount,
+          hourlyRate,
+          jobNumber: jobNumber || activeEntry.jobNumber,
+          vehicle: vehicle || activeEntry.vehicle,
+          date: correctDate,
+          companyId: choice.value.companyId,
+          amountAuto: choice.value.amountAuto,
+          completed: true
+        }
+      })
+      await rebalanceDayPay(tx, userId, saved.companyId, saved.date)
+      return tx.paymentEntry.findUniqueOrThrow({ where: { id: saved.id }, include: jobInclude })
     })
 
     return NextResponse.json({
@@ -175,7 +196,7 @@ export async function PUT(request: Request) {
       data: {
         entry: updatedEntry,
         job: serializeJob(updatedEntry),
-        calculatedHourlyRate: hourlyRate,
+        calculatedHourlyRate: updatedEntry.hourlyRate ?? hourlyRate,
         message: 'Trabajo completado'
       }
     })
@@ -224,6 +245,7 @@ export async function GET() {
           vehicle: activeEntry.vehicle,
           client: activeEntry.client,
           notes: activeEntry.notes,
+          companyId: activeEntry.companyId,
           elapsedSeconds: Math.max(0, elapsedSeconds),
           lastEndTime: await lastPaymentEndTime(userId, activeEntry.id)
         }
@@ -284,6 +306,10 @@ async function handleActiveEntryUpdate(userId: string, body: Record<string, unkn
   if (!details.ok) {
     return NextResponse.json({ success: false, error: details.error }, { status: 400 })
   }
+  const choice = await resolveJobCompany(userId, { companyId: body.companyId }, null)
+  if (!choice.ok) {
+    return NextResponse.json({ success: false, error: choice.error }, { status: 400 })
+  }
 
   const activeEntry = await prisma.paymentEntry.findFirst({
     where: {
@@ -300,11 +326,12 @@ async function handleActiveEntryUpdate(userId: string, body: Record<string, unkn
   }
 
   // Solo los campos que vinieron (parseJobInput ya los validó)
-  const updateData: { jobNumber?: string | null; vehicle?: string | null; client?: string | null; notes?: string | null } = {}
+  const updateData: { jobNumber?: string | null; vehicle?: string | null; client?: string | null; notes?: string | null; companyId?: string | null } = {}
   if (body.jobNumber !== undefined) updateData.jobNumber = details.value.jobNumber as string | null
   if (body.vehicle !== undefined) updateData.vehicle = details.value.vehicle as string | null
   if (body.client !== undefined) updateData.client = details.value.client as string | null
   if (body.notes !== undefined) updateData.notes = details.value.notes as string | null
+  if (body.companyId !== undefined) updateData.companyId = choice.value.companyId
   
   const updatedEntry = await prisma.paymentEntry.update({
     where: { id: activeEntry.id },
@@ -377,8 +404,9 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    await prisma.paymentEntry.delete({
-      where: { id }
+    await prisma.$transaction(async tx => {
+      await tx.paymentEntry.delete({ where: { id } })
+      await rebalanceDays(tx, userId, [{ companyId: entry.companyId, date: entry.date }])
     })
 
     return NextResponse.json({

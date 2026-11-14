@@ -3,12 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Bus, Check, Hash, History, Loader2, Pencil, Play, Smartphone, Square, Undo2, User, X } from 'lucide-react'
-import { formatDuration, formatCurrency } from '@/lib/utils'
+import { formatDuration, formatCurrency, getFloridaDateString } from '@/lib/utils'
 import { formatTime12 } from '@/lib/report-format'
 import { formatHM } from '@/lib/display'
 import { PAYMENT_METHODS, ratePerHour, VEHICLES, type PaymentJob, type PaymentMethod, type PaymentStatus } from '@/lib/payment-jobs'
 import { StartTimePicker } from './StartTimePicker'
 import { METHOD_ICONS, PAY_ACCENT } from './payment/shared'
+import { PayCompanyBar } from './payment/PayCompanyBar'
+import { PayAmountField, plannedAmount, useDayCovered } from './payment/PayAmountField'
+import { paysPerDay, suggestedAmount, type PayCompany } from '@/lib/pay-companies'
 import { useServiceWorker } from '@/hooks/useServiceWorker'
 import { useWakeLock } from '@/hooks/useWakeLock'
 
@@ -21,9 +24,18 @@ const LAST_METHOD_KEY = 'meditron_last_payment_method'
 interface PaymentTimerProps {
   /** Se guardó el trabajo al terminarlo */
   readonly onComplete?: (job: PaymentJob | null) => void
+  /** Compañías del modo por pago (null mientras cargan) */
+  readonly companies: PayCompany[] | null
+  /** Compañía elegida para el trabajo (o la del trabajo en curso) */
+  readonly companyId: string | null
+  readonly onCompanyChange: (companyId: string | null) => void
+  /** Abre las compañías; `create` va directo a agregar una */
+  readonly onManageCompanies: (create?: boolean) => void
 }
 
 interface FinishDraft {
+  /** El pago lo pone la compañía (paga por día) */
+  autoPay: boolean
   amount: string
   tip: string
   client: string
@@ -88,6 +100,7 @@ function InlineField({ icon, label, value, placeholder, mono = false, onSave }: 
 
 interface FinishSheetProps {
   readonly elapsed: number
+  readonly company: PayCompany | null
   readonly initialClient: string
   readonly busy: boolean
   readonly error: string | null
@@ -96,16 +109,28 @@ interface FinishSheetProps {
 }
 
 // Al terminar: cuánto te pagaron y cómo
-function FinishSheet({ elapsed, initialClient, busy, error, onConfirm, onCancel }: FinishSheetProps) {
+function FinishSheet({ elapsed, company, initialClient, busy, error, onConfirm, onCancel }: FinishSheetProps) {
   const [draft, setDraft] = useState<FinishDraft>(() => {
     let lastMethod: PaymentMethod | '' = ''
     try {
       lastMethod = (localStorage.getItem(LAST_METHOD_KEY) as PaymentMethod | null) ?? ''
     } catch { /* sin almacenamiento disponible */ }
-    return { amount: '', tip: '', client: initialClient, notes: '', paymentMethod: lastMethod, paymentStatus: 'paid' }
+    // Con compañía: su forma de pago, su monto y si paga después
+    const suggested = suggestedAmount(company)
+    return {
+      autoPay: paysPerDay(company),
+      amount: suggested && !paysPerDay(company) ? String(suggested) : '',
+      tip: '',
+      client: initialClient,
+      notes: '',
+      paymentMethod: company?.paymentMethod ?? lastMethod,
+      paymentStatus: company?.paysLater ? 'pending' : 'paid',
+    }
   })
   const set = (patch: Partial<FinishDraft>) => setDraft(d => ({ ...d, ...patch }))
-  const amount = toNumber(draft.amount)
+  const covered = useDayCovered(company, getFloridaDateString())
+  const amount = plannedAmount(company, draft.autoPay, toNumber(draft.amount), covered)
+  const canConfirm = (draft.autoPay ? covered !== null : amount > 0) && !busy
   const earned = amount + toNumber(draft.tip)
   const inputClass = 'mt-1 w-full rounded-lg border border-[rgba(55,53,47,0.16)] bg-white px-3 py-2.5 text-[#37352f] placeholder:text-[#b4b4b0] focus:border-[#37352f] focus:outline-none'
 
@@ -113,24 +138,27 @@ function FinishSheet({ elapsed, initialClient, busy, error, onConfirm, onCancel 
     <dialog open aria-label="Terminar trabajo" className="fixed inset-0 z-[9999] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center border-0 bg-transparent p-0 sm:items-center">
       <button type="button" aria-label="Seguir trabajando" className="absolute inset-0 bg-black/50 animate-fade-in-backdrop" onClick={onCancel} />
       <form
-        onSubmit={e => { e.preventDefault(); if (amount > 0 && !busy) onConfirm(draft) }}
+        onSubmit={e => { e.preventDefault(); if (canConfirm) onConfirm(draft) }}
         className="relative flex max-h-[94dvh] w-full max-w-md flex-col rounded-t-3xl bg-white shadow-2xl animate-slide-up-modal sm:rounded-2xl"
       >
         <div className="flex justify-center pt-2 sm:hidden"><span className="h-1 w-10 rounded-full bg-[rgba(55,53,47,0.2)]" /></div>
         <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-5 pt-4">
           <div className="text-center">
-            <div className="text-[17px] font-bold text-[#37352f]">¿Cuánto te pagaron?</div>
+            <div className="text-[17px] font-bold text-[#37352f]">{draft.autoPay && company ? `Día con ${company.name}` : '¿Cuánto te pagaron?'}</div>
             <div className="mt-1 text-[13px] text-[#787774]">Trabajaste <span className="font-mono font-semibold text-[#37352f]">{formatDuration(elapsed)}</span></div>
           </div>
 
           <div className="grid grid-cols-[1.4fr_1fr] gap-3">
-            <label className="block text-[12px] font-semibold text-[#37352f]">
-              Pago
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 mt-0.5 -translate-y-1/2 text-[#9b9a97]">$</span>
-                <input type="number" inputMode="decimal" step="0.01" min="0" value={draft.amount} onChange={e => set({ amount: e.target.value })} placeholder="0.00" className={`${inputClass} pl-7 text-[22px] font-bold tabular-nums`} style={{ fontSize: '22px' }} autoFocus required />
-              </div>
-            </label>
+            <PayAmountField
+              company={company}
+              autoPay={draft.autoPay}
+              amount={draft.amount}
+              covered={covered}
+              onAutoChange={autoPay => set({ autoPay })}
+              onAmountChange={value => set({ amount: value })}
+              large
+              autoFocus={!draft.autoPay && !draft.amount}
+            />
             <label className="block text-[12px] font-semibold text-[#37352f]">
               Propina
               <div className="relative">
@@ -186,8 +214,8 @@ function FinishSheet({ elapsed, initialClient, busy, error, onConfirm, onCancel 
           </div>
 
           <label className="block text-[12px] font-semibold text-[#37352f]">
-            Cliente o descripción <span className="font-normal text-[#9b9a97]">(opcional)</span>
-            <input type="text" value={draft.client} maxLength={80} onChange={e => set({ client: e.target.value })} placeholder="Ej: Hotel Marriott" className={inputClass} style={{ fontSize: '16px' }} />
+            {company ? 'Descripción' : 'Cliente o descripción'} <span className="font-normal text-[#9b9a97]">(opcional)</span>
+            <input type="text" value={draft.client} maxLength={80} onChange={e => set({ client: e.target.value })} placeholder={company ? 'Ej: ruta Miami a Orlando' : 'Ej: Hotel Marriott'} className={inputClass} style={{ fontSize: '16px' }} />
           </label>
           <label className="block text-[12px] font-semibold text-[#37352f]">
             Notas <span className="font-normal text-[#9b9a97]">(opcional)</span>
@@ -203,7 +231,7 @@ function FinishSheet({ elapsed, initialClient, busy, error, onConfirm, onCancel 
           </button>
           <button
             type="submit"
-            disabled={amount <= 0 || busy}
+            disabled={!canConfirm}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-[15px] font-semibold text-white disabled:opacity-50 touch-manipulation active:scale-[0.99]"
             style={{ backgroundColor: PAY_ACCENT }}
           >
@@ -217,7 +245,7 @@ function FinishSheet({ elapsed, initialClient, busy, error, onConfirm, onCancel 
   )
 }
 
-export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
+export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange, onManageCompanies }: Readonly<PaymentTimerProps>) {
   const [isRunning, setIsRunning] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [startTime, setStartTime] = useState<Date | null>(null)
@@ -251,6 +279,8 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
           setElapsedSeconds(data.data.elapsedSeconds)
         }
         setLastEnd(data.data.lastEndTime ? new Date(data.data.lastEndTime) : null)
+        // Con un trabajo en curso se muestra su compañía
+        if (data.data.isRunning) onCompanyChange(data.data.companyId ?? null)
         setJobNumber(data.data.jobNumber ?? '')
         setVehicleType(data.data.vehicle ?? '')
         setClient(data.data.client ?? '')
@@ -259,6 +289,8 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
       }
     }
     loadState()
+    // Solo al abrir: después la compañía la cambia el usuario
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -285,7 +317,7 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
       const res = await fetch('/api/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientTime: new Date().toISOString(), startTime: startAt?.toISOString() }),
+        body: JSON.stringify({ clientTime: new Date().toISOString(), startTime: startAt?.toISOString(), companyId }),
       })
       const data = await res.json()
       if (!data.success) {
@@ -310,7 +342,7 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
     } finally {
       setIsLoading(false)
     }
-  }, [requestWakeLock, releaseWakeLock, startBackgroundTimer])
+  }, [requestWakeLock, releaseWakeLock, startBackgroundTimer, companyId])
 
   const handleFinish = useCallback(async (draft: FinishDraft) => {
     setIsLoading(true)
@@ -324,7 +356,8 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientTime: new Date().toISOString(),
-          amount: toNumber(draft.amount),
+          autoPay: draft.autoPay,
+          amount: draft.autoPay ? undefined : toNumber(draft.amount),
           tip: draft.tip.trim() ? toNumber(draft.tip) : null,
           client: draft.client,
           notes: draft.notes,
@@ -411,6 +444,19 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
     }
   }
 
+  // Compañía: antes de iniciar solo se elige; con un trabajo en curso se le cambia
+  const handleSelectCompany = async (next: string | null) => {
+    if (!isRunning) {
+      onCompanyChange(next)
+      return
+    }
+    const previous = companyId
+    onCompanyChange(next)
+    if (!(await saveActive({ companyId: next ?? '' }))) onCompanyChange(previous)
+  }
+
+  const company = companies?.find(c => c.id === companyId) ?? null
+
   const handleSelectVehicle = (value: string) => {
     const next = vehicleType === value ? '' : value
     setVehicleType(next)
@@ -420,11 +466,22 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-[rgba(55,53,47,0.09)] bg-white shadow-sm">
       {isRunning && <div className="h-1 w-full animate-pulse" style={{ backgroundColor: PAY_ACCENT }} />}
-      <div className="space-y-3 px-4 pb-5 pt-5">
+      <div className="space-y-3 px-4 pb-5 pt-4">
+        {/* Para quién es el trabajo */}
+        <PayCompanyBar
+          companies={companies}
+          value={companyId}
+          onChange={handleSelectCompany}
+          onManage={() => onManageCompanies()}
+          onAdd={() => onManageCompanies(true)}
+          running={isRunning}
+          disabled={isLoading}
+        />
+
         {/* Tiempo */}
         <div className="py-3 text-center">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-[#787774]">
-            {isRunning ? (client || 'Trabajo en curso') : 'Trabajo por pago'}
+            {isRunning ? (client || company?.name || 'Trabajo en curso') : 'Trabajo por pago'}
           </div>
           <div className={`mt-1 font-mono text-[56px] font-bold leading-none tracking-tight tabular-nums transition-colors sm:text-[72px] ${isRunning ? 'text-[#37352f]' : 'text-[rgba(55,53,47,0.3)]'}`}>
             {formatDuration(elapsedSeconds)}
@@ -563,6 +620,7 @@ export function PaymentTimer({ onComplete }: Readonly<PaymentTimerProps>) {
       {finishing && (
         <FinishSheet
           elapsed={elapsedSeconds}
+          company={company}
           initialClient={client}
           busy={isLoading}
           error={finishError}

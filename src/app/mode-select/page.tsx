@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { ArrowRight, Building2, Clock, DollarSign, Loader2, LogOut, Pause, Plus, Settings2 } from 'lucide-react'
 import { CompanyManager } from '@/components/CompanyManager'
-import { refreshCompanies, useCompanies } from '@/hooks/useCompanies'
+import { refreshCompanies, resetCompanies, useCompanies } from '@/hooks/useCompanies'
 import { dateKeyToUTC, overtimeRulesOf, ruleFor, weekShortLabel, type Company, type PayRule } from '@/lib/companies'
 import { formatCurrency, formatDuration, getFloridaDateComponents, getFloridaDateString } from '@/lib/utils'
 import { formatTime12 } from '@/lib/report-format'
@@ -450,6 +450,8 @@ export default function ModeSelectPage() {
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
+    // Que la siguiente cuenta en este teléfono no vea las compañías de esta
+    resetCompanies()
     router.push('/login')
   }
 

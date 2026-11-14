@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Award, Download, Users, Wallet } from 'lucide-react'
+import { Award, Building2, Download, Users, Wallet } from 'lucide-react'
 import { formatCurrency, getFloridaDateString, getMonthName } from '@/lib/utils'
 import { formatHM, formatRange } from '@/lib/display'
 import { formatKeyShort } from '@/lib/report-format'
 import { addDaysToKey } from '@/lib/companies'
 import { jobEarned, jobTitle, methodLabel, ratePerHour, summarizeJobs, type PaymentJob, type PaymentMethod } from '@/lib/payment-jobs'
-import { useFetchData, type JobsResult, type PaymentSummary } from './data'
+import { useFetchData, type CompanyTotals, type JobsResult, type PaymentSummary } from './data'
+import { countLabel } from '@/lib/pay-companies'
 import { METHOD_ICONS, PAY_ACCENT } from './shared'
 
 const DAY_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
@@ -162,6 +163,41 @@ function GroupBars({ title, icon, groups, label }: {
   )
 }
 
+/** Lo ganado con cada compañía en el mes: días o trabajos, $/h y lo que falta por cobrar */
+function CompanyBars({ title, companies }: { readonly title: string; readonly companies: CompanyTotals[] }) {
+  if (companies.length === 0) return null
+  const max = Math.max(1, ...companies.map(c => c.earned))
+  return (
+    <section className="rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-[#37352f]">
+        <Building2 className="h-4 w-4 text-[#787774]" />{title}
+      </div>
+      <div className="space-y-3">
+        {companies.map(company => (
+          <div key={company.id}>
+            <div className="flex items-baseline justify-between gap-2 text-[13px]">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: company.color }} />
+                <span className="truncate font-semibold text-[#37352f]">{company.name}</span>
+              </span>
+              <span className="flex-shrink-0 font-semibold tabular-nums text-[#37352f]">{formatCurrency(company.earned)}</span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[rgba(55,53,47,0.06)]">
+              <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${(company.earned / max) * 100}%`, backgroundColor: company.color }} />
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-2 text-[11px] tabular-nums text-[#787774]">
+              <span>{countLabel(company.perDay ? company.days : company.count, company.perDay)}</span>
+              <span>· {formatHM(company.seconds)}</span>
+              {company.seconds > 0 && <span>· {formatCurrency(company.rate)}/h</span>}
+              {company.pending > 0 && <span className="font-semibold text-amber-700">· te debe {formatCurrency(company.pending)}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function ExportCard() {
   const today = getFloridaDateString()
   const [from, setFrom] = useState(`${today.slice(0, 7)}-01`)
@@ -226,6 +262,7 @@ export function PaymentInsightsPanel({ summary, refreshKey, onOpen }: PaymentIns
         )}
       </section>
 
+      <CompanyBars title={`Compañías de ${monthName.toLowerCase()}`} companies={summary.byCompany ?? []} />
       <GroupBars
         title={`Clientes de ${monthName.toLowerCase()}`}
         icon={<Users className="h-4 w-4 text-[#787774]" />}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
-import { serializeJob } from '@/lib/payment-store'
+import { jobInclude, serializeJob } from '@/lib/payment-store'
 import { jobEarned, methodLabel, ratePerHour, vehicleLabel } from '@/lib/payment-jobs'
 import { csvCell, dayName, formatKeyUS, formatTime12, hoursDecimal, noteText } from '@/lib/report-format'
 
@@ -29,10 +29,11 @@ export async function GET(request: NextRequest) {
         completed: true,
         date: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) },
       },
+      include: jobInclude,
       orderBy: { startTime: 'asc' },
     })
 
-    const header = ['Fecha', 'Día', 'Inicio', 'Fin', 'Horas', 'Cliente', 'Trabajo #', 'Vehículo', 'Pago', 'Propina', 'Total', 'Por hora', 'Método', 'Estado', 'Cobrado el', 'Notas']
+    const header = ['Fecha', 'Día', 'Inicio', 'Fin', 'Horas', 'Compañía', 'Cliente', 'Trabajo #', 'Vehículo', 'Pago', 'Propina', 'Total', 'Por hora', 'Método', 'Estado', 'Cobrado el', 'Notas']
     const lines = rows.map(serializeJob).map(job => {
       const earned = jobEarned(job)
       return [
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
         formatTime12(job.startTime),
         formatTime12(job.endTime),
         hoursDecimal(job.duration),
+        job.company?.name ?? '',
         job.client,
         job.jobNumber,
         vehicleLabel(job.vehicle),

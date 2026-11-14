@@ -13,6 +13,22 @@ export interface GroupTotals {
   rate: number
 }
 
+/** Lo ganado con una compañía en el mes */
+export interface CompanyTotals {
+  id: string
+  name: string
+  color: string
+  perDay: boolean
+  earned: number
+  /** Registros */
+  count: number
+  /** Días distintos trabajados */
+  days: number
+  seconds: number
+  rate: number
+  pending: number
+}
+
 export interface PaymentSummary {
   today: JobTotals & { date: string }
   week: JobTotals & { start: string; end: string }
@@ -22,6 +38,7 @@ export interface PaymentSummary {
   weeks: (JobTotals & { start: string; end: string })[]
   topClients: GroupTotals[]
   byMethod: GroupTotals[]
+  byCompany: CompanyTotals[]
   bestJob: PaymentJob | null
 }
 

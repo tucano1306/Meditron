@@ -9,6 +9,34 @@ import { jobEarned, PAYMENT_METHODS, summarizeJobs, type PaymentJob, type Paymen
 import { useFetchData, type JobsResult } from './data'
 import { JobCard } from './PaymentJobsPanel'
 import { METHOD_ICONS } from './shared'
+import { countLabel } from '@/lib/pay-companies'
+
+interface CollectGroup {
+  key: string
+  label: string
+  color: string | null
+  perDay: boolean
+  jobs: PaymentJob[]
+}
+
+/** Lo que falta por cobrar, agrupado por compañía (o por cliente si no tiene) */
+function groupPending(jobs: PaymentJob[]): CollectGroup[] {
+  const groups = new Map<string, CollectGroup>()
+  for (const job of [...jobs].sort((a, b) => a.date.localeCompare(b.date))) {
+    const key = job.companyId ? `company:${job.companyId}` : `client:${job.client ?? ''}`
+    const group = groups.get(key) ?? {
+      key,
+      label: job.company?.name ?? job.client ?? 'Sin cliente',
+      color: job.company?.color ?? null,
+      perDay: job.company?.payType === 'per_day',
+      jobs: [],
+    }
+    group.jobs.push(job)
+    groups.set(key, group)
+  }
+  // Primero las compañías, luego los clientes sueltos
+  return [...groups.values()].sort((a, b) => Number(Boolean(b.color)) - Number(Boolean(a.color)))
+}
 
 function daysAgo(dateKey: string, today: string): number {
   let days = 0
@@ -38,11 +66,7 @@ export function PaymentCollectPanel({ refreshKey, onOpen, onChanged }: PaymentCo
   const chosenTotal = chosen.reduce((sum, j) => sum + jobEarned(j), 0)
   const oldest = jobs.reduce<string | null>((min, j) => (!min || j.date < min ? j.date : min), null)
 
-  const groups = new Map<string, PaymentJob[]>()
-  for (const job of [...jobs].sort((a, b) => a.date.localeCompare(b.date))) {
-    const key = job.client ?? 'Sin cliente'
-    groups.set(key, [...(groups.get(key) ?? []), job])
-  }
+  const groups = groupPending(jobs)
 
   const toggle = (ids: string[], on: boolean) => {
     setSelected(prev => {
@@ -122,17 +146,19 @@ export function PaymentCollectPanel({ refreshKey, onOpen, onChanged }: PaymentCo
         </button>
       </section>
 
-      {/* Por cliente */}
-      {[...groups.entries()].map(([client, list]) => {
+      {/* Por compañía o cliente */}
+      {groups.map(({ key, label, color, perDay, jobs: list }) => {
         const subtotal = list.reduce((sum, j) => sum + jobEarned(j), 0)
         const allChosen = list.every(j => selected.has(j.id))
+        const units = perDay ? new Set(list.map(j => j.date)).size : list.length
         return (
-          <section key={client} className="space-y-2">
+          <section key={key} className="space-y-2">
             <div className="flex items-center justify-between gap-2 px-1">
               <label className="flex min-w-0 items-center gap-2 text-[13px] font-bold text-[#37352f] touch-manipulation">
                 <input type="checkbox" checked={allChosen} onChange={e => toggle(list.map(j => j.id), e.target.checked)} className="h-4 w-4 accent-amber-600" />
-                <span className="truncate">{client}</span>
-                <span className="font-normal text-[#787774] tabular-nums">· {formatCurrency(subtotal)}</span>
+                {color && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />}
+                <span className="truncate">{label}</span>
+                <span className="flex-shrink-0 font-normal text-[#787774] tabular-nums">· {formatCurrency(subtotal)}{color ? ` · ${countLabel(units, perDay)}` : ''}</span>
               </label>
               <button
                 type="button"
