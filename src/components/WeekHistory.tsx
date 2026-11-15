@@ -2,8 +2,12 @@
 
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatCurrency, formatDuration, getMonthName, parseLocalDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida } from '@/lib/utils'
-import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer, CheckCircle2, AlertTriangle, BadgeCheck } from 'lucide-react'
+import { formatCurrency, formatDuration, getMonthName, parseLocalDate, formatTimeInFlorida, formatShortDateFlorida, formatLongDateFlorida, getFloridaDateString } from '@/lib/utils'
+import { Calendar, ChevronDown, ChevronRight, ChevronLeft, Printer, CheckCircle2, AlertTriangle, BadgeCheck, Hourglass } from 'lucide-react'
+import { getPayPeriod, toDateKey } from '@/lib/companies'
+import { weekPayStatus, type WeekPayStatus } from '@/lib/week-payments'
+import type { PayFilter } from './PayWeeks'
+import { PayStatusPill } from './WeekPayment'
 import { Button } from '@/components/ui/button'
 import { EntryList } from './EntryList'
 import { WeeklyPdfButton } from './WeeklyPdfButton'
@@ -49,9 +53,45 @@ interface WeekHistoryProps {
   readonly refreshTrigger?: number
   /** Solo las semanas y trabajos de esta compañía */
   readonly companyId?: string
+  /** La compañía anota lo que pagó en cada trabajo: se muestra lo que falta cobrar */
+  readonly trackCompanyPaid?: boolean
+  readonly initialFilter?: PayFilter
 }
 
-export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readonly<WeekHistoryProps>) {
+/** Monto de un trabajo según la app (el guardado o, si no hay, por la tarifa) */
+function entryAmount(entry: Entry, hourlyRate: number): number {
+  return entry.calculatedAmount ?? ((entry.duration ?? 0) / 3600) * hourlyRate
+}
+
+/**
+ * Cobro de la semana (de lunes a domingo) con lo que la empresa pagó en cada
+ * trabajo: lo mismo que calcula el aviso "te debe" del panel.
+ */
+function weekStatus(week: WeekData, hourlyRate: number, today: string): WeekPayStatus | null {
+  const completed = week.entries.filter(e => e.duration !== null && e.endTime !== null)
+  if (completed.length === 0) return null
+  const jobs = completed.map(e => ({ amount: entryAmount(e, hourlyRate), companyPaid: e.companyPaid ?? null }))
+  const { end } = getPayPeriod(toDateKey(completed[0].date), 1)
+  const totalPay = jobs.reduce((sum, job) => sum + job.amount, 0)
+  return weekPayStatus({ end, totalPay, totalSeconds: 0, payment: null, entries: jobs }, today, { byJob: true })
+}
+
+const isOwedState = (status: WeekPayStatus | null) => status?.state === 'owed' || status?.state === 'short'
+const isPaidState = (status: WeekPayStatus | null) => status?.state === 'paid' || status?.state === 'short' || status?.state === 'over'
+
+/** Lo que falta cobrar de la semana, con el monto */
+function OwedPill({ status }: { readonly status: WeekPayStatus }) {
+  if (status.state === 'short') return <PayStatusPill status={status} />
+  return (
+    <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+      <Hourglass className="h-2.5 w-2.5" />
+      POR COBRAR {formatCurrency(status.owed)}
+    </span>
+  )
+}
+
+export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId, trackCompanyPaid = false, initialFilter = 'all' }: Readonly<WeekHistoryProps>) {
+  const [filter, setFilter] = useState<PayFilter>(trackCompanyPaid ? initialFilter : 'all')
   const [weeks, setWeeks] = useState<WeekData[]>([])
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -192,10 +232,30 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readon
     }, 250)
   }
 
+  // Lo que falta cobrar (solo si la compañía anota lo que paga en cada trabajo)
+  const today = getFloridaDateString()
+  const statuses = new Map(weeks.map(week => [week.id, trackCompanyPaid ? weekStatus(week, hourlyRate, today) : null]))
+  const owedWeeks = weeks.filter(week => isOwedState(statuses.get(week.id) ?? null))
+  const paidCount = weeks.filter(week => isPaidState(statuses.get(week.id) ?? null)).length
+  const owedTotal = owedWeeks.reduce((sum, week) => sum + (statuses.get(week.id)?.owed ?? 0), 0)
+  const showFilter = trackCompanyPaid && (owedWeeks.length > 0 || paidCount > 0)
+  const filteredWeeks = weeks.filter(week => {
+    const status = statuses.get(week.id) ?? null
+    if (filter === 'owed') return isOwedState(status)
+    if (filter === 'paid') return isPaidState(status)
+    return true
+  })
+  const filters: { value: PayFilter; label: string }[] = [
+    { value: 'all', label: 'Todas' },
+    { value: 'owed', label: owedWeeks.length > 0 ? `Por cobrar (${owedWeeks.length})` : 'Por cobrar' },
+    { value: 'paid', label: 'Pagadas' },
+  ]
+
   // Paginación
-  const totalPages = Math.ceil(weeks.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const paginatedWeeks = weeks.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  const totalPages = Math.max(1, Math.ceil(filteredWeeks.length / ITEMS_PER_PAGE))
+  const page = Math.min(currentPage, totalPages)
+  const startIndex = (page - 1) * ITEMS_PER_PAGE
+  const paginatedWeeks = filteredWeeks.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
   if (isLoading) {
     return (
@@ -254,8 +314,44 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readon
         </div>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
+        {showFilter && (
+          <div className="mb-3 space-y-2">
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-[rgba(55,53,47,0.06)] p-1" role="tablist" aria-label="Filtrar semanas">
+              {filters.map(f => (
+                <button
+                  key={f.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === f.value}
+                  onClick={() => { setFilter(f.value); setCurrentPage(1) }}
+                  className={`rounded-lg py-1.5 text-[12px] font-semibold transition-all touch-manipulation ${filter === f.value ? 'bg-white text-[#37352f] shadow-sm' : 'text-[#787774] hover:text-[#37352f]'}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {filter === 'owed' && owedWeeks.length > 0 && (
+              <>
+                <div className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+                  <span>Falta cobrar</span>
+                  <span className="font-bold tabular-nums">{formatCurrency(owedTotal)}</span>
+                </div>
+                <p className="px-1 text-[12px] text-[#787774]">
+                  Abre la semana y anota en cada trabajo lo que te pagó la empresa.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+        {filteredWeeks.length === 0 && (
+          <div className="py-6 text-center text-[13px] text-[#787774]">
+            {filter === 'owed' ? '¡Todo cobrado! No hay trabajos pendientes de pago.' : 'Todavía no hay semanas con todos sus trabajos pagados.'}
+          </div>
+        )}
         <div className="space-y-2">
           {paginatedWeeks.map((week) => {
+            const payStatus = statuses.get(week.id) ?? null
+            const owedPill = payStatus && isOwedState(payStatus) ? <OwedPill status={payStatus} /> : null
             const completedEntries = week.entries.filter(e => e.duration !== null)
             const paidEntryCount = completedEntries.filter(e => e.companyPaid != null && e.companyPaid > 0).length
             const allPaid = paidEntryCount === completedEntries.length && completedEntries.length > 0
@@ -279,6 +375,9 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readon
                   CORREGIDO
                 </span>
               )
+            } else if (owedPill) {
+              // Lo que falta cobrar ya lo dice su propia etiqueta
+              statusBadge = null
             } else if (allPaid) {
               statusBadge = (
                 <span className="relative inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow overflow-hidden">
@@ -315,6 +414,7 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readon
                     <div className="font-semibold text-sm sm:text-base truncate flex items-center gap-1.5 flex-wrap">
                       Sem {week.weekNumber} - {getMonthName(week.month)}
                       {statusBadge}
+                      {owedPill}
                       {runningEntry && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -371,21 +471,21 @@ export function WeekHistory({ onRefresh, refreshTrigger = 0, companyId }: Readon
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(Math.max(1, page - 1))}
+              disabled={page === 1}
               className="flex items-center gap-1 touch-manipulation"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Anterior</span>
             </Button>
             <span className="text-sm text-gray-500">
-              {currentPage} / {totalPages}
+              {page} / {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
               className="flex items-center gap-1 touch-manipulation"
             >
               <span className="hidden sm:inline">Siguiente</span>

@@ -29,6 +29,10 @@ export interface PayCompany {
   /** Lo que todavía le falta pagarte (pago + propinas) */
   pending: number
   pendingCount: number
+  /** Días distintos con algo por cobrar */
+  pendingDays: number
+  /** Día más antiguo por cobrar (YYYY-MM-DD) */
+  pendingSince: string | null
   /** Trabajos registrados con ella */
   jobCount: number
 }

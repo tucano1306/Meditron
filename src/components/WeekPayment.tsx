@@ -7,6 +7,7 @@ import type { PayPeriodSummary } from '@/lib/pay-periods'
 import { formatKeyShort, hoursDecimal, money } from '@/lib/report-format'
 import { getFloridaDateString } from '@/lib/utils'
 import { weekPayStatus, type PaySummary, type WeekPayStatus } from '@/lib/week-payments'
+import { OwedBanner, plural } from './OwedBanner'
 
 // Pago de cada semana de pago: si la empresa ya pagó, cuánto, y la diferencia
 // con lo que calcula la app.
@@ -409,28 +410,28 @@ export function PaymentsBanner({ company, refreshTrigger = 0, onReview }: Banner
 
   if (!data || (data.owedWeeks === 0 && data.shortWeeks === 0)) return null
 
-  const parts: string[] = []
-  if (data.owedWeeks > 0) parts.push(`${data.owedWeeks} ${data.owedWeeks === 1 ? 'semana sin cobrar' : 'semanas sin cobrar'}`)
-  if (data.shortWeeks > 0) parts.push(`${data.shortWeeks} ${data.shortWeeks === 1 ? 'pagada de menos' : 'pagadas de menos'}`)
-
   return (
-    <button
-      type="button"
-      onClick={onReview}
-      className="relative flex w-full items-center gap-3 overflow-hidden rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-left shadow-sm transition-colors hover:bg-amber-50 animate-card-in touch-manipulation"
-    >
-      <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: company.color }} />
-      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
-        <Banknote className="h-5 w-5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-bold text-amber-900">{company.name} te debe {money(data.owedTotal)}</span>
-        <span className="block text-[12px] text-amber-800">{parts.join(' · ')}</span>
-      </span>
-      <span className="flex flex-shrink-0 items-center gap-0.5 text-[13px] font-semibold text-amber-900">
-        Revisar
-        <ChevronRight className="h-4 w-4" />
-      </span>
-    </button>
+    <OwedBanner
+      color={company.color}
+      name={company.name}
+      amount={money(data.owedTotal)}
+      details={owedDetails(data)}
+      onReview={onReview}
+    />
   )
+}
+
+/** Qué falta cobrar: por semana o, si la empresa paga por trabajo, por trabajo */
+export function owedDetails(data: PaySummary): string[] {
+  const parts: string[] = []
+  if (data.byJob) {
+    if (data.owedJobs > 0) parts.push(plural(data.owedJobs, 'trabajo sin cobrar', 'trabajos sin cobrar'))
+    if (data.shortWeeks > 0) parts.push(plural(data.shortWeeks, 'semana pagada de menos', 'semanas pagadas de menos'))
+  } else {
+    if (data.owedWeeks > 0) parts.push(plural(data.owedWeeks, 'semana sin cobrar', 'semanas sin cobrar'))
+    if (data.shortWeeks > 0) parts.push(plural(data.shortWeeks, 'pagada de menos', 'pagadas de menos'))
+  }
+  // Con más de una semana pendiente ayuda saber desde cuándo
+  if (data.oldestOwed && data.owedWeeks + data.shortWeeks > 1) parts.push(`desde el ${formatKeyShort(data.oldestOwed)}`)
+  return parts
 }

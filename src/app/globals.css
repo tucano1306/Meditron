@@ -382,6 +382,21 @@ html, body {
   animation: pop-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+/* Marca lo que se abrió desde un aviso: se ilumina y se desvanece */
+@keyframes focus-fade {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-focus-fade {
+  animation: focus-fade 2.4s ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pop-in {
     animation: none;

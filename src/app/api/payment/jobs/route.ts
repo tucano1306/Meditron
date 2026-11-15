@@ -5,48 +5,41 @@ import { validateSession } from '@/lib/auth-utils'
 import { jobInclude, parseJobInput, serializeJob, withDerivedFields } from '@/lib/payment-store'
 import { rebalanceDayPay, resolveJobCompany } from '@/lib/pay-company-store'
 import { summarizeJobs } from '@/lib/payment-jobs'
+import { jobSearchOrder, jobSearchWhere, parseJobSearch, refineJobs } from '@/lib/payment-search'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/
+/** Trabajos que se devuelven como máximo */
 const MAX_RESULTS = 500
+/** Trabajos que se revisan para filtrar por monto u ordenar por $/h */
+const MAX_SCAN = 5000
 
-// GET - Trabajos terminados. Filtros: ?from y ?to (YYYY-MM-DD), ?status
-// (paid|pending), ?companyId y ?q (busca en cliente, compañía, número de trabajo y notas)
+// GET - Trabajos terminados con los filtros de la búsqueda (ver payment-search):
+// texto, fechas, cobro, compañías, método, vehículo, propina, monto y orden.
+// Los totales son de todo lo encontrado aunque la lista se corte.
 export async function GET(request: NextRequest) {
   try {
     const authResult = await validateSession()
     if (!authResult.success) return authResult.response
     const userId = authResult.user.id
 
-    const { searchParams } = new URL(request.url)
-    const where: Prisma.PaymentEntryWhereInput = { userId, completed: true }
-    const from = searchParams.get('from')
-    const to = searchParams.get('to')
-    if ((from && DATE_KEY.test(from)) || (to && DATE_KEY.test(to))) {
-      where.date = {
-        ...(from && DATE_KEY.test(from) ? { gte: new Date(`${from}T00:00:00Z`) } : {}),
-        ...(to && DATE_KEY.test(to) ? { lte: new Date(`${to}T00:00:00Z`) } : {}),
-      }
-    }
-    const status = searchParams.get('status')
-    if (status === 'paid' || status === 'pending') where.paymentStatus = status
-    const companyId = searchParams.get('companyId')
-    if (companyId) where.companyId = companyId.slice(0, 40)
-    const q = searchParams.get('q')?.trim().slice(0, 80)
-    if (q) {
-      where.OR = [
-        { client: { contains: q, mode: 'insensitive' } },
-        { jobNumber: { contains: q, mode: 'insensitive' } },
-        { notes: { contains: q, mode: 'insensitive' } },
-        { company: { name: { contains: q, mode: 'insensitive' } } },
-      ]
-    }
-
-    const rows = await prisma.paymentEntry.findMany({ where, include: jobInclude, orderBy: { startTime: 'desc' }, take: MAX_RESULTS })
-    const jobs = rows.map(serializeJob)
-    return NextResponse.json({ success: true, data: { jobs, totals: summarizeJobs(jobs), truncated: rows.length === MAX_RESULTS } })
+    const search = parseJobSearch(new URL(request.url).searchParams)
+    const rows = await prisma.paymentEntry.findMany({
+      where: jobSearchWhere(userId, search),
+      include: jobInclude,
+      orderBy: jobSearchOrder(search),
+      take: MAX_SCAN,
+    })
+    const found = refineJobs(rows.map(serializeJob), search)
+    return NextResponse.json({
+      success: true,
+      data: {
+        jobs: found.slice(0, MAX_RESULTS),
+        totals: summarizeJobs(found),
+        truncated: found.length > MAX_RESULTS || rows.length === MAX_SCAN,
+      },
+    })
   } catch (error) {
     console.error('Error listing payment jobs:', error)
     return NextResponse.json({ success: false, error: 'Error al obtener los trabajos' }, { status: 500 })

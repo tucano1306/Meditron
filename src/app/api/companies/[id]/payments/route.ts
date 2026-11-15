@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { validateSession } from '@/lib/auth-utils'
 import { getUserCompany } from '@/lib/company-store'
 import { getPayPeriods, getSinglePayPeriod, serializePayment } from '@/lib/pay-periods'
-import { dateKeyToUTC, getPayPeriod } from '@/lib/companies'
+import { dateKeyToUTC, getPayPeriod, usesJobsView } from '@/lib/companies'
 import { isDateKey, optionalMoney, optionalText } from '@/lib/input'
 import { summarizePayStatus, weekPayStatus } from '@/lib/week-payments'
 import { getFloridaDateString } from '@/lib/utils'
@@ -26,8 +26,15 @@ export async function GET(_request: NextRequest, context: Context) {
     const company = await getUserCompany(authResult.user.id, id)
     if (!company) return bad('Compañía no encontrada', 404)
 
+    const today = getFloridaDateString()
+    // En la vista por trabajos lo pagado se anota en cada trabajo; si la compañía
+    // no lo anota, no hay con qué comparar y no se avisa de nada
+    const byJob = usesJobsView(company, today)
+    if (byJob && !company.trackCompanyPaid) {
+      return NextResponse.json({ success: true, data: summarizePayStatus([], today, { byJob }) })
+    }
     const periods = await getPayPeriods(authResult.user.id, company)
-    return NextResponse.json({ success: true, data: summarizePayStatus(periods, getFloridaDateString()) })
+    return NextResponse.json({ success: true, data: summarizePayStatus(periods, today, { byJob }) })
   } catch (error) {
     console.error('Error getting payment summary:', error)
     return bad('Error al obtener los pagos', 500)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Briefcase, ChevronLeft, ChevronRight, Loader2, Plus, Search, X } from 'lucide-react'
+import { Briefcase, ChevronLeft, ChevronRight, Loader2, Plus, Search, SlidersHorizontal, X } from 'lucide-react'
 import { formatCurrency, getFloridaDateString, getMonthName } from '@/lib/utils'
 import { formatHM } from '@/lib/display'
 import { formatKeyLong, formatTime12 } from '@/lib/report-format'
@@ -80,9 +80,11 @@ interface PaymentJobsPanelProps {
   readonly averageRate?: number
   readonly onOpen: (job: PaymentJob) => void
   readonly onAdd: () => void
+  /** Abre la pestaña Buscar (con todos los filtros) con este texto */
+  readonly onAdvancedSearch?: (query: string) => void
 }
 
-export function PaymentJobsPanel({ refreshKey, averageRate, onOpen, onAdd }: PaymentJobsPanelProps) {
+export function PaymentJobsPanel({ refreshKey, averageRate, onOpen, onAdd, onAdvancedSearch }: PaymentJobsPanelProps) {
   const today = getFloridaDateString()
   const [view, setView] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }))
   const [query, setQuery] = useState('')
@@ -157,6 +159,15 @@ export function PaymentJobsPanel({ refreshKey, averageRate, onOpen, onAdd }: Pay
               </button>
             )}
           </div>
+          {onAdvancedSearch && (
+            <button
+              type="button"
+              onClick={() => onAdvancedSearch(query.trim())}
+              className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[rgba(55,53,47,0.16)] px-3 py-1.5 text-[12px] font-semibold text-[#37352f] hover:bg-[rgba(55,53,47,0.05)] touch-manipulation"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Más filtros
+            </button>
+          )}
           <div className="grid grid-cols-3 gap-1 rounded-lg bg-[rgba(55,53,47,0.06)] p-1 sm:w-auto" role="tablist" aria-label="Filtrar por cobro">
             {([['all', 'Todos'], ['paid', 'Cobrados'], ['pending', 'Por cobrar']] as const).map(([value, label]) => (
               <button

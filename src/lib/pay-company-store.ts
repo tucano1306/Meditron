@@ -17,6 +17,10 @@ const MAX_RATE = 100_000
 export interface CompanyStats {
   pending: number
   pendingCount: number
+  /** Días distintos con algo por cobrar */
+  pendingDays: number
+  /** Día más antiguo por cobrar (YYYY-MM-DD) */
+  pendingSince: string | null
   jobCount: number
 }
 
@@ -33,6 +37,8 @@ export function serializePayCompany(row: PayCompanyRow, stats?: CompanyStats): P
     archived: row.archived,
     pending: Math.round((stats?.pending ?? 0) * 100) / 100,
     pendingCount: stats?.pendingCount ?? 0,
+    pendingDays: stats?.pendingDays ?? 0,
+    pendingSince: stats?.pendingSince ?? null,
     jobCount: stats?.jobCount ?? 0,
   }
 }
@@ -45,8 +51,9 @@ export async function companyStats(userId: string): Promise<Map<string, CompanyS
       where: { userId, completed: true, companyId: { not: null } },
       _count: { _all: true },
     }),
+    // Por día: así se sabe cuántos días faltan por cobrar y desde cuándo
     prisma.paymentEntry.groupBy({
-      by: ['companyId'],
+      by: ['companyId', 'date'],
       where: { userId, completed: true, companyId: { not: null }, paymentStatus: 'pending' },
       _count: { _all: true },
       _sum: { amount: true, tip: true },
@@ -54,13 +61,22 @@ export async function companyStats(userId: string): Promise<Map<string, CompanyS
   ])
   const stats = new Map<string, CompanyStats>()
   for (const group of all) {
-    if (group.companyId) stats.set(group.companyId, { pending: 0, pendingCount: 0, jobCount: group._count._all })
+    if (group.companyId) {
+      stats.set(group.companyId, { pending: 0, pendingCount: 0, pendingDays: 0, pendingSince: null, jobCount: group._count._all })
+    }
   }
   for (const group of pending) {
     const entry = group.companyId ? stats.get(group.companyId) : undefined
     if (!entry) continue
-    entry.pending = (group._sum.amount ?? 0) + (group._sum.tip ?? 0)
-    entry.pendingCount = group._count._all
+    const amount = (group._sum.amount ?? 0) + (group._sum.tip ?? 0)
+    entry.pending += amount
+    entry.pendingCount += group._count._all
+    // Un día cuyo pago ya se cobró (solo quedan registros en $0) no cuenta
+    if (amount > 0) {
+      const day = group.date.toISOString().slice(0, 10)
+      entry.pendingDays += 1
+      if (!entry.pendingSince || day < entry.pendingSince) entry.pendingSince = day
+    }
   }
   return stats
 }

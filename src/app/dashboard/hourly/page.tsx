@@ -18,7 +18,8 @@ import { WeeklyReportSender } from '@/components/WeeklyReportSender'
 import { ExportCard } from '@/components/ExportCard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar, BarChart3, Calculator, Clock, LogOut, Plus, Search, Settings2 } from 'lucide-react'
-import { describeRule, ruleFor, weekLabel, weekShortLabel, type Company, type OvertimeRules } from '@/lib/companies'
+// Semanas, Resumen y Calc cambian con usesJobsView; Hoy y Buscar son iguales para todas
+import { describeRule, ruleFor, usesJobsView, weekLabel, weekShortLabel, type Company, type OvertimeRules } from '@/lib/companies'
 import { saveCompanyRate } from '@/lib/company-client'
 import { getFloridaDateString } from '@/lib/utils'
 import { refreshCompanies, resetCompanies, useCompanies } from '@/hooks/useCompanies'
@@ -75,18 +76,6 @@ interface DashboardData {
     completedSeconds: number
     rules: OvertimeRules | null
   }
-}
-
-/**
- * Semanas, Resumen y Calc por trabajos: para compañías por hora que registran
- * trabajos con semana de lunes a domingo (esas vistas agrupan así). Las demás
- * las ven por semana de pago (cualquier día de inicio, con overtime) y agregan
- * horas con entrada y salida. Hoy y Buscar son iguales para todas.
- */
-function usesJobsView(company: Company, today: string): boolean {
-  return ruleFor(company, today).payType === 'hourly'
-    && (company.trackJobNumber || company.trackCompanyPaid)
-    && company.weekStartsOn === 1
 }
 
 interface CompanySwitcherProps {
@@ -373,21 +362,19 @@ export default function HourlyDashboardPage() {
           <WeeklyReportSender key={company.id} company={company} variant="banner" refreshTrigger={refreshKey} />
         </div>
 
-        {/* Semanas que la empresa todavía no paga (o pagó de menos) */}
-        {!jobsView && (
-          <div className="mb-6 empty:hidden">
-            <PaymentsBanner
-              key={company.id}
-              company={company}
-              refreshTrigger={refreshKey}
-              onReview={() => {
-                setWeeksView(v => ({ filter: 'owed', n: v.n + 1 }))
-                setTab('weeks')
-                tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }}
-            />
-          </div>
-        )}
+        {/* Lo que la empresa todavía no paga (o pagó de menos), en cualquier compañía */}
+        <div className="mb-6 empty:hidden">
+          <PaymentsBanner
+            key={company.id}
+            company={company}
+            refreshTrigger={refreshKey}
+            onReview={() => {
+              setWeeksView(v => ({ filter: 'owed', n: v.n + 1 }))
+              setTab('weeks')
+              tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
+          />
+        </div>
 
         {/* Pestañas: el contenido se adapta a cómo trabaja la compañía */}
         <div ref={tabsRef} className="scroll-mt-20">
@@ -415,7 +402,7 @@ export default function HourlyDashboardPage() {
 
           <TabsContent value="weeks">
             {jobsView ? (
-              <WeekHistory refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} companyId={company.id} />
+              <WeekHistory key={`${company.id}:${weeksView.n}`} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} companyId={company.id} trackCompanyPaid={company.trackCompanyPaid} initialFilter={weeksView.filter} />
             ) : (
               <PayWeeksList key={`${company.id}:${weeksView.n}`} company={company} refreshTrigger={refreshKey} onRefresh={handleEntryUpdate} initialFilter={weeksView.filter} />
             )}

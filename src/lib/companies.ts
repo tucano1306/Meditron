@@ -133,6 +133,18 @@ export function ruleFor(company: Company, dateKey: string): PayRule {
   return current
 }
 
+/**
+ * Semanas, Resumen y Calc por trabajos: para compañías por hora que registran
+ * trabajos con semana de lunes a domingo (esas vistas agrupan así). Ahí lo que
+ * paga la empresa se anota en cada trabajo, no con un pago por semana. Las
+ * demás se ven por semana de pago (cualquier día de inicio, con overtime).
+ */
+export function usesJobsView(company: Company, today: string): boolean {
+  return ruleFor(company, today).payType === 'hourly'
+    && (company.trackJobNumber || company.trackCompanyPaid)
+    && company.weekStartsOn === 1
+}
+
 export interface OvertimeRules {
   /** $/hora de las horas normales */
   baseRate: number

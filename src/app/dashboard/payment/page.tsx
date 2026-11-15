@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { BarChart3, Briefcase, Check, DollarSign, Hourglass, LogOut, Plus, Undo2 } from 'lucide-react'
+import { BarChart3, Briefcase, Check, DollarSign, Hourglass, LogOut, Plus, Search, Undo2 } from 'lucide-react'
 import { PaymentTimer } from '@/components/PaymentTimer'
 import { resetCompanies } from '@/hooks/useCompanies'
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PaymentSummaryCards } from '@/components/payment/PaymentSummaryCards'
 import { PaymentJobsPanel } from '@/components/payment/PaymentJobsPanel'
-import { PaymentCollectPanel } from '@/components/payment/PaymentCollectPanel'
+import { PaymentCollectPanel, type CollectFocus } from '@/components/payment/PaymentCollectPanel'
+import { PayCompanyOwed } from '@/components/payment/PayCompanyOwed'
 import { PaymentInsightsPanel } from '@/components/payment/PaymentInsightsPanel'
+import { PaymentSearchPanel } from '@/components/payment/PaymentSearchPanel'
 import { PaymentJobSheet, type SheetMode } from '@/components/payment/PaymentJobSheet'
 import { PayCompanyManager } from '@/components/payment/PayCompanyManager'
 import { useFetchData, type PaymentSummary } from '@/components/payment/data'
@@ -20,7 +22,7 @@ import { isCoveredByDayPay, jobEarned, ratePerHour, type PaymentJob } from '@/li
 import type { PayCompany } from '@/lib/pay-companies'
 import { formatCurrency } from '@/lib/utils'
 
-type Tab = 'jobs' | 'collect' | 'insights'
+type Tab = 'jobs' | 'collect' | 'insights' | 'search'
 
 /** Compañía elegida la última vez (se propone al iniciar el siguiente trabajo) */
 const COMPANY_KEY = 'meditron_pay_company'
@@ -54,6 +56,10 @@ export default function PaymentDashboardPage() {
   const [companiesKey, setCompaniesKey] = useState(0)
   const [selectedCompany, setSelectedCompany] = useState<string | null>(savedCompanyId)
   const [manager, setManager] = useState<{ create: boolean } | null>(null)
+  // Compañía cuyo aviso "te debe" se tocó: Cobros baja hasta ella
+  const [collectFocus, setCollectFocus] = useState<CollectFocus | null>(null)
+  // Texto con el que se abre Buscar desde la búsqueda rápida de Trabajos
+  const [searchSeed, setSearchSeed] = useState<{ q: string; nonce: number } | null>(null)
 
   const { data: summary } = useFetchData<PaymentSummary>(status === 'authenticated' ? `/api/payment/summary?r=${refreshKey}` : null)
   const { data: companies } = useFetchData<PayCompany[]>(status === 'authenticated' ? `/api/payment/companies?r=${companiesKey}-${refreshKey}` : null)
@@ -103,6 +109,17 @@ export default function PaymentDashboardPage() {
   const goToCollect = () => {
     setTab('collect')
     tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const openSearch = (q: string) => {
+    setSearchSeed(prev => ({ q, nonce: (prev?.nonce ?? 0) + 1 }))
+    setTab('search')
+    tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const reviewCompany = (id: string) => {
+    setCollectFocus(prev => ({ companyId: id, nonce: (prev?.nonce ?? 0) + 1 }))
+    goToCollect()
   }
 
   const handleLogout = async () => {
@@ -180,6 +197,9 @@ export default function PaymentDashboardPage() {
           </div>
         )}
 
+        {/* Lo que te debe cada compañía, como en Por Hora */}
+        <PayCompanyOwed companies={companies} onReview={reviewCompany} />
+
         <div ref={tabsRef} className="scroll-mt-20">
           <Tabs value={tab} onValueChange={value => setTab(value as Tab)} className="w-full">
             <TabsList className="mb-5 flex h-auto w-full gap-0.5 rounded-xl border border-[rgba(55,53,47,0.09)] bg-white p-1 shadow-sm">
@@ -198,6 +218,10 @@ export default function PaymentDashboardPage() {
                 <BarChart3 className="h-4 w-4" />
                 <span>Resumen</span>
               </TabsTrigger>
+              <TabsTrigger value="search" className={tabTriggerClass}>
+                <Search className="h-4 w-4" />
+                <span>Buscar</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="jobs">
@@ -206,13 +230,24 @@ export default function PaymentDashboardPage() {
                 averageRate={summary?.month.rate}
                 onOpen={job => setSheet({ kind: 'view', job })}
                 onAdd={() => setSheet({ kind: 'create' })}
+                onAdvancedSearch={openSearch}
               />
             </TabsContent>
             <TabsContent value="collect">
-              <PaymentCollectPanel refreshKey={refreshKey} onOpen={job => setSheet({ kind: 'view', job })} onChanged={handleChanged} />
+              <PaymentCollectPanel refreshKey={refreshKey} focus={collectFocus} onOpen={job => setSheet({ kind: 'view', job })} onChanged={handleChanged} />
             </TabsContent>
             <TabsContent value="insights">
               {summary && <PaymentInsightsPanel summary={summary} refreshKey={refreshKey} onOpen={job => setSheet({ kind: 'view', job })} />}
+            </TabsContent>
+            <TabsContent value="search">
+              <PaymentSearchPanel
+                key={searchSeed?.nonce ?? 0}
+                refreshKey={refreshKey}
+                companies={companies}
+                averageRate={summary?.month.rate}
+                initialQuery={searchSeed?.q}
+                onOpen={job => setSheet({ kind: 'view', job })}
+              />
             </TabsContent>
           </Tabs>
         </div>

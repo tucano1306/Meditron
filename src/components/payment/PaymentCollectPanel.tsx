@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, CheckCircle2, Hourglass, Loader2 } from 'lucide-react'
 import { formatCurrency, getFloridaDateString } from '@/lib/utils'
 import { formatKeyShort } from '@/lib/report-format'
@@ -44,14 +44,21 @@ function daysAgo(dateKey: string, today: string): number {
   return days
 }
 
+/** Compañía a mostrar al abrir Cobros desde su aviso; `nonce` cambia en cada toque */
+export interface CollectFocus {
+  companyId: string
+  nonce: number
+}
+
 interface PaymentCollectPanelProps {
   readonly refreshKey: number
+  readonly focus?: CollectFocus | null
   readonly onOpen: (job: PaymentJob) => void
   /** Se cobraron (o se deshizo el cobro de) trabajos; `undo` revierte */
   readonly onChanged: (message: string, undo?: () => Promise<void>) => void
 }
 
-export function PaymentCollectPanel({ refreshKey, onOpen, onChanged }: PaymentCollectPanelProps) {
+export function PaymentCollectPanel({ refreshKey, focus = null, onOpen, onChanged }: PaymentCollectPanelProps) {
   const today = getFloridaDateString()
   const { data, loading } = useFetchData<JobsResult>(`/api/payment/jobs?status=pending&r=${refreshKey}`)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -67,6 +74,18 @@ export function PaymentCollectPanel({ refreshKey, onOpen, onChanged }: PaymentCo
   const oldest = jobs.reduce<string | null>((min, j) => (!min || j.date < min ? j.date : min), null)
 
   const groups = groupPending(jobs)
+  const focusKey = focus ? `company:${focus.companyId}` : null
+
+  // Al llegar desde el aviso de una compañía, se baja hasta su grupo (una vez por toque)
+  const sections = useRef(new Map<string, HTMLElement>())
+  const scrolledFor = useRef<number | null>(null)
+  useEffect(() => {
+    if (!focus || !data || scrolledFor.current === focus.nonce) return
+    const section = sections.current.get(`company:${focus.companyId}`)
+    if (!section) return
+    scrolledFor.current = focus.nonce
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [focus, data])
 
   const toggle = (ids: string[], on: boolean) => {
     setSelected(prev => {
@@ -151,8 +170,19 @@ export function PaymentCollectPanel({ refreshKey, onOpen, onChanged }: PaymentCo
         const subtotal = list.reduce((sum, j) => sum + jobEarned(j), 0)
         const allChosen = list.every(j => selected.has(j.id))
         const units = perDay ? new Set(list.map(j => j.date)).size : list.length
+        const focused = key === focusKey
         return (
-          <section key={key} className="space-y-2">
+          <section
+            key={key}
+            ref={el => {
+              if (el) sections.current.set(key, el)
+              else sections.current.delete(key)
+            }}
+            className="relative isolate scroll-mt-24 space-y-2"
+          >
+            {focused && focus && (
+              <span key={focus.nonce} aria-hidden className="pointer-events-none absolute -inset-2 -z-10 rounded-2xl bg-amber-100/60 ring-2 ring-amber-400 animate-focus-fade" />
+            )}
             <div className="flex items-center justify-between gap-2 px-1">
               <label className="flex min-w-0 items-center gap-2 text-[13px] font-bold text-[#37352f] touch-manipulation">
                 <input type="checkbox" checked={allChosen} onChange={e => toggle(list.map(j => j.id), e.target.checked)} className="h-4 w-4 accent-amber-600" />
