@@ -6,8 +6,9 @@ import { PAY_ACCENT } from './shared'
 
 // Para quién es el trabajo: las compañías del modo por pago en fichas que se
 // tocan. La elegida decide cuánto se anota al terminar (por día o por trabajo).
-// Siempre hay una elegida; "Sin compañía" solo aparece en un trabajo de antes
-// que se empezó sin compañía (para que se vea tal cual y se le pueda poner una).
+// Siempre hay una elegida, y tocarla otra vez abre su configuración. "Sin
+// compañía" solo aparece en un trabajo de antes que se empezó sin compañía
+// (para que se vea tal cual y se le pueda poner una).
 
 interface PayCompanyBarProps {
   /** null mientras cargan */
@@ -16,12 +17,14 @@ interface PayCompanyBarProps {
   readonly onChange: (companyId: string | null) => void
   readonly onManage: () => void
   readonly onAdd: () => void
+  /** Abre la configuración de una compañía */
+  readonly onEdit: (companyId: string) => void
   /** Hay un trabajo en curso: la ficha cambia la compañía de ese trabajo */
   readonly running?: boolean
   readonly disabled?: boolean
 }
 
-export function PayCompanyBar({ companies, value, onChange, onManage, onAdd, running = false, disabled = false }: PayCompanyBarProps) {
+export function PayCompanyBar({ companies, value, onChange, onManage, onAdd, onEdit, running = false, disabled = false }: PayCompanyBarProps) {
   if (companies === null) {
     return <div className="h-[58px] animate-pulse rounded-xl bg-[rgba(55,53,47,0.04)]" />
   }
@@ -74,13 +77,20 @@ export function PayCompanyBar({ companies, value, onChange, onManage, onAdd, run
               type="button"
               role="radio"
               aria-checked={active}
+              aria-label={active ? `${company.name}: configurar` : undefined}
+              title={active ? 'Toca para configurar' : undefined}
               disabled={disabled}
-              onClick={() => { if (!active) onChange(company.id) }}
-              className={chip(active)}
+              onClick={() => (active ? onEdit(company.id) : onChange(company.id))}
+              className={`group ${chip(active)}`}
             >
               <span className="flex w-full items-center gap-1.5">
                 <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full ring-2 ring-white/60" style={{ backgroundColor: company.color }} />
-                <span className="truncate text-[13px] font-semibold">{company.name}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{company.name}</span>
+                {active && (
+                  <span className="-mr-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors group-hover:bg-white/20 group-hover:text-white">
+                    <Settings2 className="h-3 w-3" />
+                  </span>
+                )}
               </span>
               <span className={`mt-0.5 truncate text-[11px] tabular-nums ${active ? 'text-white/70' : 'text-[#787774]'}`}>{describePay(company)}</span>
             </button>

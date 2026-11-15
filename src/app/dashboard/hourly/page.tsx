@@ -85,10 +85,13 @@ interface CompanySwitcherProps {
   readonly onChange: (companyId: string) => void
   readonly runningCompanyId: string | null
   readonly onManage: () => void
+  /** Abre la configuración de una compañía */
+  readonly onEdit: (companyId: string) => void
 }
 
-// Elige qué compañía se ve (y con cuál se inicia el próximo trabajo)
-function CompanySwitcher({ companies, value, onChange, runningCompanyId, onManage }: CompanySwitcherProps) {
+// Elige qué compañía se ve (y con cuál se inicia el próximo trabajo). Tocar la
+// que ya está elegida abre su configuración.
+function CompanySwitcher({ companies, value, onChange, runningCompanyId, onManage, onEdit }: CompanySwitcherProps) {
   const today = getFloridaDateString()
   return (
     <div className="space-y-2">
@@ -112,11 +115,18 @@ function CompanySwitcher({ companies, value, onChange, runningCompanyId, onManag
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => onChange(company.id)}
-              className={`relative overflow-hidden rounded-xl pl-4 pr-3 py-3 text-left transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white shadow-sm' : 'bg-white text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.04)]'}`}
+              aria-label={active ? `${company.name}: configurar` : undefined}
+              title={active ? 'Toca para configurar' : undefined}
+              onClick={() => (active ? onEdit(company.id) : onChange(company.id))}
+              className={`group relative overflow-hidden rounded-xl pl-4 pr-3 py-3 text-left transition-[background-color,transform] active:scale-[0.98] touch-manipulation ${active ? 'bg-[#37352f] text-white shadow-sm hover:bg-[#2f2d28]' : 'bg-white text-[#37352f] border border-[rgba(55,53,47,0.16)] hover:bg-[rgba(55,53,47,0.04)]'}`}
             >
               <span className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: company.color }} />
-              <div className="text-[14px] font-semibold leading-tight truncate">{company.name}</div>
+              {active && (
+                <span className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors group-hover:bg-white/20 group-hover:text-white">
+                  <Settings2 className="h-3.5 w-3.5" />
+                </span>
+              )}
+              <div className={`text-[14px] font-semibold leading-tight truncate ${active ? 'pr-7' : ''}`}>{company.name}</div>
               <div className={`text-[11px] mt-0.5 ${active ? 'text-white/70' : 'text-[#787774]'}`}>
                 {weekShortLabel(company.weekStartsOn)} · {describeRule(ruleFor(company, today))}
               </div>
@@ -142,7 +152,8 @@ export default function HourlyDashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [managerOpen, setManagerOpen] = useState(false)
+  // Hoja de compañías: la lista o, al tocar la elegida, su configuración
+  const [manager, setManager] = useState<{ editId?: string } | null>(null)
   // Pestaña abierta y filtro de semanas (el aviso de pagos lleva a "Por cobrar")
   const [tab, setTab] = useState('today')
   const [weeksView, setWeeksView] = useState<{ filter: PayFilter; n: number }>({ filter: 'all', n: 0 })
@@ -290,7 +301,8 @@ export default function HourlyDashboardPage() {
             value={company.id}
             onChange={handleCompanyChange}
             runningCompanyId={data.runningCompanyId}
-            onManage={() => setManagerOpen(true)}
+            onManage={() => setManager({})}
+            onEdit={id => setManager({ editId: id })}
           />
         </section>
 
@@ -408,10 +420,11 @@ export default function HourlyDashboardPage() {
         </footer>
       </div>
 
-      {managerOpen && companies && (
+      {manager && companies && (
         <CompanyManager
           companies={companies}
-          onClose={() => setManagerOpen(false)}
+          editId={manager.editId}
+          onClose={() => setManager(null)}
           onChanged={handleEntryUpdate}
         />
       )}

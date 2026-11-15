@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Archive, ArchiveRestore, ArrowLeft, Briefcase, Building2, CalendarDays, Check, ChevronRight, Loader2, Plus, Shuffle, Trash2, X,
@@ -18,6 +18,8 @@ interface PayCompanyManagerProps {
   readonly companies: PayCompany[]
   /** Abre directamente el formulario de una compañía nueva */
   readonly startCreating?: boolean
+  /** Abre directamente la configuración de esta compañía */
+  readonly editId?: string
   readonly onClose: () => void
   /** Se creó o cambió una compañía; `created` es la nueva */
   readonly onChanged: (message: string, created?: PayCompany) => void
@@ -453,8 +455,18 @@ function CompanyRow({ company, onOpen }: { readonly company: PayCompany; readonl
   )
 }
 
-export function PayCompanyManager({ companies, startCreating = false, onClose, onChanged }: PayCompanyManagerProps) {
-  const [view, setView] = useState<View>({ mode: startCreating || companies.length === 0 ? 'create' : 'list' })
+export function PayCompanyManager({ companies, startCreating = false, editId, onClose, onChanged }: PayCompanyManagerProps) {
+  const [view, setView] = useState<View>(() => {
+    if (editId && companies.some(c => c.id === editId)) return { mode: 'edit', id: editId }
+    return { mode: startCreating || companies.length === 0 ? 'create' : 'list' }
+  })
+
+  // Escape cierra la hoja
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
   const editing = view.mode === 'edit' ? companies.find(c => c.id === view.id) : undefined
 
   let title = 'Compañías'

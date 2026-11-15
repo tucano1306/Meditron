@@ -31,6 +31,8 @@ interface PaymentTimerProps {
   readonly onCompanyChange: (companyId: string | null) => void
   /** Abre las compañías; `create` va directo a agregar una */
   readonly onManageCompanies: (create?: boolean) => void
+  /** Abre la configuración de una compañía (al tocar la elegida) */
+  readonly onEditCompany: (companyId: string) => void
 }
 
 interface FinishDraft {
@@ -245,7 +247,7 @@ function FinishSheet({ elapsed, company, initialClient, busy, error, onConfirm, 
   )
 }
 
-export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange, onManageCompanies }: Readonly<PaymentTimerProps>) {
+export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange, onManageCompanies, onEditCompany }: Readonly<PaymentTimerProps>) {
   const [isRunning, setIsRunning] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [startTime, setStartTime] = useState<Date | null>(null)
@@ -474,6 +476,7 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
           onChange={handleSelectCompany}
           onManage={() => onManageCompanies()}
           onAdd={() => onManageCompanies(true)}
+          onEdit={onEditCompany}
           running={isRunning}
           disabled={isLoading}
         />

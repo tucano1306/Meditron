@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Plus, ChevronRight, ArrowLeft, Archive, ArchiveRestore, Trash2, Check, Coffee } from 'lucide-react'
 import {
@@ -19,6 +19,8 @@ interface CompanyManagerProps {
   readonly onChanged: () => void
   /** Abre directamente el formulario de nueva compañía */
   readonly startCreating?: boolean
+  /** Abre directamente la configuración de esta compañía */
+  readonly editId?: string
 }
 
 type View = { mode: 'list' } | { mode: 'create' } | { mode: 'edit'; id: string }
@@ -510,9 +512,19 @@ function CompanyRow({ company, onOpen }: { readonly company: Company; readonly o
 }
 
 /** Hoja para ver, crear y configurar las compañías del usuario. */
-export function CompanyManager({ companies, onClose, onChanged, startCreating = false }: CompanyManagerProps) {
-  // Se abre solo al tocar "Configurar" (nunca en el servidor), así que ya hay document
-  const [view, setView] = useState<View>({ mode: startCreating ? 'create' : 'list' })
+export function CompanyManager({ companies, onClose, onChanged, startCreating = false, editId }: CompanyManagerProps) {
+  // Se abre solo al tocar "Configurar" o una compañía (nunca en el servidor), así que ya hay document
+  const [view, setView] = useState<View>(() => {
+    if (editId && companies.some(c => c.id === editId)) return { mode: 'edit', id: editId }
+    return { mode: startCreating ? 'create' : 'list' }
+  })
+
+  // Escape cierra la hoja
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const afterChange = async () => {
     await refreshCompanies()

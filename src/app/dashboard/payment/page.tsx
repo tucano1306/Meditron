@@ -69,7 +69,7 @@ export default function PaymentDashboardPage() {
   // Compañías: la elegida para el próximo trabajo y la hoja para configurarlas
   const [companiesKey, setCompaniesKey] = useState(0)
   const [selectedCompany, setSelectedCompany] = useState<string | null>(savedCompanyId)
-  const [manager, setManager] = useState<{ create: boolean } | null>(null)
+  const [manager, setManager] = useState<{ create: boolean; editId?: string } | null>(null)
   // Compañía cuyo aviso "te debe" se tocó: Cobros baja hasta ella
   const [collectFocus, setCollectFocus] = useState<CollectFocus | null>(null)
   // Texto con el que se abre Buscar desde la búsqueda rápida de Trabajos
@@ -161,6 +161,7 @@ export default function PaymentDashboardPage() {
           companyId={companyId}
           onCompanyChange={changeCompany}
           onManageCompanies={create => setManager({ create: Boolean(create) })}
+          onEditCompany={id => setManager({ create: false, editId: id })}
         />
 
         {/* Un trabajo hecho sin cronómetro */}
@@ -258,6 +259,7 @@ export default function PaymentDashboardPage() {
         <PayCompanyManager
           companies={companies}
           startCreating={manager.create}
+          editId={manager.editId}
           onClose={() => setManager(null)}
           onChanged={(text, created) => {
             setCompaniesKey(k => k + 1)
