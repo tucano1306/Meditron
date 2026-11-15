@@ -279,8 +279,8 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
           setElapsedSeconds(data.data.elapsedSeconds)
         }
         setLastEnd(data.data.lastEndTime ? new Date(data.data.lastEndTime) : null)
-        // Con un trabajo en curso se muestra su compañía
-        if (data.data.isRunning) onCompanyChange(data.data.companyId ?? null)
+        // Con un trabajo en curso se muestra su compañía ('' = empezado sin compañía)
+        if (data.data.isRunning) onCompanyChange(data.data.companyId ?? '')
         setJobNumber(data.data.jobNumber ?? '')
         setVehicleType(data.data.vehicle ?? '')
         setClient(data.data.client ?? '')

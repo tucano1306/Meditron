@@ -6,6 +6,8 @@ import { PAY_ACCENT } from './shared'
 
 // Para quién es el trabajo: las compañías del modo por pago en fichas que se
 // tocan. La elegida decide cuánto se anota al terminar (por día o por trabajo).
+// Siempre hay una elegida; "Sin compañía" solo aparece en un trabajo de antes
+// que se empezó sin compañía (para que se vea tal cual y se le pueda poner una).
 
 interface PayCompanyBarProps {
   /** null mientras cargan */
@@ -73,7 +75,7 @@ export function PayCompanyBar({ companies, value, onChange, onManage, onAdd, run
               role="radio"
               aria-checked={active}
               disabled={disabled}
-              onClick={() => onChange(active ? null : company.id)}
+              onClick={() => { if (!active) onChange(company.id) }}
               className={chip(active)}
             >
               <span className="flex w-full items-center gap-1.5">
@@ -84,17 +86,12 @@ export function PayCompanyBar({ companies, value, onChange, onManage, onAdd, run
             </button>
           )
         })}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={value === null}
-          disabled={disabled}
-          onClick={() => onChange(null)}
-          className={chip(value === null)}
-        >
-          <span className="text-[13px] font-semibold">Sin compañía</span>
-          <span className={`mt-0.5 text-[11px] ${value === null ? 'text-white/70' : 'text-[#787774]'}`}>Escribes el pago</span>
-        </button>
+        {value === null && (
+          <span role="radio" aria-checked className={chip(true)}>
+            <span className="text-[13px] font-semibold">Sin compañía</span>
+            <span className="mt-0.5 text-[11px] text-white/70">Toca una para ponérsela</span>
+          </span>
+        )}
         <button
           type="button"
           onClick={onAdd}

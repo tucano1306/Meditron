@@ -36,6 +36,13 @@ function savedCompanyId(): string | null {
   }
 }
 
+function pickCompanyId(companies: PayCompany[] | null, selected: string | null): string | null {
+  if (selected === '') return null
+  if (!companies) return selected
+  if (selected && companies.some(c => c.id === selected)) return selected
+  return companies.find(c => !c.archived)?.id ?? null
+}
+
 /** La hoja se vuelve a montar al cambiar de trabajo */
 function sheetKey(sheet: SheetMode): string {
   if (sheet.kind === 'create') return 'create'
@@ -70,8 +77,9 @@ export default function PaymentDashboardPage() {
 
   const { data: summary } = useFetchData<PaymentSummary>(status === 'authenticated' ? `/api/payment/summary?r=${refreshKey}` : null)
   const { data: companies } = useFetchData<PayCompany[]>(status === 'authenticated' ? `/api/payment/companies?r=${companiesKey}-${refreshKey}` : null)
-  // Si la compañía guardada ya no existe, no se propone ninguna
-  const companyId = companies && selectedCompany && !companies.some(c => c.id === selectedCompany) ? null : selectedCompany
+  // Siempre hay una compañía elegida: la guardada o, si no hay o ya no existe,
+  // la primera activa. '' = un trabajo en curso que se empezó sin compañía.
+  const companyId = pickCompanyId(companies, selectedCompany)
 
   const changeCompany = useCallback((id: string | null) => {
     setSelectedCompany(id)
@@ -101,6 +109,8 @@ export default function PaymentDashboardPage() {
 
   const handleTimerComplete = useCallback((job: PaymentJob | null) => {
     refresh()
+    // Terminó un trabajo empezado sin compañía: el próximo vuelve a tener una
+    setSelectedCompany(prev => (prev === '' ? savedCompanyId() : prev))
     if (!job) {
       setToast({ text: 'Trabajo guardado' })
       return

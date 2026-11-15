@@ -345,7 +345,7 @@ function JobForm({ initial, companies, jobId, busy, error, submitLabel, onSubmit
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  onClick={() => pickCompany(active ? null : c)}
+                  onClick={() => { if (!active) pickCompany(c) }}
                   className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors touch-manipulation ${active ? 'bg-[#37352f] text-white' : 'bg-[rgba(55,53,47,0.06)] text-[#37352f] hover:bg-[rgba(55,53,47,0.12)]'}`}
                 >
                   <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
@@ -353,15 +353,12 @@ function JobForm({ initial, companies, jobId, busy, error, submitLabel, onSubmit
                 </button>
               )
             })}
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!draft.companyId}
-              onClick={() => pickCompany(null)}
-              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors touch-manipulation ${!draft.companyId ? 'bg-[#37352f] text-white' : 'bg-[rgba(55,53,47,0.06)] text-[#787774] hover:bg-[rgba(55,53,47,0.12)]'}`}
-            >
-              Sin compañía
-            </button>
+            {/* Solo en trabajos de antes guardados sin compañía */}
+            {!draft.companyId && (
+              <span role="radio" aria-checked className="rounded-full bg-[#37352f] px-3 py-1.5 text-[12px] font-semibold text-white">
+                Sin compañía
+              </span>
+            )}
           </div>
           {company && <p className="mt-1.5 text-[11px] text-[#787774]">{describePay(company)} · {company.paysLater ? 'paga después' : 'paga al terminar'}</p>}
         </section>
