@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Building2, Hourglass, KeyRound, Loader2, ShieldCheck, UserX } from 'lucide-react'
+import { ArrowLeft, Building2, Hourglass, KeyRound, Loader2, ShieldCheck, UserX } from 'lucide-react'
 import { DAY_NAMES } from '@/lib/companies'
 import type { OrgMembership } from '@/lib/org-shared'
 import { AdminPanel } from '@/components/team/AdminPanel'
@@ -157,7 +157,8 @@ export default function TeamPage() {
     <div className="min-h-[100dvh] bg-[#fbfbfa] font-notion">
       <header className="sticky top-0 z-20 border-b border-[rgba(55,53,47,0.07)] bg-[#fbfbfa]/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
-          <button type="button" onClick={() => router.push('/mode-select')} aria-label="Volver al inicio" className="-ml-1.5 flex items-center gap-2 rounded-[6px] px-1.5 py-1 transition-colors hover:bg-[rgba(55,53,47,0.08)]">
+          <button type="button" onClick={() => router.push('/settings')} aria-label="Volver a Configuración" title="Volver a Configuración" className="-ml-1.5 flex items-center gap-2 rounded-[6px] px-1.5 py-1 transition-colors hover:bg-[rgba(55,53,47,0.08)]">
+            <ArrowLeft className="h-4 w-4 text-[#787774]" />
             <span className="flex h-6 w-6 items-center justify-center rounded bg-[#37352f]"><Building2 className="h-3.5 w-3.5 text-white" /></span>
             <span className="text-[14px] font-semibold text-[#37352f]">Empresa</span>
           </button>

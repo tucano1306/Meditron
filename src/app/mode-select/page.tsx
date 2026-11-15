@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
-import { ArrowRight, Building2, Clock, DollarSign, Loader2, LogOut, Pause, Plus, Settings2 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { ArrowRight, Loader2, Pause, Plus, Settings2 } from 'lucide-react'
 import { CompanyManager } from '@/components/CompanyManager'
-import { refreshCompanies, resetCompanies, useCompanies } from '@/hooks/useCompanies'
+import { refreshCompanies, useCompanies } from '@/hooks/useCompanies'
+import { AppTopBar } from '@/components/AppTopBar'
 import { dateKeyToUTC, overtimeRulesOf, ruleFor, weekShortLabel, type Company, type PayRule } from '@/lib/companies'
 import { formatCurrency, formatDuration, getFloridaDateComponents, getFloridaDateString } from '@/lib/utils'
 import { formatTime12 } from '@/lib/report-format'
@@ -440,21 +441,6 @@ export default function ModeSelectPage() {
     } catch { /* sin almacenamiento */ }
   }, [status, router])
 
-  const openPaymentMode = () => {
-    setOpening('payment')
-    try {
-      localStorage.setItem(MODE_STORAGE_KEY, 'payment')
-    } catch { /* sin almacenamiento disponible */ }
-    router.push('/dashboard/payment')
-  }
-
-  const handleLogout = async () => {
-    await signOut({ redirect: false })
-    // Que la siguiente cuenta en este teléfono no vea las compañías de esta
-    resetCompanies()
-    router.push('/login')
-  }
-
   const userName = session?.user?.name || session?.user?.email?.split('@')[0] || ''
   const firstName = userName.split(/\s+/)[0]
   const activeCompanies = companies?.filter(c => !c.archived) ?? null
@@ -485,35 +471,7 @@ export default function ModeSelectPage() {
       />
 
       {/* Topbar */}
-      <header className="sticky top-0 z-20 border-b border-[rgba(55,53,47,0.07)] bg-[#fbfbfa]/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#37352f] shadow-sm">
-              <Clock className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-[15px] font-semibold tracking-tight text-[#37352f]">Meditron</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {userName && (
-              <div className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#37352f] text-[11px] font-bold text-white">
-                  {initialsOf(userName)}
-                </span>
-                <span className="hidden text-[13px] font-medium text-[#37352f] sm:inline">{userName}</span>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] text-[#787774] transition-colors hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352f]"
-              aria-label="Cerrar sesión"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Salir</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppTopBar mode="hourly" />
 
       <main className="relative mx-auto max-w-3xl px-4 pb-16 pt-10 sm:pt-14">
         {status === 'authenticated' ? (
@@ -588,49 +546,6 @@ export default function ModeSelectPage() {
               </>
             )}
           </div>
-        </section>
-
-        {/* Otro modo */}
-        <section className="mt-10">
-          <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-[#787774]">Otro modo</h2>
-          <button
-            type="button"
-            onClick={openPaymentMode}
-            className="group flex w-full items-center gap-4 rounded-2xl border border-[rgba(55,53,47,0.09)] bg-white p-4 text-left shadow-[0_1px_2px_rgba(15,15,15,0.04)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-16px_rgba(15,15,15,0.25)] animate-card-in touch-manipulation"
-            style={{ animationDelay: '320ms' }}
-          >
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[rgba(15,123,108,0.1)] text-[#0f7b6c] transition-transform duration-200 group-hover:scale-105">
-              <DollarSign className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-semibold text-[#37352f]">Por pago</span>
-              <span className="mt-0.5 block text-[13px] text-[#787774]">Registra el tiempo e ingresa el monto al terminar cada trabajo</span>
-            </span>
-            {opening === 'payment' ? (
-              <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-[#787774]" />
-            ) : (
-              <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#787774] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-[#37352f]" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setOpening('team'); router.push('/team') }}
-            className="group mt-3 flex w-full items-center gap-4 rounded-2xl border border-[rgba(55,53,47,0.09)] bg-white p-4 text-left shadow-[0_1px_2px_rgba(15,15,15,0.04)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-16px_rgba(15,15,15,0.25)] animate-card-in touch-manipulation"
-            style={{ animationDelay: '380ms' }}
-          >
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[rgba(46,117,204,0.1)] text-[#2e75cc] transition-transform duration-200 group-hover:scale-105">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-semibold text-[#37352f]">Empresa</span>
-              <span className="mt-0.5 block text-[13px] text-[#787774]">Marca entrada y salida desde la oficina, o administra a tus empleados</span>
-            </span>
-            {opening === 'team' ? (
-              <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-[#787774]" />
-            ) : (
-              <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#787774] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-[#37352f]" />
-            )}
-          </button>
         </section>
       </main>
 

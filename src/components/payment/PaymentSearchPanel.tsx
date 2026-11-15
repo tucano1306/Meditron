@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { ChevronDown, Download, Loader2, Pencil, Search, SearchX, SlidersHorizontal, X } from 'lucide-react'
+import { ArrowRightLeft, ChevronDown, ChevronRight, Download, Loader2, Pencil, Search, SearchX, SlidersHorizontal, X } from 'lucide-react'
 import { formatCurrency, getFloridaDateString } from '@/lib/utils'
 import { formatHM } from '@/lib/display'
 import { formatKeyLong, formatKeyShort, formatTime12 } from '@/lib/report-format'
@@ -296,9 +296,11 @@ interface PaymentSearchPanelProps {
   /** Texto con el que se llega desde la búsqueda rápida de Trabajos */
   readonly initialQuery?: string
   readonly onOpen: (job: PaymentJob) => void
+  /** Pasar los trabajos encontrados a Por Hora */
+  readonly onMove?: (jobs: PaymentJob[]) => void
 }
 
-export function PaymentSearchPanel({ refreshKey, companies, averageRate, initialQuery, onOpen }: PaymentSearchPanelProps) {
+export function PaymentSearchPanel({ refreshKey, companies, averageRate, initialQuery, onOpen, onMove }: PaymentSearchPanelProps) {
   const today = getFloridaDateString()
   const [state, setState] = useState<SearchState>(() => {
     const saved = loadState()
@@ -398,6 +400,7 @@ export function PaymentSearchPanel({ refreshKey, companies, averageRate, initial
     active.push({ key: `v:${vehicle}`, label: vehicleLabel(vehicle), remove: () => patch({ vehicles: search.vehicles.filter(v => v !== vehicle) }) })
   }
   if (search.withTip) active.push({ key: 'tip', label: 'Con propina', remove: () => patch({ withTip: false }) })
+  if (search.withJobNumber) active.push({ key: 'jobno', label: 'Con # de trabajo', remove: () => patch({ withJobNumber: false }) })
   if (search.min !== null || search.max !== null) {
     let label = `${formatCurrency(search.min ?? 0)} – ${formatCurrency(search.max ?? 0)}`
     if (search.max === null) label = `Desde ${formatCurrency(search.min ?? 0)}`
@@ -569,7 +572,10 @@ export function PaymentSearchPanel({ refreshKey, companies, averageRate, initial
                   style={{ fontSize: '16px' }}
                 />
               </div>
-              <Chip active={search.withTip} onClick={() => patch({ withTip: !search.withTip })}>Solo con propina</Chip>
+              <div className="flex flex-wrap gap-1.5">
+                <Chip active={search.withTip} onClick={() => patch({ withTip: !search.withTip })}>Solo con propina</Chip>
+                <Chip active={search.withJobNumber} onClick={() => patch({ withJobNumber: !search.withJobNumber })}>Solo con # de trabajo</Chip>
+              </div>
             </FilterGroup>
           </div>
         )}
@@ -650,6 +656,25 @@ export function PaymentSearchPanel({ refreshKey, companies, averageRate, initial
                 </div>
               </div>
             </section>
+          )}
+
+          {onMove && jobs.some(j => j.jobNumber) && (
+            <button
+              type="button"
+              onClick={() => onMove(jobs)}
+              className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[rgba(55,53,47,0.2)] bg-white px-4 py-3 text-left hover:bg-[rgba(55,53,47,0.03)] touch-manipulation"
+            >
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[rgba(55,53,47,0.06)] text-[#37352f]">
+                <ArrowRightLeft className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-semibold text-[#37352f]">
+                  {jobs.length === 1 ? 'Pasar este trabajo a Por Hora' : `Pasar estos ${jobs.length} trabajos a Por Hora`}
+                </span>
+                <span className="block text-[12px] text-[#787774]">¿Son de una compañía por hora? Muévelos todos juntos.</span>
+              </span>
+              <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#9b9a97]" />
+            </button>
           )}
 
           <div className="flex items-center justify-between gap-2 px-1">

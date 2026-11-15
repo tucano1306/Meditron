@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  ArrowLeft, Building2, Bus, CalendarDays, Check, Clock, Copy, Hash, Loader2, NotebookPen, Pencil, Trash2, User, Wallet, X,
+  ArrowLeft, ArrowRightLeft, Building2, Bus, CalendarDays, Check, ChevronRight, Clock, Copy, Hash, Loader2, NotebookPen, Pencil, Trash2, User, Wallet, X,
 } from 'lucide-react'
 import { formatCurrency, floridaShiftToUTC, getFloridaDateComponents, getFloridaDateString } from '@/lib/utils'
 import { formatKeyLong, formatTime12 } from '@/lib/report-format'
@@ -17,6 +17,8 @@ import { PayAmountField, plannedAmount, useDayCovered } from './PayAmountField'
 import { METHOD_ICONS, PAY_ACCENT, PendingPill } from './shared'
 import { floridaDateKey } from './data'
 import { TimeField } from '../TimeField'
+import { MoveToHourly } from './MoveToHourly'
+import { moveMessage } from '@/lib/move-to-hourly'
 
 // Hoja de un trabajo por pago: ver su detalle, editarlo, duplicarlo o agregar
 // uno nuevo. En el teléfono sube desde abajo; en pantallas grandes es un panel.
@@ -25,6 +27,8 @@ export type SheetMode =
   | { kind: 'view'; job: PaymentJob }
   | { kind: 'edit'; job: PaymentJob }
   | { kind: 'create'; prefill?: Partial<JobDraft> }
+  /** Pasar a Por Hora (uno o varios); `back` = el trabajo que se estaba viendo */
+  | { kind: 'move'; jobs: PaymentJob[]; back?: PaymentJob }
 
 interface PaymentJobSheetProps {
   readonly mode: SheetMode
@@ -150,9 +154,10 @@ interface JobDetailProps {
   readonly onDuplicate: () => void
   readonly onToggleStatus: () => void
   readonly onDelete: () => void
+  readonly onMove: () => void
 }
 
-function JobDetail({ job, busy, onEdit, onDuplicate, onToggleStatus, onDelete }: JobDetailProps) {
+function JobDetail({ job, busy, onEdit, onDuplicate, onToggleStatus, onDelete, onMove }: JobDetailProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const earned = jobEarned(job)
   const rate = ratePerHour(earned, job.duration)
@@ -261,6 +266,22 @@ function JobDetail({ job, busy, onEdit, onDuplicate, onToggleStatus, onDelete }:
           </button>
         </div>
       )}
+
+      {/* Trabajos de Por Hora que quedaron guardados aquí */}
+      <button
+        type="button"
+        onClick={onMove}
+        className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[rgba(55,53,47,0.2)] px-4 py-3 text-left hover:bg-[rgba(55,53,47,0.03)] touch-manipulation"
+      >
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[rgba(55,53,47,0.06)] text-[#37352f]">
+          <ArrowRightLeft className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-semibold text-[#37352f]">Pasar a Por Hora</span>
+          <span className="block text-[12px] text-[#787774]">¿Era de una compañía por hora? Muévelo allá.</span>
+        </span>
+        <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#9b9a97]" />
+      </button>
     </div>
   )
 }
@@ -587,6 +608,9 @@ export function PaymentJobSheet({ mode: initialMode, companies, defaultCompanyId
   } else if (mode.kind === 'edit') {
     title = 'Editar trabajo'
     subtitle = jobTitle(mode.job)
+  } else if (mode.kind === 'move') {
+    title = 'Pasar a Por Hora'
+    subtitle = mode.jobs.length === 1 ? jobTitle(mode.jobs[0]) : `${mode.jobs.length} trabajos`
   } else if (mode.prefill) {
     title = 'Duplicar trabajo'
     subtitle = 'Revisa la fecha y las horas'
@@ -598,8 +622,8 @@ export function PaymentJobSheet({ mode: initialMode, companies, defaultCompanyId
       <div className="relative flex max-h-[94dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl animate-slide-up-modal sm:max-h-[90dvh] sm:rounded-2xl">
         <div className="flex justify-center pt-2 sm:hidden"><span className="h-1 w-10 rounded-full bg-[rgba(55,53,47,0.2)]" /></div>
         <div className="flex items-start gap-2 border-b border-[rgba(55,53,47,0.09)] px-5 pb-3 pt-3 sm:pt-5">
-          {mode.kind === 'edit' && (
-            <button type="button" onClick={() => setMode({ kind: 'view', job: mode.job })} aria-label="Volver" className="-ml-2 rounded-lg p-1.5 text-[#787774] hover:bg-[rgba(55,53,47,0.08)]">
+          {(mode.kind === 'edit' || (mode.kind === 'move' && mode.back)) && (
+            <button type="button" onClick={() => setMode({ kind: 'view', job: mode.kind === 'edit' ? mode.job : mode.back! })} aria-label="Volver" className="-ml-2 rounded-lg p-1.5 text-[#787774] hover:bg-[rgba(55,53,47,0.08)]">
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
@@ -627,12 +651,20 @@ export function PaymentJobSheet({ mode: initialMode, companies, defaultCompanyId
                 }}
                 onToggleStatus={() => toggleStatus(mode.job)}
                 onDelete={() => remove(mode.job)}
+                onMove={() => { setError(null); setMode({ kind: 'move', jobs: [mode.job], back: mode.job }) }}
               />
               {error && <div className="mt-3 rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</div>}
             </>
           )}
           {mode.kind === 'edit' && (
             <JobForm key={`edit-${mode.job.id}`} initial={draftFromJob(mode.job)} companies={companies} jobId={mode.job.id} busy={busy === 'save'} error={error} submitLabel="Guardar cambios" onSubmit={save} />
+          )}
+          {mode.kind === 'move' && (
+            <MoveToHourly
+              jobs={mode.jobs}
+              onDone={result => { onChanged(moveMessage(result)); onClose() }}
+              onCancel={() => (mode.back ? setMode({ kind: 'view', job: mode.back }) : onClose())}
+            />
           )}
           {mode.kind === 'create' && (
             <JobForm

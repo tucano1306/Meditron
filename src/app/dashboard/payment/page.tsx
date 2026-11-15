@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
-import { BarChart3, Briefcase, Check, DollarSign, Hourglass, LogOut, Plus, Search, Undo2 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { BarChart3, Briefcase, Check, Hourglass, Plus, Search, Undo2 } from 'lucide-react'
 import { PaymentTimer } from '@/components/PaymentTimer'
-import { resetCompanies } from '@/hooks/useCompanies'
+import { AppTopBar } from '@/components/AppTopBar'
 import { InstallPWA } from '@/components/InstallPWA'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PaymentSummaryCards } from '@/components/payment/PaymentSummaryCards'
@@ -36,6 +36,13 @@ function savedCompanyId(): string | null {
   }
 }
 
+/** La hoja se vuelve a montar al cambiar de trabajo */
+function sheetKey(sheet: SheetMode): string {
+  if (sheet.kind === 'create') return 'create'
+  if (sheet.kind === 'move') return `move:${sheet.jobs.map(j => j.id).join(',')}`
+  return sheet.job.id
+}
+
 interface Toast {
   text: string
   undo?: () => Promise<void>
@@ -46,7 +53,7 @@ const tabTriggerClass = 'relative flex-1 flex flex-col items-center gap-1 py-3 p
 
 export default function PaymentDashboardPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const [refreshKey, setRefreshKey] = useState(0)
   const [tab, setTab] = useState<Tab>('jobs')
   const [sheet, setSheet] = useState<SheetMode | null>(null)
@@ -122,13 +129,6 @@ export default function PaymentDashboardPage() {
     goToCollect()
   }
 
-  const handleLogout = async () => {
-    await signOut({ redirect: false })
-    // Que la siguiente cuenta en este teléfono no vea las compañías de esta
-    resetCompanies()
-    router.push('/login')
-  }
-
   if (status !== 'authenticated') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fbfbfa]">
@@ -142,28 +142,7 @@ export default function PaymentDashboardPage() {
   return (
     <div className="min-h-[100dvh] bg-[#fbfbfa] font-notion">
       {/* Barra superior: el logo y el título llevan al inicio */}
-      <header className="sticky top-0 z-20 border-b border-[rgba(55,53,47,0.07)] bg-[#fbfbfa]/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <button
-            type="button"
-            onClick={() => router.push('/mode-select')}
-            className="-ml-1.5 flex items-center gap-2 rounded-[6px] px-1.5 py-1 transition-colors hover:bg-[rgba(55,53,47,0.08)] touch-manipulation"
-            aria-label="Volver al inicio"
-            title="Volver al inicio"
-          >
-            <span className="flex h-6 w-6 items-center justify-center rounded" style={{ backgroundColor: PAY_ACCENT }}>
-              <DollarSign className="h-3.5 w-3.5 text-white" />
-            </span>
-            <span className="text-[14px] font-semibold text-[#37352f]">Por Pago</span>
-          </button>
-          <div className="flex items-center gap-2">
-            {session?.user?.name && <span className="hidden text-[13px] text-[#787774] sm:inline">{session.user.name}</span>}
-            <button type="button" onClick={handleLogout} aria-label="Cerrar sesión" className="rounded-[4px] p-1.5 text-[#787774] transition-colors hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352f]">
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppTopBar mode="payment" />
 
       <main className="mx-auto max-w-3xl space-y-5 px-4 pb-16 pt-6">
         <PaymentTimer
@@ -247,6 +226,7 @@ export default function PaymentDashboardPage() {
                 averageRate={summary?.month.rate}
                 initialQuery={searchSeed?.q}
                 onOpen={job => setSheet({ kind: 'view', job })}
+                onMove={jobs => setSheet({ kind: 'move', jobs })}
               />
             </TabsContent>
           </Tabs>
@@ -255,7 +235,7 @@ export default function PaymentDashboardPage() {
 
       {sheet && (
         <PaymentJobSheet
-          key={sheet.kind === 'create' ? 'create' : sheet.job.id}
+          key={sheetKey(sheet)}
           mode={sheet}
           companies={companies}
           defaultCompanyId={companyId}
