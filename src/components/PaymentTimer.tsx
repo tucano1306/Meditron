@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Bus, Check, Hash, History, Loader2, Pencil, Play, Smartphone, Square, Undo2, User, X } from 'lucide-react'
+import { Bus, Check, Hash, History, Loader2, NotebookPen, Pencil, Play, Smartphone, Square, Undo2, User, X } from 'lucide-react'
 import { formatDuration, formatCurrency, getFloridaDateString } from '@/lib/utils'
 import { formatTime12 } from '@/lib/report-format'
 import { formatHM } from '@/lib/display'
@@ -100,10 +100,76 @@ function InlineField({ icon, label, value, placeholder, mono = false, onSave }: 
   )
 }
 
+const NOTES_MAX = 500
+
+/** Notas del trabajo en curso: se escriben mientras trabajas y llegan al terminar */
+function NotesField({ value, onSave }: {
+  readonly value: string
+  readonly onSave: (value: string) => Promise<boolean>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    if (await onSave(draft.trim())) setEditing(false)
+    setSaving(false)
+  }
+
+  if (editing) {
+    return (
+      <form className="rounded-[8px] border border-[#37352f] px-3 py-2.5" onSubmit={e => { e.preventDefault(); save() }}>
+        <div className="flex items-center gap-2 text-[13px] text-[#787774]"><NotebookPen className="h-3.5 w-3.5" />Notas</div>
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          maxLength={NOTES_MAX}
+          rows={3}
+          placeholder="Ej: recoger en el hotel, el cliente paga el viernes…"
+          className="mt-2 w-full resize-none rounded-[4px] border border-[rgba(55,53,47,0.16)] px-2.5 py-2 text-[#37352f] placeholder:text-[#b4b4b0] focus:border-[#37352f] focus:outline-none"
+          style={{ fontSize: '16px' }}
+          autoFocus
+        />
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <span className="text-[11px] tabular-nums text-[#9b9a97]">{draft.length}/{NOTES_MAX}</span>
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => { setEditing(false); setDraft(value) }} className="rounded-[4px] px-2.5 py-1.5 text-[12px] font-semibold text-[#787774] hover:bg-[rgba(55,53,47,0.08)]">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving} className="rounded-[4px] bg-[#37352f] px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60">
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => { setDraft(value); setEditing(true) }}
+      className="block w-full rounded-[8px] border border-[rgba(55,53,47,0.09)] px-3 py-2.5 text-left transition-colors hover:bg-[rgba(55,53,47,0.03)] touch-manipulation"
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-[13px] text-[#787774]"><NotebookPen className="h-3.5 w-3.5" />Notas</span>
+        <span className="flex items-center gap-1.5 px-2 py-1 text-[13px]">
+          {!value && <span className="text-[#9b9a97]">Agregar nota</span>}
+          <Pencil className="h-3 w-3 flex-shrink-0 text-[#9b9a97]" />
+        </span>
+      </span>
+      {value && <span className="mt-1 line-clamp-3 block whitespace-pre-wrap break-words text-[13px] text-[#37352f]">{value}</span>}
+    </button>
+  )
+}
+
 interface FinishSheetProps {
   readonly elapsed: number
   readonly company: PayCompany | null
   readonly initialClient: string
+  /** Las notas que se escribieron durante el trabajo */
+  readonly initialNotes: string
   readonly busy: boolean
   readonly error: string | null
   readonly onConfirm: (draft: FinishDraft) => void
@@ -111,7 +177,7 @@ interface FinishSheetProps {
 }
 
 // Al terminar: cuánto te pagaron y cómo
-function FinishSheet({ elapsed, company, initialClient, busy, error, onConfirm, onCancel }: FinishSheetProps) {
+function FinishSheet({ elapsed, company, initialClient, initialNotes, busy, error, onConfirm, onCancel }: FinishSheetProps) {
   const [draft, setDraft] = useState<FinishDraft>(() => {
     let lastMethod: PaymentMethod | '' = ''
     try {
@@ -124,7 +190,7 @@ function FinishSheet({ elapsed, company, initialClient, busy, error, onConfirm, 
       amount: suggested && !paysPerDay(company) ? String(suggested) : '',
       tip: '',
       client: initialClient,
-      notes: '',
+      notes: initialNotes,
       paymentMethod: company?.paymentMethod ?? lastMethod,
       paymentStatus: company?.paysLater ? 'pending' : 'paid',
     }
@@ -221,7 +287,7 @@ function FinishSheet({ elapsed, company, initialClient, busy, error, onConfirm, 
           </label>
           <label className="block text-[12px] font-semibold text-[#37352f]">
             Notas <span className="font-normal text-[#9b9a97]">(opcional)</span>
-            <textarea value={draft.notes} maxLength={500} rows={2} onChange={e => set({ notes: e.target.value })} placeholder="Ej: la propina la pagan el viernes" className={`${inputClass} resize-none`} style={{ fontSize: '16px' }} />
+            <textarea value={draft.notes} maxLength={NOTES_MAX} rows={2} onChange={e => set({ notes: e.target.value })} placeholder="Ej: la propina la pagan el viernes" className={`${inputClass} resize-none`} style={{ fontSize: '16px' }} />
           </label>
 
           {error && <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</div>}
@@ -257,6 +323,7 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
   const [finishError, setFinishError] = useState<string | null>(null)
   const [jobNumber, setJobNumber] = useState('')
   const [client, setClient] = useState('')
+  const [notes, setNotes] = useState('')
   const [vehicleType, setVehicleType] = useState('')
   // Elegir la hora de inicio: se olvidó iniciar ("start") o corregir el trabajo en curso ("adjust")
   const [picker, setPicker] = useState<'start' | 'adjust' | null>(null)
@@ -286,6 +353,7 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
         setJobNumber(data.data.jobNumber ?? '')
         setVehicleType(data.data.vehicle ?? '')
         setClient(data.data.client ?? '')
+        setNotes(data.data.notes ?? '')
       } catch (err) {
         console.error('Error loading state:', err)
       }
@@ -335,6 +403,7 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
       setJobNumber('')
       setVehicleType('')
       setClient('')
+      setNotes('')
       setPicker(null)
       setNotice(startAt ? { text: `Iniciado desde las ${formatTime12(newStartTime)}: ya llevas ${formatHM(elapsed)}` } : null)
       startBackgroundTimer(newStartTime.toISOString())
@@ -383,6 +452,7 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
       setJobNumber('')
       setVehicleType('')
       setClient('')
+      setNotes('')
       setFinishing(false)
       stopBackgroundTimer()
       await releaseWakeLock()
@@ -555,6 +625,10 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
               mono
               onSave={async value => { const ok = await saveActive({ jobNumber: value }); if (ok) setJobNumber(value); return ok }}
             />
+            <NotesField
+              value={notes}
+              onSave={async value => { const ok = await saveActive({ notes: value }); if (ok) setNotes(value); return ok }}
+            />
             <div className="rounded-[8px] border border-[rgba(55,53,47,0.09)] p-3">
               <div className="mb-2 flex items-center gap-2 text-[13px] text-[#787774]"><Bus className="h-3.5 w-3.5" />Vehículo</div>
               <div className="grid grid-cols-3 gap-1.5">
@@ -625,6 +699,7 @@ export function PaymentTimer({ onComplete, companies, companyId, onCompanyChange
           elapsed={elapsedSeconds}
           company={company}
           initialClient={client}
+          initialNotes={notes}
           busy={isLoading}
           error={finishError}
           onConfirm={handleFinish}
